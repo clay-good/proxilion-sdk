@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Proxilion GRC - Open-source Governance, Risk, and Compliance tools for AI systems. Automated policy generation, compliance mapping, and risk assessment.">
+    <title>Proxilion GRC - AI Governance, Risk & Compliance</title>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+    <!-- SEO Meta Tags -->
+    <meta name="keywords" content="proxilion grc, ai governance, ai compliance, ai risk management, soc2 ai, gdpr ai, hipaa ai, ai policy generation">
+    <meta name="author" content="Clay Good">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://proxilion.com/grc.html">
+    <meta property="og:title" content="Proxilion GRC - AI Governance, Risk & Compliance">
+    <meta property="og:description" content="Open-source GRC tools for AI systems. Automated policy generation, compliance mapping, and risk assessment frameworks.">
+    <meta property="og:image" content="https://proxilion.com/og-image.png">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-card: #111111;
+            --text: #ffffff;
+            --text-muted: #a0a0a0;
+            --accent: #ffffff;
+            --accent-dim: #e0e0e0;
+            --border: #1a1a1a;
+            --border-hover: #333333;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 1px solid var(--border);
+            padding: clamp(16px, 2vw, 20px) 0;
+            z-index: 1000;
+            backdrop-filter: blur(16px);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 clamp(20px, 5vw, 80px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: color var(--transition-fast);
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-links .active {
+            color: var(--accent);
+        }
+
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--accent);
+            border-radius: var(--radius-sm);
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all var(--transition-fast);
+        }
+
+        .nav-cta:hover {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 clamp(20px, 5vw, 80px);
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+            padding: clamp(120px, 15vh, 160px) 0 clamp(60px, 10vh, 100px);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(180deg, #ffffff 0%, #888888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .tagline {
+            font-size: clamp(1.25rem, 3vw, 1.75rem);
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: var(--text);
+            max-width: 700px;
+            line-height: 1.4;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 1.8vw, 1.15rem);
+            color: var(--text-muted);
+            margin-bottom: 40px;
+            max-width: 640px;
+            line-height: 1.7;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 48px;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 32px;
+            background: var(--accent);
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-smooth);
+            border: 2px solid var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: transparent;
+            color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 32px;
+            background: transparent;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-smooth);
+            border: 2px solid var(--border-hover);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Stats Banner */
+        .stats-banner {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-top: 48px;
+            padding: 32px 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        /* Sections */
+        section {
+            padding: clamp(64px, 10vw, 100px) 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: clamp(40px, 6vw, 56px);
+        }
+
+        .section-title {
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .section-subtitle {
+            font-size: clamp(1rem, 1.8vw, 1.1rem);
+            color: var(--text-muted);
+            max-width: 640px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        .section-alt {
+            background: var(--bg-secondary);
+            margin: 0 calc(-1 * clamp(20px, 5vw, 80px));
+            padding-left: clamp(20px, 5vw, 80px);
+            padding-right: clamp(20px, 5vw, 80px);
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            padding: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all var(--transition-smooth);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 16px;
+            color: var(--accent);
+        }
+
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .feature-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Compliance Table */
+        .compliance-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .compliance-table th,
+        .compliance-table td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .compliance-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .compliance-table td {
+            font-size: 0.95rem;
+        }
+
+        .compliance-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .compliance-table .framework {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Use Cases */
+        .use-cases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+            gap: 24px;
+        }
+
+        .use-case-card {
+            padding: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all var(--transition-smooth);
+        }
+
+        .use-case-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+        }
+
+        .use-case-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .use-case-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        /* CTA Section */
+        .final-cta {
+            text-align: center;
+            padding: clamp(48px, 8vw, 72px) clamp(24px, 5vw, 48px);
+            background: var(--accent);
+            color: #000;
+            border-radius: var(--radius-lg);
+            margin: clamp(48px, 8vw, 72px) 0;
+            box-shadow: 0 20px 60px rgba(255, 255, 255, 0.15);
+        }
+
+        .final-cta h2 {
+            font-size: clamp(1.5rem, 4vw, 2.25rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .final-cta p {
+            font-size: clamp(1rem, 1.8vw, 1.1rem);
+            margin-bottom: 32px;
+            opacity: 0.9;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .final-cta .btn-primary {
+            background: #000;
+            color: var(--accent);
+            border-color: #000;
+        }
+
+        .final-cta .btn-primary:hover {
+            background: transparent;
+            color: #000;
+            border-color: #000;
+            box-shadow: none;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: clamp(40px, 6vw, 56px) 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color var(--transition-fast);
+        }
+
+        footer a:hover {
+            color: var(--accent);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .stats-banner {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .section-alt {
+                margin-left: -20px;
+                margin-right: -20px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .cta-group {
+                flex-direction: column;
+                align-items: stretch;
+                max-width: 280px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="nav-logo">PROXILION</a>
+            <ul class="nav-links">
+                <li><a href="/">SDK</a></li>
+                <li><a href="mcp.html">MCP Gateway</a></li>
+                <li><a href="grc.html" class="active">GRC</a></li>
+            </ul>
+            <a href="https://github.com/clay-good/proxilion-grc" class="nav-cta" target="_blank" rel="noopener">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                GitHub
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <div class="badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>
+                Governance, Risk & Compliance
+            </div>
+            <h1 class="logo">Proxilion GRC</h1>
+            <p class="tagline">AI Governance Made Simple</p>
+            <p class="subtitle">
+                Open-source tools for AI governance, risk assessment, and compliance mapping.
+                Generate policies, map to frameworks, and demonstrate compliance.
+            </p>
+
+            <div class="cta-group">
+                <a href="https://github.com/clay-good/proxilion-grc" class="btn-primary" target="_blank" rel="noopener">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Get Started
+                </a>
+                <a href="https://github.com/clay-good/proxilion-grc#documentation" class="btn-secondary" target="_blank" rel="noopener">
+                    Documentation
+                </a>
+            </div>
+
+            <div class="stats-banner">
+                <div class="stat-item">
+                    <div class="stat-number">6+</div>
+                    <div class="stat-label">Frameworks</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">Controls</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">CLI</div>
+                    <div class="stat-label">Interface</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">MIT</div>
+                    <div class="stat-label">Licensed</div>
+                </div>
+            </div>
+        </header>
+
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">Core Capabilities</h2>
+                <p class="section-subtitle">
+                    Everything you need to govern AI systems and demonstrate compliance.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+                    <h3 class="feature-title">Policy Generation</h3>
+                    <p class="feature-text">Auto-generate AI usage policies, acceptable use guidelines, and security procedures tailored to your organization.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <h3 class="feature-title">Framework Mapping</h3>
+                    <p class="feature-text">Map your AI controls to SOC 2, ISO 27001, NIST AI RMF, GDPR, HIPAA, and EU AI Act requirements.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                    <h3 class="feature-title">Risk Assessment</h3>
+                    <p class="feature-text">Identify and quantify risks from AI systems. Calculate impact scores and prioritize remediation efforts.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                    <h3 class="feature-title">Control Validation</h3>
+                    <p class="feature-text">Validate that your AI controls are implemented correctly. Generate evidence for auditors.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <h3 class="feature-title">Report Export</h3>
+                    <p class="feature-text">Export compliance reports in multiple formats. Ready for board presentations and auditor reviews.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    <h3 class="feature-title">Role-Based Access</h3>
+                    <p class="feature-text">Define who can access what AI capabilities. Enforce least-privilege across your organization.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-alt">
+            <div class="section-header">
+                <h2 class="section-title">Compliance Framework Coverage</h2>
+                <p class="section-subtitle">
+                    Pre-built mappings to major compliance frameworks.
+                </p>
+            </div>
+
+            <table class="compliance-table">
+                <thead>
+                    <tr>
+                        <th>Framework</th>
+                        <th>Coverage</th>
+                        <th>AI-Specific Controls</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="framework">SOC 2</span></td>
+                        <td>Full mapping to Trust Services Criteria</td>
+                        <td>AI access controls, monitoring, incident response</td>
+                    </tr>
+                    <tr>
+                        <td><span class="framework">ISO 27001</span></td>
+                        <td>Annex A control mapping</td>
+                        <td>AI asset inventory, risk treatment, access management</td>
+                    </tr>
+                    <tr>
+                        <td><span class="framework">NIST AI RMF</span></td>
+                        <td>Full framework implementation</td>
+                        <td>Govern, Map, Measure, Manage functions</td>
+                    </tr>
+                    <tr>
+                        <td><span class="framework">GDPR</span></td>
+                        <td>Article mapping for AI processing</td>
+                        <td>Data minimization, purpose limitation, automated decisions</td>
+                    </tr>
+                    <tr>
+                        <td><span class="framework">HIPAA</span></td>
+                        <td>Security Rule mapping</td>
+                        <td>PHI handling, access controls, audit logging</td>
+                    </tr>
+                    <tr>
+                        <td><span class="framework">EU AI Act</span></td>
+                        <td>Risk classification support</td>
+                        <td>High-risk AI systems, transparency, human oversight</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">Use Cases</h2>
+                <p class="section-subtitle">
+                    How organizations use Proxilion GRC.
+                </p>
+            </div>
+
+            <div class="use-cases-grid">
+                <div class="use-case-card">
+                    <h3 class="use-case-title">Pre-Deployment Assessment</h3>
+                    <p class="use-case-text">Before deploying AI tools to employees, assess risks, generate policies, and ensure compliance requirements are met. Get sign-off from legal and security.</p>
+                </div>
+
+                <div class="use-case-card">
+                    <h3 class="use-case-title">Audit Preparation</h3>
+                    <p class="use-case-text">Generate compliance reports mapping your AI controls to SOC 2, ISO 27001, or other frameworks. Provide auditors with evidence of your AI governance program.</p>
+                </div>
+
+                <div class="use-case-card">
+                    <h3 class="use-case-title">Ongoing Monitoring</h3>
+                    <p class="use-case-text">Continuously assess your AI risk posture. Track control effectiveness over time. Alert when controls drift out of compliance.</p>
+                </div>
+
+                <div class="use-case-card">
+                    <h3 class="use-case-title">Vendor Assessment</h3>
+                    <p class="use-case-text">Evaluate third-party AI tools against your security requirements. Generate vendor questionnaires and track remediation.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="final-cta">
+            <h2>Start Governing AI Today</h2>
+            <p>
+                Open source. Self-hosted. No vendor lock-in.
+            </p>
+            <a href="https://github.com/clay-good/proxilion-grc" class="btn-primary" target="_blank" rel="noopener">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Get Started on GitHub
+            </a>
+        </div>
+
+        <footer>
+            <p>Built by <a href="https://github.com/clay-good" target="_blank" rel="noopener">Clay Good</a></p>
+            <div class="footer-links">
+                <a href="https://github.com/clay-good/proxilion-sdk">SDK</a>
+                <a href="https://github.com/clay-good/proxilion-mcp">MCP Gateway</a>
+                <a href="https://github.com/clay-good/proxilion-grc">GRC</a>
+            </div>
+            <p style="margin-top: 16px; font-size: 0.8rem; color: #6b7280;">
+                MIT License &bull; Open Source &bull; Self-Hosted
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
