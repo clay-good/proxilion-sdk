@@ -50,24 +50,21 @@ Example:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import threading
 import uuid
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from proxilion.observability.cost_tracker import (
     BudgetPolicy,
-    CostSummary,
     CostTracker,
-    ModelPricing,
     UsageRecord,
-    DEFAULT_PRICING,
 )
 
 logger = logging.getLogger(__name__)
@@ -622,8 +619,10 @@ class SessionCostTracker:
                 agent_profile.tool_calls += 1
 
                 if tool_name:
-                    agent_profile.by_tool[tool_name] = agent_profile.by_tool.get(tool_name, 0.0) + record.cost_usd
-                agent_profile.by_model[model] = agent_profile.by_model.get(model, 0.0) + record.cost_usd
+                    prev_tool = agent_profile.by_tool.get(tool_name, 0.0)
+                    agent_profile.by_tool[tool_name] = prev_tool + record.cost_usd
+                prev_model = agent_profile.by_model.get(model, 0.0)
+                agent_profile.by_model[model] = prev_model + record.cost_usd
 
                 if agent_profile.first_activity is None:
                     agent_profile.first_activity = record.timestamp

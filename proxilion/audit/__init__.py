@@ -56,6 +56,22 @@ from proxilion.audit.events import (
     redact_sensitive_data,
     reset_sequence,
 )
+
+# Explainability (CA SB 53 compliance)
+from proxilion.audit.explainability import (
+    DecisionExplainer,
+    DecisionFactor,
+    DecisionType,
+    ExplainabilityLogger,
+    ExplainableDecision,
+    Explanation,
+    ExplanationFormat,
+    Outcome,
+    create_authorization_decision,
+    create_budget_decision,
+    create_guard_decision,
+    create_rate_limit_decision,
+)
 from proxilion.audit.hash_chain import (
     GENESIS_HASH,
     BatchedHashChain,
@@ -69,22 +85,6 @@ from proxilion.audit.logger import (
     InMemoryAuditLogger,
     LoggerConfig,
     RotationPolicy,
-)
-
-# Explainability (CA SB 53 compliance)
-from proxilion.audit.explainability import (
-    DecisionExplainer,
-    DecisionFactor,
-    DecisionType,
-    ExplainableDecision,
-    ExplainabilityLogger,
-    Explanation,
-    ExplanationFormat,
-    Outcome,
-    create_authorization_decision,
-    create_budget_decision,
-    create_guard_decision,
-    create_rate_limit_decision,
 )
 
 __all__ = [

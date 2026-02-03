@@ -120,9 +120,11 @@ from proxilion.observability.metrics import (
     AlertRule,
     EventType,
     MetricsCollector,
-    MetricType as SecurityMetricType,
     PrometheusExporter,
     SecurityEvent,
+)
+from proxilion.observability.metrics import (
+    MetricType as SecurityMetricType,
 )
 
 # Session-based cost tracking

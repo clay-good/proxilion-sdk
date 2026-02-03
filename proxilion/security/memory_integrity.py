@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import logging
 import re
 import threading
@@ -49,7 +48,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -462,12 +461,13 @@ class MemoryIntegrityGuard:
             if strict_sequence:
                 if msg.sequence != prev_sequence + 1:
                     if msg.sequence <= prev_sequence:
+                        expected_seq = prev_sequence + 1
                         violations.append(IntegrityViolation(
                             violation_type=IntegrityViolationType.SEQUENCE_REORDER,
-                            message=f"Message {i} has sequence {msg.sequence}, expected {prev_sequence + 1}",
+                            message=f"Message {i} sequence {msg.sequence}, expected {expected_seq}",
                             severity=0.9,
                             index=i,
-                            expected=str(prev_sequence + 1),
+                            expected=str(expected_seq),
                             actual=str(msg.sequence),
                         ))
                     else:
@@ -489,9 +489,10 @@ class MemoryIntegrityGuard:
                     ))
                 elif msg.timestamp - prev_timestamp > self._max_timestamp_drift:
                     # Large gap might indicate injection
+                    gap = msg.timestamp - prev_timestamp
                     violations.append(IntegrityViolation(
                         violation_type=IntegrityViolationType.TIMESTAMP_ANOMALY,
-                        message=f"Large timestamp gap at message {i}: {msg.timestamp - prev_timestamp:.1f}s",
+                        message=f"Large timestamp gap at message {i}: {gap:.1f}s",
                         severity=0.5,
                         index=i,
                     ))

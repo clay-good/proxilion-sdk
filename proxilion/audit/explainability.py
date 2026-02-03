@@ -47,15 +47,16 @@ Example:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
-import re
 import threading
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -165,16 +166,12 @@ class ExplainableDecision:
 
         # Convert string enums
         if isinstance(self.decision_type, str):
-            try:
+            with contextlib.suppress(ValueError):
                 self.decision_type = DecisionType(self.decision_type)
-            except ValueError:
-                pass  # Keep as string if not a known type
 
         if isinstance(self.outcome, str):
-            try:
+            with contextlib.suppress(ValueError):
                 self.outcome = Outcome(self.outcome)
-            except ValueError:
-                pass
 
     @property
     def passed(self) -> bool:
@@ -198,10 +195,16 @@ class ExplainableDecision:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
+        dt_val = self.decision_type
+        if isinstance(dt_val, DecisionType):
+            dt_val = dt_val.value
+        outcome_val = self.outcome
+        if isinstance(outcome_val, Outcome):
+            outcome_val = outcome_val.value
         return {
             "decision_id": self.decision_id,
-            "decision_type": str(self.decision_type.value if isinstance(self.decision_type, DecisionType) else self.decision_type),
-            "outcome": str(self.outcome.value if isinstance(self.outcome, Outcome) else self.outcome),
+            "decision_type": str(dt_val),
+            "outcome": str(outcome_val),
             "factors": [f.to_dict() for f in self.factors],
             "context": self.context,
             "timestamp": self.timestamp.isoformat(),
@@ -414,7 +417,10 @@ class DecisionExplainer:
         factors_explained = self._explain_factors(decision, templates)
         counterfactual = self._generate_counterfactual(decision, templates)
         confidence_breakdown = self._explain_confidence(decision, templates)
-        recommendations = self._generate_recommendations(decision) if self._include_recommendations else []
+        if self._include_recommendations:
+            recommendations = self._generate_recommendations(decision)
+        else:
+            recommendations = []
 
         # Format the output
         if format == ExplanationFormat.MARKDOWN:
@@ -465,7 +471,8 @@ class DecisionExplainer:
                 template = templates.get("rate_denied", "Rate limit exceeded")
             return template.format(**context)
 
-        elif dt in (DecisionType.INPUT_GUARD, DecisionType.OUTPUT_GUARD) or dt in ("input_guard", "output_guard"):
+        elif dt in (DecisionType.INPUT_GUARD, DecisionType.OUTPUT_GUARD,
+                    "input_guard", "output_guard"):
             if outcome in (Outcome.ALLOWED, "ALLOWED"):
                 return templates.get("guard_pass", "Content allowed")
             elif outcome in (Outcome.MODIFIED, "MODIFIED"):
@@ -483,7 +490,8 @@ class DecisionExplainer:
                 return templates.get("circuit_closed", "Service available")
             elif state == "open":
                 failures = context.get("failures", 0)
-                return templates.get("circuit_open", "Service unavailable").format(failures=failures)
+                tmpl = templates.get("circuit_open", "Service unavailable")
+                return tmpl.format(failures=failures)
             else:
                 return templates.get("circuit_half_open", "Service testing")
 
@@ -622,13 +630,13 @@ class DecisionExplainer:
                 for f in failing_factors:
                     # Generate specific counterfactual based on factor name
                     if "role" in f.name.lower():
-                        changes.append(f"User had the required role")
+                        changes.append("User had the required role")
                     elif "rate" in f.name.lower():
-                        changes.append(f"Request was within rate limits")
+                        changes.append("Request was within rate limits")
                     elif "budget" in f.name.lower():
-                        changes.append(f"Budget was not exceeded")
+                        changes.append("Budget was not exceeded")
                     elif "trust" in f.name.lower():
-                        changes.append(f"Trust level was sufficient")
+                        changes.append("Trust level was sufficient")
                     else:
                         changes.append(f"{f.name} check passed")
 
@@ -1080,7 +1088,10 @@ def create_guard_decision(
     context = {"guard_type": guard_type}
     if content_sample:
         # Truncate and sanitize
-        context["content_preview"] = content_sample[:100] + "..." if len(content_sample) > 100 else content_sample
+        if len(content_sample) > 100:
+            context["content_preview"] = content_sample[:100] + "..."
+        else:
+            context["content_preview"] = content_sample
 
     return ExplainableDecision(
         decision_type=decision_type,

@@ -39,17 +39,17 @@ Example:
 from __future__ import annotations
 
 import logging
-import math
 import statistics
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
-from proxilion.exceptions import BehavioralDriftError, EmergencyHaltError
+from proxilion.exceptions import EmergencyHaltError
 
 logger = logging.getLogger(__name__)
 
@@ -386,8 +386,14 @@ class BehavioralMonitor:
                     min_value=min(samples),
                     max_value=max(samples),
                     sample_count=len(samples),
-                    percentile_95=sorted_samples[p95_idx] if p95_idx < len(sorted_samples) else max(samples),
-                    percentile_99=sorted_samples[p99_idx] if p99_idx < len(sorted_samples) else max(samples),
+                    percentile_95=(
+                        sorted_samples[p95_idx] if p95_idx < len(sorted_samples)
+                        else max(samples)
+                    ),
+                    percentile_99=(
+                        sorted_samples[p99_idx] if p99_idx < len(sorted_samples)
+                        else max(samples)
+                    ),
                 )
 
             self._baseline_locked = True
@@ -647,7 +653,9 @@ class KillSwitch:
             return {
                 "active": self._active,
                 "reason": self._activation_reason,
-                "activation_time": self._activation_time.isoformat() if self._activation_time else None,
+                "activation_time": (
+                    self._activation_time.isoformat() if self._activation_time else None
+                ),
             }
 
 

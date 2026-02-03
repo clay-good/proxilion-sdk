@@ -76,6 +76,31 @@ Quick Start:
     ... ))
 """
 
+from proxilion.security.agent_trust import (
+    AgentCredential,
+    AgentTrustManager,
+    DelegationChain,
+)
+from proxilion.security.agent_trust import (
+    DelegationToken as AgentDelegationToken,
+)
+from proxilion.security.agent_trust import (
+    SignedMessage as AgentSignedMessage,
+)
+from proxilion.security.agent_trust import (
+    TrustLevel as AgentTrustLevel,
+)
+from proxilion.security.agent_trust import (
+    VerificationResult as AgentVerificationResult,
+)
+from proxilion.security.behavioral_drift import (
+    BaselineStats,
+    BehavioralMonitor,
+    DriftDetector,
+    DriftMetric,
+    DriftResult,
+    KillSwitch,
+)
 from proxilion.security.cascade_protection import (
     CascadeAwareCircuitBreakerRegistry,
     CascadeEvent,
@@ -95,12 +120,38 @@ from proxilion.security.idor_protection import (
     IDPattern,
     ResourceScope,
 )
+from proxilion.security.intent_capsule import (
+    HijackDetection,
+    IntentCapsule,
+    IntentCapsuleManager,
+    IntentCategory,
+    IntentGuard,
+)
+from proxilion.security.intent_capsule import (
+    IntentValidator as IntentHijackValidator,
+)
 from proxilion.security.intent_validator import (
     AnomalyThresholds,
     IntentValidator,
     ValidationOutcome,
     ValidationResult,
     WorkflowState,
+)
+
+# New ASI Top 10 features
+from proxilion.security.memory_integrity import (
+    ContextWindowGuard,
+    IntegrityViolation,
+    IntegrityViolationType,
+    MemoryIntegrityGuard,
+    RAGDocument,
+    RAGScanResult,
+)
+from proxilion.security.memory_integrity import (
+    SignedMessage as MemorySignedMessage,
+)
+from proxilion.security.memory_integrity import (
+    VerificationResult as MemoryVerificationResult,
 )
 from proxilion.security.rate_limiter import (
     MultiDimensionalRateLimiter,
@@ -126,43 +177,6 @@ from proxilion.security.trust_boundaries import (
     TrustBoundaryViolation,
     TrustEnforcer,
     TrustLevel,
-)
-
-# New ASI Top 10 features
-from proxilion.security.memory_integrity import (
-    ContextWindowGuard,
-    IntegrityViolation,
-    IntegrityViolationType,
-    MemoryIntegrityGuard,
-    RAGDocument,
-    RAGScanResult,
-    SignedMessage as MemorySignedMessage,
-    VerificationResult as MemoryVerificationResult,
-)
-from proxilion.security.agent_trust import (
-    AgentCredential,
-    AgentTrustManager,
-    DelegationChain,
-    DelegationToken as AgentDelegationToken,
-    SignedMessage as AgentSignedMessage,
-    TrustLevel as AgentTrustLevel,
-    VerificationResult as AgentVerificationResult,
-)
-from proxilion.security.intent_capsule import (
-    HijackDetection,
-    IntentCapsule,
-    IntentCapsuleManager,
-    IntentCategory,
-    IntentGuard,
-    IntentValidator as IntentHijackValidator,
-)
-from proxilion.security.behavioral_drift import (
-    BaselineStats,
-    BehavioralMonitor,
-    DriftDetector,
-    DriftMetric,
-    DriftResult,
-    KillSwitch,
 )
 
 __all__ = [

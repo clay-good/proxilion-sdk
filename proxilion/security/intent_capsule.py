@@ -756,7 +756,6 @@ class IntentCapsuleManager:
         """Revoke a capsule."""
         with self._lock:
             if capsule_id in self._capsules:
-                capsule = self._capsules[capsule_id]
                 del self._capsules[capsule_id]
 
                 # Remove from user's list

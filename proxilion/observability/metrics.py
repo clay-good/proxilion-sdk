@@ -38,12 +38,13 @@ import logging
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable
-from urllib.request import Request, urlopen
+from typing import Any
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +233,10 @@ class MetricsCollector:
         user: str | None = None,
     ) -> None:
         """Record a guard block."""
-        event_type = EventType.INPUT_GUARD_BLOCK if guard_type == "input" else EventType.OUTPUT_GUARD_BLOCK
+        if guard_type == "input":
+            event_type = EventType.INPUT_GUARD_BLOCK
+        else:
+            event_type = EventType.OUTPUT_GUARD_BLOCK
 
         self.record_event(SecurityEvent(
             event_type=event_type,
@@ -628,7 +632,10 @@ class AlertManager:
                         alert = Alert(
                             rule_name=rule.name,
                             severity=rule.severity,
-                            message=f"{rule.event_type.value} rate ({rate_per_minute:.1f}/min) exceeds threshold ({rule.threshold}/min)",
+                            message=(
+                                f"{rule.event_type.value} rate ({rate_per_minute:.1f}/min) "
+                                f"exceeds threshold ({rule.threshold}/min)"
+                            ),
                             value=rate_per_minute,
                             threshold=rule.threshold,
                             details={
@@ -728,7 +735,7 @@ class PrometheusExporter:
         lines: list[str] = []
 
         # Add header
-        lines.append(f"# Proxilion Security Metrics")
+        lines.append("# Proxilion Security Metrics")
         lines.append(f"# Generated at {datetime.now(timezone.utc).isoformat()}")
         lines.append("")
 
@@ -773,7 +780,8 @@ class PrometheusExporter:
             for bucket_le, count in buckets:
                 lines.append(f'{name}_bucket{{le="{bucket_le}"}} {count}')
 
-            lines.append(f'{name}_bucket{{le="+Inf"}} {self._collector._histogram_counts.get(hist_name, 0)}')
+            inf_count = self._collector._histogram_counts.get(hist_name, 0)
+            lines.append(f'{name}_bucket{{le="+Inf"}} {inf_count}')
             lines.append(f"{name}_sum {self._collector._histogram_sums.get(hist_name, 0):.6f}")
             lines.append(f"{name}_count {self._collector._histogram_counts.get(hist_name, 0)}")
             lines.append("")
