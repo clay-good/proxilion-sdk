@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from proxilion.exceptions import IDORViolationError
+from proxilion.exceptions import IDORViolationError, ScopeLoaderError
 
 logger = logging.getLogger(__name__)
 
@@ -228,9 +228,13 @@ class IDORProtector:
                 try:
                     allowed_ids = loader(user_id)
                     return object_id in allowed_ids
-                except Exception as e:
-                    logger.error(f"Scope loader failed: {e}")
+                except (KeyError, ValueError, AttributeError) as e:
+                    # Permanent configuration error - deny access
+                    logger.error(f"Scope loader configuration error: {e}")
                     return False
+                except Exception as e:
+                    # Temporary failure - let caller handle retry
+                    raise ScopeLoaderError(resource_type, user_id, e) from e
 
             if scope is None:
                 # No scope defined - default deny
@@ -254,8 +258,12 @@ class IDORProtector:
                     dynamic_ids = scope.scope_loader(user_id)
                     if object_id in dynamic_ids:
                         return True
+                except (KeyError, ValueError, AttributeError) as e:
+                    # Permanent configuration error - deny access
+                    logger.error(f"Dynamic scope loader configuration error: {e}")
                 except Exception as e:
-                    logger.error(f"Dynamic scope loader failed: {e}")
+                    # Temporary failure - let caller handle retry
+                    raise ScopeLoaderError(resource_type, user_id, e) from e
 
             return False
 

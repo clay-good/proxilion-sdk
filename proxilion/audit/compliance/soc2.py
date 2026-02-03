@@ -397,7 +397,7 @@ class SOC2Exporter(BaseComplianceExporter):
         )
         evidence_list.append(cc6_1_evidence)
 
-        denial_rate = access_data["summary"]["denial_rate"]
+        denial_rate = access_data.get("summary", {}).get("denial_rate", 0.0)
         if denial_rate > 0.2:
             recommendations.append(
                 f"High denial rate ({denial_rate:.1%}) detected. "
@@ -415,6 +415,12 @@ class SOC2Exporter(BaseComplianceExporter):
         monitoring = self.export_monitoring_evidence(start, end)
         monitoring_data = monitoring.to_dict()
 
+        # CC7.2 is compliant if monitoring coverage exists and incident responses
+        # are documented when anomalies are detected
+        cc7_2_compliant = (
+            monitoring.monitoring_coverage > 0.0 and
+            (len(monitoring.anomaly_detections) == 0 or len(monitoring.incident_responses) > 0)
+        )
         cc7_2_evidence = ComplianceEvidence(
             control_id="CC7.2",
             control_name="System Monitoring",
@@ -427,7 +433,7 @@ class SOC2Exporter(BaseComplianceExporter):
             ),
             events=monitoring.security_alerts + monitoring.anomaly_detections,
             summary=monitoring_data["summary"],
-            compliant=True,  # Having monitoring in place is compliant
+            compliant=cc7_2_compliant,
             notes=(
                 "Continuous monitoring is in place. "
                 f"{len(monitoring.security_alerts)} alerts and "
@@ -446,6 +452,13 @@ class SOC2Exporter(BaseComplianceExporter):
         changes = self.export_change_management_evidence(start, end)
         changes_data = changes.to_dict()
 
+        # CC8.1 is compliant if changes are tracked and approval workflows
+        # exist for configuration changes
+        total_changes = len(changes.policy_updates) + len(changes.configuration_changes)
+        cc8_1_compliant = (
+            total_changes == 0 or  # No changes is compliant
+            len(changes.approval_workflows) > 0  # Changes should have approvals
+        )
         cc8_1_evidence = ComplianceEvidence(
             control_id="CC8.1",
             control_name="Change Management",
@@ -458,7 +471,7 @@ class SOC2Exporter(BaseComplianceExporter):
             ),
             events=changes.policy_updates + changes.configuration_changes,
             summary=changes_data["summary"],
-            compliant=True,  # Having change tracking is compliant
+            compliant=cc8_1_compliant,
             notes=(
                 f"Tracked {len(changes.policy_updates)} policy updates and "
                 f"{len(changes.configuration_changes)} configuration changes."

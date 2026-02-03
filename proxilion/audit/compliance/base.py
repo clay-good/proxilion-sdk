@@ -18,13 +18,13 @@ from proxilion.audit.events import AuditEventV2, EventType
 
 
 class ComplianceFramework(Enum):
-    """Supported compliance frameworks."""
+    """Supported compliance frameworks.
+
+    Currently implemented: EU_AI_ACT, SOC2, ISO27001
+    """
     EU_AI_ACT = "eu_ai_act"
     SOC2 = "soc2"
     ISO27001 = "iso27001"
-    NIST_AI_RMF = "nist_ai_rmf"
-    HIPAA = "hipaa"
-    GDPR = "gdpr"
 
 
 @dataclass

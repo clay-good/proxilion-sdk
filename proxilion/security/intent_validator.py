@@ -13,6 +13,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -127,6 +128,11 @@ class IntentValidator:
         self._validators: list[Callable[[str, str, dict[str, Any]], ValidationOutcome | None]] = []
 
         self._lock = threading.RLock()
+
+        # Memory cleanup tracking
+        self._last_cleanup = time.time()
+        self._cleanup_interval = 300.0  # 5 minutes
+        self._cleanup_call_count = 0
 
     def register_workflow(
         self,
@@ -247,6 +253,16 @@ class IntentValidator:
             if entry[0] > cutoff
         ]
 
+        # Remove empty user history immediately
+        if not self._call_history[user_id]:
+            del self._call_history[user_id]
+
+        # Periodic cleanup of stale users
+        self._cleanup_call_count += 1
+        if self._cleanup_call_count >= 100:
+            self._cleanup_call_count = 0
+            self._cleanup_stale_users()
+
     def _validate_workflow(
         self,
         user_id: str,
@@ -339,8 +355,9 @@ class IntentValidator:
                 details={"unique_resources": len(unique_resources)},
             )
 
-        # Check for unusual hours (local time check would require timezone)
-        hour = time.localtime(now).tm_hour
+        # Check for unusual hours using explicit UTC to ensure consistent behavior
+        now_dt = datetime.fromtimestamp(now, tz=timezone.utc)
+        hour = now_dt.hour
         if self.thresholds.suspicious_hour_start <= hour < self.thresholds.suspicious_hour_end:
             return ValidationOutcome(
                 result=ValidationResult.SUSPICIOUS,
@@ -493,3 +510,73 @@ class IntentValidator:
         """Get a user's current workflow state."""
         with self._lock:
             return self._user_states.get(user_id, {}).get(workflow_name)
+
+    def _cleanup_stale_users(self) -> None:
+        """Clean up stale user data to prevent memory growth."""
+        now = time.time()
+        cutoff = now - 3600  # 1 hour
+
+        # Clean up empty call histories
+        empty_history_users = [
+            uid for uid, history in self._call_history.items()
+            if not history
+        ]
+        for uid in empty_history_users:
+            del self._call_history[uid]
+
+        # Clean up stale call histories (no recent activity)
+        stale_users = []
+        for uid, history in list(self._call_history.items()):
+            if history and history[-1][0] < cutoff:
+                stale_users.append(uid)
+
+        for uid in stale_users:
+            del self._call_history[uid]
+            # Also clean up related state for stale users
+            self._user_states.pop(uid, None)
+            self._failure_counts.pop(uid, None)
+
+        if empty_history_users or stale_users:
+            logger.debug(
+                f"Cleaned up {len(empty_history_users)} empty + "
+                f"{len(stale_users)} stale user histories"
+            )
+
+    def cleanup(self, max_age_seconds: float = 3600.0) -> int:
+        """
+        Remove stale user data to prevent unbounded memory growth.
+
+        Args:
+            max_age_seconds: Maximum age for inactive users (default 1 hour).
+
+        Returns:
+            Number of users cleaned up.
+        """
+        with self._lock:
+            now = time.time()
+            cutoff = now - max_age_seconds
+            cleaned = 0
+
+            # Clean up call histories
+            for uid in list(self._call_history.keys()):
+                history = self._call_history[uid]
+                # Remove entries older than cutoff
+                history[:] = [e for e in history if e[0] > cutoff]
+                # Remove empty histories
+                if not history:
+                    del self._call_history[uid]
+                    self._user_states.pop(uid, None)
+                    self._failure_counts.pop(uid, None)
+                    cleaned += 1
+
+            # Clean up users with only state but no history
+            orphan_users = set(self._user_states.keys()) - set(self._call_history.keys())
+            for uid in orphan_users:
+                del self._user_states[uid]
+                self._failure_counts.pop(uid, None)
+                cleaned += 1
+
+            if cleaned:
+                logger.debug(f"Cleaned up {cleaned} stale users")
+
+            return cleaned

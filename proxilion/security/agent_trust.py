@@ -55,7 +55,6 @@ import hashlib
 import hmac
 import json
 import logging
-import secrets
 import threading
 import time
 import uuid
@@ -126,17 +125,28 @@ class AgentCredential:
         return datetime.now(timezone.utc) > self.expires_at
 
     def has_capability(self, capability: str) -> bool:
-        """Check if agent has a specific capability."""
-        # Wildcard capability
+        """Check if agent has a specific capability.
+
+        Capability matching rules:
+        - Exact match: "read" matches "read"
+        - Wildcard: "*" matches everything
+        - Explicit wildcard pattern: "read:*" matches "read:documents"
+
+        Note: An agent with "read" does NOT automatically get "read:documents".
+        Use explicit wildcards like "read:*" for hierarchical access.
+        """
+        # Full wildcard capability
         if "*" in self.capabilities:
             return True
         # Exact match
         if capability in self.capabilities:
             return True
-        # Prefix match (e.g., "read" matches "read:documents")
+        # Explicit wildcard patterns (e.g., "read:*" matches "read:documents")
         for cap in self.capabilities:
-            if capability.startswith(cap + ":"):
-                return True
+            if cap.endswith(":*"):
+                prefix = cap[:-1]  # "read:" from "read:*"
+                if capability.startswith(prefix):
+                    return True
         return False
 
     def can_delegate_to(self, other: AgentCredential) -> bool:
@@ -317,7 +327,11 @@ class DelegationChain:
             if i > 0:
                 prev_token = self._chain[i - 1]
                 if token.issuer_agent != prev_token.delegate_agent:
-                    return False, f"Chain break at position {i}: {prev_token.delegate_agent} != {token.issuer_agent}"
+                    msg = (
+                        f"Chain break at position {i}: "
+                        f"{prev_token.delegate_agent} != {token.issuer_agent}"
+                    )
+                    return False, msg
 
         return True, None
 
@@ -611,7 +625,8 @@ class AgentTrustManager:
             token_id = str(uuid.uuid4())
 
             # Sign the token
-            token_data = f"{token_id}|{from_agent}|{to_agent}|{sorted(capabilities)}|{now.isoformat()}"
+            caps_str = str(sorted(capabilities))
+            token_data = f"{token_id}|{from_agent}|{to_agent}|{caps_str}|{now.isoformat()}"
             signature = hmac.new(
                 issuer._secret.encode(),
                 token_data.encode(),

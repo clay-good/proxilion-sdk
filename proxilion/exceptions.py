@@ -885,3 +885,87 @@ class EmergencyHaltError(ProxilionError):
             "triggered_by": triggered_by,
         }
         super().__init__(message, details)
+
+
+class ApprovalRequiredError(ProxilionError):
+    """
+    Raised when a tool requires approval before execution.
+
+    Tools marked with requires_approval=True must have approval granted
+    before they can be executed. This exception blocks execution until
+    the approval workflow is completed.
+
+    Attributes:
+        tool_name: Name of the tool that requires approval.
+        user: The user who attempted to execute the tool.
+        reason: Why approval is required.
+
+    Example:
+        >>> raise ApprovalRequiredError(
+        ...     tool_name="delete_database",
+        ...     user="user_123",
+        ...     reason="Tool is marked as high-risk and requires manager approval"
+        ... )
+    """
+
+    def __init__(
+        self,
+        tool_name: str,
+        user: str,
+        reason: str | None = None,
+    ) -> None:
+        self.tool_name = tool_name
+        self.user = user
+        self.reason = reason or "Tool requires approval before execution"
+
+        message = f"Approval required: Tool '{tool_name}' requires approval. {self.reason}"
+
+        details = {
+            "tool_name": tool_name,
+            "user": user,
+            "reason": self.reason,
+        }
+        super().__init__(message, details)
+
+
+class ScopeLoaderError(ProxilionError):
+    """
+    Raised when a scope loader encounters a temporary failure.
+
+    This exception distinguishes between permanent configuration errors
+    (which should be logged and denied) and temporary failures (network
+    issues, database timeouts) that callers may want to retry.
+
+    Attributes:
+        resource_type: Type of resource being loaded.
+        user_id: User for whom scope was being loaded.
+        original_error: The underlying error that caused the failure.
+
+    Example:
+        >>> raise ScopeLoaderError(
+        ...     resource_type="document",
+        ...     user_id="user_123",
+        ...     original_error=TimeoutError("Database connection timed out")
+        ... )
+    """
+
+    def __init__(
+        self,
+        resource_type: str,
+        user_id: str,
+        original_error: Exception | None = None,
+    ) -> None:
+        self.resource_type = resource_type
+        self.user_id = user_id
+        self.original_error = original_error
+
+        message = f"Scope loader failed for {resource_type} (user: {user_id})"
+        if original_error:
+            message += f": {original_error}"
+
+        details = {
+            "resource_type": resource_type,
+            "user_id": user_id,
+            "original_error": str(original_error) if original_error else None,
+        }
+        super().__init__(message, details)

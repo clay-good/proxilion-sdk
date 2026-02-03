@@ -73,6 +73,8 @@ class TokenBucketRateLimiter:
 
         self._buckets: dict[str, RateLimitState] = {}
         self._lock = threading.RLock()
+        self._last_cleanup = time.monotonic()
+        self._cleanup_interval = 300.0  # 5 minutes
 
     def _get_or_create_bucket(self, key: str) -> RateLimitState:
         """Get or create a bucket for a key."""
@@ -109,6 +111,9 @@ class TokenBucketRateLimiter:
             ...     pass
         """
         with self._lock:
+            # Periodically cleanup stale buckets to prevent memory growth
+            self._maybe_cleanup()
+
             bucket = self._get_or_create_bucket(key)
             self._refill_bucket(bucket)
 
@@ -173,6 +178,46 @@ class TokenBucketRateLimiter:
         with self._lock:
             self._buckets.clear()
 
+    def cleanup(self, max_age_seconds: float = 3600.0) -> int:
+        """
+        Remove stale buckets to prevent unbounded memory growth.
+
+        Buckets that have been at full capacity (inactive) for longer
+        than max_age_seconds are removed.
+
+        Args:
+            max_age_seconds: Maximum age for inactive buckets (default 1 hour).
+
+        Returns:
+            Number of buckets removed.
+        """
+        with self._lock:
+            now = time.monotonic()
+            to_remove = []
+
+            for key, bucket in self._buckets.items():
+                # If bucket is at or near full capacity, check how long since last use
+                self._refill_bucket(bucket)
+                if bucket.tokens >= self.capacity * 0.99:  # 99% full = inactive
+                    age = now - bucket.last_update
+                    if age > max_age_seconds:
+                        to_remove.append(key)
+
+            for key in to_remove:
+                del self._buckets[key]
+
+            if to_remove:
+                logger.debug(f"Cleaned up {len(to_remove)} stale rate limit buckets")
+
+            return len(to_remove)
+
+    def _maybe_cleanup(self) -> None:
+        """Periodically cleanup stale buckets."""
+        now = time.monotonic()
+        if now - self._last_cleanup > self._cleanup_interval:
+            self._last_cleanup = now
+            self.cleanup()
+
 
 class SlidingWindowRateLimiter:
     """
@@ -209,6 +254,8 @@ class SlidingWindowRateLimiter:
 
         self._requests: dict[str, list[float]] = defaultdict(list)
         self._lock = threading.RLock()
+        self._last_cleanup = time.monotonic()
+        self._cleanup_interval = 300.0  # 5 minutes
 
     def _cleanup_old_requests(self, key: str) -> None:
         """Remove requests outside the window."""
@@ -229,6 +276,9 @@ class SlidingWindowRateLimiter:
             True if allowed, False if rate limited.
         """
         with self._lock:
+            # Periodically cleanup empty keys to prevent memory growth
+            self._maybe_cleanup()
+
             self._cleanup_old_requests(key)
 
             current_count = len(self._requests[key])
@@ -265,6 +315,47 @@ class SlidingWindowRateLimiter:
         """Reset request history for a key."""
         with self._lock:
             self._requests.pop(key, None)
+
+    def reset_all(self) -> None:
+        """Reset all request history."""
+        with self._lock:
+            self._requests.clear()
+
+    def cleanup(self) -> int:
+        """
+        Remove empty/stale keys to prevent unbounded memory growth.
+
+        Returns:
+            Number of keys removed.
+        """
+        with self._lock:
+            # First cleanup old requests from all keys
+            cutoff = time.monotonic() - self.window_seconds
+            to_remove = []
+
+            for key in list(self._requests.keys()):
+                # Clean old requests
+                self._requests[key] = [
+                    t for t in self._requests[key] if t > cutoff
+                ]
+                # Mark empty keys for removal
+                if not self._requests[key]:
+                    to_remove.append(key)
+
+            for key in to_remove:
+                del self._requests[key]
+
+            if to_remove:
+                logger.debug(f"Cleaned up {len(to_remove)} empty sliding window keys")
+
+            return len(to_remove)
+
+    def _maybe_cleanup(self) -> None:
+        """Periodically cleanup empty keys."""
+        now = time.monotonic()
+        if now - self._last_cleanup > self._cleanup_interval:
+            self._last_cleanup = now
+            self.cleanup()
 
 
 @dataclass
@@ -309,6 +400,7 @@ class MultiDimensionalRateLimiter:
         """
         self.limits = limits
         self._limiters: dict[str, TokenBucketRateLimiter | SlidingWindowRateLimiter] = {}
+        self._lock = threading.RLock()  # Lock for atomic check-and-consume
 
         for dimension, config in limits.items():
             if use_sliding_window and config.window_seconds:
@@ -330,6 +422,10 @@ class MultiDimensionalRateLimiter:
         """
         Check if request is allowed across all dimensions.
 
+        This method is atomic - the check and consume operations are performed
+        under a single lock to prevent TOCTOU (time-of-check to time-of-use)
+        race conditions.
+
         Args:
             keys: Dictionary mapping dimension names to keys.
             costs: Optional per-dimension costs (default 1 for all).
@@ -339,38 +435,32 @@ class MultiDimensionalRateLimiter:
         """
         costs = costs or {}
 
-        # Check all dimensions first (don't consume until we know all pass)
-        for dimension, key in keys.items():
-            if dimension not in self._limiters:
-                continue
+        # Atomic check-and-consume to prevent TOCTOU race condition
+        with self._lock:
+            # Check all dimensions first (don't consume until we know all pass)
+            for dimension, key in keys.items():
+                if dimension not in self._limiters:
+                    continue
 
-            limiter = self._limiters[dimension]
-            cost = costs.get(dimension, 1)
+                limiter = self._limiters[dimension]
+                cost = costs.get(dimension, 1)
 
-            # For token bucket, we need to check without consuming
-            if isinstance(limiter, TokenBucketRateLimiter):
-                if limiter.get_remaining(key) < cost:
-                    logger.debug(
-                        f"Rate limit failed: dimension={dimension}, key={key}"
-                    )
-                    return False
-            else:
                 if limiter.get_remaining(key) < cost:
                     logger.debug(
                         f"Rate limit failed: dimension={dimension}, key={key}"
                     )
                     return False
 
-        # All checks passed, now consume tokens
-        for dimension, key in keys.items():
-            if dimension not in self._limiters:
-                continue
+            # All checks passed, now consume tokens
+            for dimension, key in keys.items():
+                if dimension not in self._limiters:
+                    continue
 
-            limiter = self._limiters[dimension]
-            cost = costs.get(dimension, 1)
-            limiter.allow_request(key, cost)
+                limiter = self._limiters[dimension]
+                cost = costs.get(dimension, 1)
+                limiter.allow_request(key, cost)
 
-        return True
+            return True
 
     def get_most_restrictive(
         self,

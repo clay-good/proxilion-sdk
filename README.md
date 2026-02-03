@@ -248,11 +248,11 @@ if limiter.allow_request("user_123"):
 limiter = SlidingWindowRateLimiter(max_requests=100, window_seconds=60)
 
 # Multi-dimensional (user + IP + tool)
-limiter = MultiDimensionalRateLimiter(configs=[
-    RateLimitConfig(dimension="user", capacity=100, refill_rate=10),
-    RateLimitConfig(dimension="ip", capacity=1000, refill_rate=100),
-    RateLimitConfig(dimension="tool", capacity=50, refill_rate=5),
-])
+limiter = MultiDimensionalRateLimiter(limits={
+    "user": RateLimitConfig(capacity=100, refill_rate=10),
+    "ip": RateLimitConfig(capacity=1000, refill_rate=100),
+    "tool": RateLimitConfig(capacity=50, refill_rate=5),
+})
 ```
 
 **Deterministic**: Counter-based algorithms with configurable thresholds.

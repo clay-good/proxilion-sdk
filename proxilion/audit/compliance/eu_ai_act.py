@@ -535,6 +535,12 @@ class EUAIActExporter(BaseComplianceExporter):
 
         # Article 15: Risk Assessment
         risk_log = self.export_risk_assessment_log(start, end)
+        # Article 15 compliance requires that security events have mitigation responses
+        # or no security events occurred during the period
+        art_15_compliant = (
+            len(risk_log["security_events"]) == 0 or
+            len(risk_log.get("mitigation_actions", [])) > 0
+        )
         article_15_evidence = ComplianceEvidence(
             control_id="Article 15",
             control_name="Accuracy, Robustness and Cybersecurity",
@@ -545,7 +551,7 @@ class EUAIActExporter(BaseComplianceExporter):
             ),
             events=risk_log["security_events"] + risk_log["anomaly_detections"],
             summary=risk_log["summary"],
-            compliant=True,  # Having the log demonstrates compliance
+            compliant=art_15_compliant,
             notes=(
                 "All security events were handled with appropriate mitigation actions."
                 if risk_log["security_events"] else
@@ -554,7 +560,7 @@ class EUAIActExporter(BaseComplianceExporter):
         )
         evidence.append(article_15_evidence)
 
-        if risk_log["summary"]["total_security_events"] > 10:
+        if risk_log.get("summary", {}).get("total_security_events", 0) > 10:
             recommendations.append(
                 "Review security event patterns and consider strengthening access controls."
             )
@@ -563,6 +569,10 @@ class EUAIActExporter(BaseComplianceExporter):
         all_events = self.filter_by_date_range(start, end)
         stats = self.compute_summary_stats(all_events)
 
+        # Article 17 compliance requires evidence of systematic monitoring
+        # (having events logged demonstrates the quality management system is active)
+        # Allow empty for zero-duration periods
+        art_17_compliant = stats["total_events"] > 0 or start == end
         article_17_evidence = ComplianceEvidence(
             control_id="Article 17",
             control_name="Quality Management System",
@@ -578,7 +588,7 @@ class EUAIActExporter(BaseComplianceExporter):
                 "tools_available": stats["unique_tools"],
                 "period_coverage": f"{start.date()} to {end.date()}",
             },
-            compliant=True,
+            compliant=art_17_compliant,
         )
         evidence.append(article_17_evidence)
 
@@ -589,7 +599,7 @@ class EUAIActExporter(BaseComplianceExporter):
             "risk_classification": self._risk_classification,
             "total_operations": stats["total_events"],
             "human_oversight_rate": f"{oversight.human_involvement_rate:.1%}",
-            "security_events": risk_log["summary"]["total_security_events"],
+            "security_events": risk_log.get("summary", {}).get("total_security_events", 0),
             "compliance_status": (
                 "Compliant" if all(e.compliant for e in evidence) else "Review Required"
             ),

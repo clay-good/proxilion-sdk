@@ -453,7 +453,7 @@ class ISO27001Exporter(BaseComplianceExporter):
         )
         evidence_list.append(a9_evidence)
 
-        if access_data["summary"]["denial_rate"] > 0.3:
+        if access_data.get("summary", {}).get("denial_rate", 0.0) > 0.3:
             recommendations.append(
                 "High access denial rate detected. Review access policies and user permissions."
             )
@@ -501,7 +501,7 @@ class ISO27001Exporter(BaseComplianceExporter):
             ),
             events=incidents.security_incidents[:50],
             summary=incidents_data["summary"],
-            compliant=incidents_data["summary"]["response_rate"] >= 0.95,
+            compliant=incidents_data.get("summary", {}).get("response_rate", 0.0) >= 0.95,
             notes=(
                 f"{len(incidents.security_incidents)} security events detected. "
                 f"Response rate: {incidents_data['summary']['response_rate']:.1%}. "

@@ -33,6 +33,7 @@ from proxilion.context.session import (
 )
 from proxilion.engines import EngineFactory
 from proxilion.exceptions import (
+    ApprovalRequiredError,
     AuthorizationError,
     CircuitOpenError,
     IDORViolationError,
@@ -2550,11 +2551,12 @@ class Proxilion:
                         reason=auth_result.reason,
                     )
 
-                # Check risk level requires approval
+                # Check if tool requires approval before execution
                 if tool_def.requires_approval:
-                    # In a real implementation, this would trigger an approval workflow
-                    logger.warning(
-                        f"Tool {name} requires approval but automatic approval is not implemented"
+                    raise ApprovalRequiredError(
+                        tool_name=name,
+                        user=user.user_id,
+                        reason="Tool is marked as requiring approval before execution",
                     )
 
         return self._tool_registry.execute(name, **kwargs)
@@ -2603,9 +2605,12 @@ class Proxilion:
                         reason=auth_result.reason,
                     )
 
+                # Check if tool requires approval before execution
                 if tool_def.requires_approval:
-                    logger.warning(
-                        f"Tool {name} requires approval but automatic approval is not implemented"
+                    raise ApprovalRequiredError(
+                        tool_name=name,
+                        user=user.user_id,
+                        reason="Tool is marked as requiring approval before execution",
                     )
 
         return await self._tool_registry.execute_async(name, **kwargs)
