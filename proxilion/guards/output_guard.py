@@ -330,7 +330,7 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
     ),
     LeakagePattern(
         name="password_in_text",
-        pattern=r"(?i)(password|passwd|pwd)\s*[:=]\s*['\"]?[^\s'\"]{4,}['\"]?",
+        pattern=r"(?i)(password|passwd|pwd)\s*(?:is\s*)?[:=]\s*['\"]?[^\s'\"]{4,}['\"]?",
         category=LeakageCategory.CREDENTIAL,
         severity=0.9,
         description="Passwords in plaintext",
