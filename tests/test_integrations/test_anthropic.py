@@ -12,24 +12,19 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import pytest
 
-from proxilion import Proxilion, Policy, UserContext, AgentContext
+from proxilion import Policy, Proxilion, UserContext
 from proxilion.contrib.anthropic import (
     ProxilionToolHandler,
-    ToolUseResult,
     RegisteredTool,
+    ToolUseResult,
+    create_tool_result_content,
     process_tool_use,
     process_tool_use_async,
-    create_tool_result_content,
-    ToolNotFoundError,
-    ToolExecutionError,
 )
-from proxilion.exceptions import AuthorizationError
 
 
 class TestToolUseResult:
@@ -469,9 +464,18 @@ class TestProxilionToolHandler:
         )
 
         # Execute multiple times
-        handler.execute(tool_name="tracked_tool", tool_use_id="t1", input_data={"x": 1}, user=basic_user)
-        handler.execute(tool_name="tracked_tool", tool_use_id="t2", input_data={"x": 2}, user=basic_user)
-        handler.execute(tool_name="tracked_tool", tool_use_id="t3", input_data={"x": 3}, user=basic_user)
+        handler.execute(
+            tool_name="tracked_tool", tool_use_id="t1",
+            input_data={"x": 1}, user=basic_user,
+        )
+        handler.execute(
+            tool_name="tracked_tool", tool_use_id="t2",
+            input_data={"x": 2}, user=basic_user,
+        )
+        handler.execute(
+            tool_name="tracked_tool", tool_use_id="t3",
+            input_data={"x": 3}, user=basic_user,
+        )
 
         history = handler.execution_history
         assert len(history) == 3

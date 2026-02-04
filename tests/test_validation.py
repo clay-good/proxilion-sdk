@@ -11,14 +11,11 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
-
 from proxilion.validation.schema import (
+    ParameterSchema,
     SchemaValidator,
     ToolSchema,
-    ParameterSchema,
     ValidationResult,
-    RiskLevel,
 )
 
 
@@ -91,7 +88,9 @@ class TestToolSchema:
 class TestSchemaValidatorRegistration:
     """Tests for SchemaValidator registration."""
 
-    def test_register_schema(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_register_schema(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test registering a tool schema."""
         schema_validator.register_schema("calculator", calculator_schema)
         assert schema_validator.has_schema("calculator")
@@ -245,7 +244,9 @@ class TestTypeValidation:
 class TestRequiredParameters:
     """Tests for required parameter validation."""
 
-    def test_missing_required_parameter(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_missing_required_parameter(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test validation fails when required parameter is missing."""
         schema_validator.register_schema("calculator", calculator_schema)
 
@@ -254,7 +255,9 @@ class TestRequiredParameters:
         assert result.valid is False
         assert "b" in str(result.errors)
 
-    def test_all_required_parameters_present(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_all_required_parameters_present(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test validation passes when all required parameters present."""
         schema_validator.register_schema("calculator", calculator_schema)
 
@@ -341,7 +344,9 @@ class TestConstraintValidation:
         result = schema_validator.validate("test", {"value": 101})
         assert result.valid is False
 
-    def test_enum_constraint(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_enum_constraint(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test enum constraint validation."""
         schema_validator.register_schema("calculator", calculator_schema)
 
@@ -440,7 +445,9 @@ class TestConstraintValidation:
 class TestSecurityValidations:
     """Tests for security-focused validations."""
 
-    def test_path_traversal_detection(self, schema_validator: SchemaValidator, file_read_schema: ToolSchema):
+    def test_path_traversal_detection(
+        self, schema_validator: SchemaValidator, file_read_schema: ToolSchema,
+    ):
         """Test detection of path traversal attempts."""
         schema_validator.register_schema("file_read", file_read_schema)
 
@@ -520,7 +527,9 @@ class TestSecurityValidations:
 class TestValidationResult:
     """Tests for ValidationResult structure."""
 
-    def test_validation_result_valid(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_validation_result_valid(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test ValidationResult for valid input."""
         schema_validator.register_schema("calculator", calculator_schema)
         result = schema_validator.validate("calculator", {
@@ -533,7 +542,9 @@ class TestValidationResult:
         assert result.valid is True
         assert len(result.errors) == 0
 
-    def test_validation_result_invalid(self, schema_validator: SchemaValidator, calculator_schema: ToolSchema):
+    def test_validation_result_invalid(
+        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+    ):
         """Test ValidationResult for invalid input."""
         schema_validator.register_schema("calculator", calculator_schema)
         result = schema_validator.validate("calculator", {
@@ -577,4 +588,7 @@ class TestUnknownSchema:
         # Unknown schemas pass with a warning (permissive by default)
         # Check that warning is present instead of error
         assert result.valid is True
-        assert any("unknown" in str(w).lower() or "no schema" in str(w).lower() for w in result.warnings)
+        assert any(
+            "unknown" in str(w).lower() or "no schema" in str(w).lower()
+            for w in result.warnings
+        )

@@ -12,33 +12,29 @@ Tests cover:
 """
 
 import json
-import pytest
-from dataclasses import dataclass
-from typing import Any
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
+import pytest
+
+from proxilion import Proxilion
 from proxilion.providers import (
-    Provider,
-    ProviderAdapter,
-    BaseAdapter,
-    UnifiedToolCall,
-    UnifiedToolResult,
-    UnifiedResponse,
-    OpenAIAdapter,
     AnthropicAdapter,
+    BaseAdapter,
     GeminiAdapter,
-    get_adapter,
-    register_adapter,
-    list_providers,
+    OpenAIAdapter,
+    Provider,
+    UnifiedResponse,
+    UnifiedToolCall,
     detect_provider,
     detect_provider_safe,
-    extract_tool_calls,
     extract_response,
+    extract_tool_calls,
+    get_adapter,
+    list_providers,
+    register_adapter,
 )
-from proxilion import Proxilion
+from proxilion.tools.registry import ToolCategory, ToolDefinition
 from proxilion.types import UserContext
-from proxilion.tools.registry import ToolDefinition, ToolCategory
-
 
 # =============================================================================
 # Provider Enum Tests
@@ -1062,7 +1058,7 @@ class TestEdgeCases:
 
     def test_gemini_protobuf_args(self):
         """Handle Gemini protobuf args format."""
-        adapter = GeminiAdapter()
+        _adapter = GeminiAdapter()
 
         # Mock a Struct-like object
         mock_args = MagicMock()

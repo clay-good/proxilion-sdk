@@ -8,21 +8,17 @@ MAX_CONSECUTIVE, and COOLDOWN.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-import pytest
-
+from proxilion.exceptions import SequenceViolationError
 from proxilion.security.sequence_validator import (
     DEFAULT_SEQUENCE_RULES,
     SequenceAction,
     SequenceRule,
     SequenceValidator,
     SequenceViolation,
-    ToolCallRecord,
     create_sequence_validator,
 )
-from proxilion.exceptions import SequenceViolationError
-
 
 # =============================================================================
 # SequenceRule Tests
@@ -490,7 +486,7 @@ class TestMaxConsecutive:
         ))
 
         # First 3 calls allowed
-        for i in range(3):
+        for _ in range(3):
             allowed, _ = validator.validate_call("repeat_tool", "user_1")
             assert allowed
             validator.record_call("repeat_tool", "user_1")
@@ -779,7 +775,7 @@ class TestDefaultRules:
         validator = SequenceValidator()
 
         # Record many consecutive calls
-        for i in range(10):
+        for _ in range(10):
             validator.record_call("repeat_action", "user_1")
 
         # 11th call should be blocked

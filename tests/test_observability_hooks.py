@@ -4,36 +4,36 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from proxilion.observability import (
-    MetricType,
-    MetricHook,
-    ObservabilityHooks,
+    METRIC_AUTH_ALLOWED,
+    METRIC_AUTH_DENIED,
+    METRIC_AUTH_LATENCY,
+    METRIC_AUTH_REQUESTS,
+    METRIC_CIRCUIT_BREAKER_CLOSED,
+    METRIC_CIRCUIT_BREAKER_HALF_OPEN,
+    METRIC_CIRCUIT_BREAKER_OPEN,
+    METRIC_COST_USD,
+    METRIC_RATE_LIMIT_EXCEEDED,
+    METRIC_RATE_LIMIT_REQUESTS,
+    METRIC_TOKENS_INPUT,
+    METRIC_TOKENS_OUTPUT,
+    METRIC_TOOL_CALLS,
+    METRIC_TOOL_ERRORS,
+    METRIC_TOOL_LATENCY,
     HistogramStats,
-    LoggingMetricHook,
     InMemoryMetricHook,
+    LoggingMetricHook,
+    MetricHook,
+    MetricType,
+    ObservabilityHooks,
     emit_counter,
     emit_gauge,
     emit_histogram,
     emit_timing,
-    METRIC_AUTH_REQUESTS,
-    METRIC_AUTH_ALLOWED,
-    METRIC_AUTH_DENIED,
-    METRIC_AUTH_LATENCY,
-    METRIC_RATE_LIMIT_REQUESTS,
-    METRIC_RATE_LIMIT_EXCEEDED,
-    METRIC_TOOL_CALLS,
-    METRIC_TOOL_LATENCY,
-    METRIC_TOOL_ERRORS,
-    METRIC_COST_USD,
-    METRIC_TOKENS_INPUT,
-    METRIC_TOKENS_OUTPUT,
-    METRIC_CIRCUIT_BREAKER_OPEN,
-    METRIC_CIRCUIT_BREAKER_HALF_OPEN,
-    METRIC_CIRCUIT_BREAKER_CLOSED,
 )
 
 
@@ -167,7 +167,10 @@ class TestLoggingMetricHook:
         hook = LoggingMetricHook()
         with patch.object(hook.logger, "log") as mock_log:
             hook.histogram("response_size", 1024.0)
-            mock_log.assert_called_once_with(logging.DEBUG, "HISTOGRAM response_size=1024.0 tags=None")
+            mock_log.assert_called_once_with(
+                logging.DEBUG,
+                "HISTOGRAM response_size=1024.0 tags=None",
+            )
 
     def test_timing_logs(self):
         """Test timing logs correctly."""
@@ -838,10 +841,16 @@ class TestCustomHook:
                 self.metrics.append({"type": "gauge", "name": name, "value": value, "tags": tags})
 
             def histogram(self, name: str, value: float, tags: dict | None = None) -> None:
-                self.metrics.append({"type": "histogram", "name": name, "value": value, "tags": tags})
+                self.metrics.append({
+                    "type": "histogram", "name": name,
+                    "value": value, "tags": tags,
+                })
 
             def timing(self, name: str, duration_ms: float, tags: dict | None = None) -> None:
-                self.metrics.append({"type": "timing", "name": name, "value": duration_ms, "tags": tags})
+                self.metrics.append({
+                    "type": "timing", "name": name,
+                    "value": duration_ms, "tags": tags,
+                })
 
         hooks = ObservabilityHooks.get_instance()
         custom_hook = CustomHook()

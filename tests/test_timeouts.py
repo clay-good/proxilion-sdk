@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import time
 import threading
-from typing import Any
+import time
 
 import pytest
 
+from proxilion.timeouts.decorators import (
+    TimeoutScope,
+    run_with_deadline,
+    run_with_timeout,
+    with_deadline,
+    with_timeout,
+)
 from proxilion.timeouts.manager import (
     DeadlineContext,
     TimeoutConfig,
@@ -17,13 +23,6 @@ from proxilion.timeouts.manager import (
     get_current_deadline,
     get_default_manager,
     set_default_manager,
-)
-from proxilion.timeouts.decorators import (
-    TimeoutScope,
-    run_with_deadline,
-    run_with_timeout,
-    with_deadline,
-    with_timeout,
 )
 
 
@@ -156,14 +155,13 @@ class TestDeadlineContext:
 
     def test_nested_deadlines(self):
         """Nested deadline uses shorter timeout."""
-        with DeadlineContext(timeout=5.0) as outer:
-            with DeadlineContext(timeout=10.0) as inner:
-                # Inner deadline should be capped by outer
-                assert inner.deadline <= outer.deadline
+        with DeadlineContext(timeout=5.0) as outer, DeadlineContext(timeout=10.0) as inner:
+            # Inner deadline should be capped by outer
+            assert inner.deadline <= outer.deadline
 
     def test_nested_deadline_respects_parent(self):
         """Inner deadline cannot exceed outer."""
-        with DeadlineContext(timeout=2.0) as outer:
+        with DeadlineContext(timeout=2.0) as _outer:
             time.sleep(0.5)
             with DeadlineContext(timeout=5.0) as inner:
                 # Inner should have at most ~1.5s remaining
@@ -206,9 +204,11 @@ class TestDeadlineContextAsync:
     @pytest.mark.asyncio
     async def test_async_nested(self):
         """Nested async deadline contexts."""
-        async with DeadlineContext(timeout=5.0) as outer:
-            async with DeadlineContext(timeout=10.0) as inner:
-                assert inner.deadline <= outer.deadline
+        async with (
+            DeadlineContext(timeout=5.0) as outer,
+            DeadlineContext(timeout=10.0) as inner,
+        ):
+            assert inner.deadline <= outer.deadline
 
 
 class TestTimeoutManager:

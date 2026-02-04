@@ -2,19 +2,19 @@
 Tests for tool call result caching.
 """
 
-import time
 import threading
-from datetime import datetime, timezone, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from proxilion.caching import (
-    ToolCache,
     CacheConfig,
     CacheEntry,
+    CachePolicy,
     CacheStats,
     EvictionPolicy,
-    CachePolicy,
+    ToolCache,
     cached_tool,
 )
 
@@ -419,7 +419,7 @@ class TestCachedToolDecorator:
             call_count[0] += 1
             return f"{important}-{not_important}"
 
-        result1 = my_tool("key", "value1")
+        _result1 = my_tool("key", "value1")
         assert call_count[0] == 1
 
         # Same important param, different not_important - should hit cache
@@ -428,7 +428,7 @@ class TestCachedToolDecorator:
         assert result2 == "key-value1"  # Returns cached value
 
         # Different important param - miss
-        result3 = my_tool("different", "value1")
+        _result3 = my_tool("different", "value1")
         assert call_count[0] == 2
 
     def test_preserves_function_metadata(self):

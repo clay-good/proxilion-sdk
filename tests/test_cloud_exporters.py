@@ -17,14 +17,15 @@ from __future__ import annotations
 
 import gzip
 import json
-import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from proxilion.audit.events import AuditEventV2
+from proxilion.audit.exporters.aws_s3 import S3DataLakeExporter, S3Exporter
+from proxilion.audit.exporters.azure_storage import AzureBlobExporter
 from proxilion.audit.exporters.cloud_base import (
     BaseCloudExporter,
     CloudExporterConfig,
@@ -33,9 +34,7 @@ from proxilion.audit.exporters.cloud_base import (
     ExportFormat,
     ExportResult,
 )
-from proxilion.audit.exporters.aws_s3 import S3Exporter, S3DataLakeExporter
 from proxilion.audit.exporters.gcp_storage import GCSExporter
-from proxilion.audit.exporters.azure_storage import AzureBlobExporter
 from proxilion.audit.exporters.multi_exporter import (
     FailureStrategy,
     MultiCloudExporter,
@@ -422,7 +421,6 @@ class TestGCSExporter:
 
     def test_export_batch_gcs(self, sample_audit_event: AuditEventV2):
         """Test exporting batch with google-cloud-storage."""
-        import sys
 
         # Create a mock gcs module
         mock_gcs_module = MagicMock()
@@ -477,10 +475,18 @@ class TestAzureBlobExporter:
             bucket_name="my-container",
         )
 
-        with patch("proxilion.audit.exporters.azure_storage.HAS_AZURE_STORAGE", False):
-            with patch.dict("os.environ", {"AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net"}):
-                exporter = AzureBlobExporter(config)
-                assert exporter is not None
+        conn_str = (
+            "DefaultEndpointsProtocol=https;"
+            "AccountName=test;"
+            "AccountKey=dGVzdA==;"
+            "EndpointSuffix=core.windows.net"
+        )
+        with (
+            patch("proxilion.audit.exporters.azure_storage.HAS_AZURE_STORAGE", False),
+            patch.dict("os.environ", {"AZURE_STORAGE_CONNECTION_STRING": conn_str}),
+        ):
+            exporter = AzureBlobExporter(config)
+            assert exporter is not None
 
     def test_connection_string_parsing(self):
         """Test Azure connection string parsing."""
@@ -489,12 +495,20 @@ class TestAzureBlobExporter:
             bucket_name="container",
         )
 
-        with patch("proxilion.audit.exporters.azure_storage.HAS_AZURE_STORAGE", False):
-            with patch.dict("os.environ", {"AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=mystorageaccount;AccountKey=YWJjZGVm;EndpointSuffix=core.windows.net"}):
-                exporter = AzureBlobExporter(config)
+        conn_str = (
+            "DefaultEndpointsProtocol=https;"
+            "AccountName=mystorageaccount;"
+            "AccountKey=YWJjZGVm;"
+            "EndpointSuffix=core.windows.net"
+        )
+        with (
+            patch("proxilion.audit.exporters.azure_storage.HAS_AZURE_STORAGE", False),
+            patch.dict("os.environ", {"AZURE_STORAGE_CONNECTION_STRING": conn_str}),
+        ):
+            exporter = AzureBlobExporter(config)
 
-                assert exporter._account_name == "mystorageaccount"
-                assert exporter._account_key == "YWJjZGVm"
+            assert exporter._account_name == "mystorageaccount"
+            assert exporter._account_key == "YWJjZGVm"
 
 
 class TestMultiCloudExporter:

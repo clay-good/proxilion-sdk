@@ -6,25 +6,24 @@ Provides common fixtures used across all test modules.
 
 from __future__ import annotations
 
-import tempfile
+from collections.abc import Generator
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 
-from proxilion import Proxilion, Policy, UserContext, AgentContext
-from proxilion.types import ToolCallRequest, AuthorizationResult
-from proxilion.policies.registry import PolicyRegistry
+from proxilion import AgentContext, Proxilion, UserContext
+from proxilion.audit.events import AuditEventData, AuditEventV2, EventType
+from proxilion.audit.hash_chain import GENESIS_HASH, HashChain
+from proxilion.audit.logger import AuditLogger, LoggerConfig, RotationPolicy
 from proxilion.policies.base import Policy as BasePolicy
-from proxilion.validation.schema import SchemaValidator, ToolSchema, ParameterSchema
-from proxilion.security.rate_limiter import TokenBucketRateLimiter, SlidingWindowRateLimiter
+from proxilion.policies.registry import PolicyRegistry
 from proxilion.security.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
 from proxilion.security.idor_protection import IDORProtector
-from proxilion.audit.logger import AuditLogger, LoggerConfig, RotationPolicy
-from proxilion.audit.hash_chain import HashChain, GENESIS_HASH
-from proxilion.audit.events import AuditEventV2, AuditEventData, EventType
-
+from proxilion.security.rate_limiter import SlidingWindowRateLimiter, TokenBucketRateLimiter
+from proxilion.types import ToolCallRequest
+from proxilion.validation.schema import ParameterSchema, SchemaValidator, ToolSchema
 
 # ============================================================================
 # User Context Fixtures
@@ -209,10 +208,10 @@ def file_policy_class():
             if ".." in path:
                 return False
             # Block forbidden paths
-            for forbidden in self.FORBIDDEN_PATHS:
-                if path.startswith(forbidden):
-                    return False
-            return True
+            return all(
+                not path.startswith(forbidden)
+                for forbidden in self.FORBIDDEN_PATHS
+            )
 
         def can_write(self, context: dict) -> bool:
             if not self.can_read(context):
@@ -430,7 +429,9 @@ def audit_logger(temp_audit_dir: Path) -> AuditLogger:
 
 
 @pytest.fixture
-def sample_audit_event(basic_user: UserContext, search_tool_request: ToolCallRequest) -> AuditEventV2:
+def sample_audit_event(
+    basic_user: UserContext, search_tool_request: ToolCallRequest
+) -> AuditEventV2:
     """Create a sample audit event."""
     data = AuditEventData(
         event_type=EventType.AUTHORIZATION_GRANTED,

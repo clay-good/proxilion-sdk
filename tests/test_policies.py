@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import pytest
 
-from proxilion import Policy, UserContext
-from proxilion.policies.base import Policy as BasePolicy
-from proxilion.policies.registry import PolicyRegistry
-from proxilion.policies.builtin import DenyAllPolicy, AllowAllPolicy, RoleBasedPolicy
+from proxilion import UserContext
 from proxilion.exceptions import PolicyNotFoundError
+from proxilion.policies.base import Policy as BasePolicy
+from proxilion.policies.builtin import AllowAllPolicy, DenyAllPolicy, RoleBasedPolicy
+from proxilion.policies.registry import PolicyRegistry
 
 
 class TestPolicyBaseClass:

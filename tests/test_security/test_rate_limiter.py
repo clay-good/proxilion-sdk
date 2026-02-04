@@ -11,16 +11,13 @@ Tests cover:
 from __future__ import annotations
 
 import time
-import threading
 from concurrent.futures import ThreadPoolExecutor
 
-import pytest
-
 from proxilion.security.rate_limiter import (
-    TokenBucketRateLimiter,
-    SlidingWindowRateLimiter,
     MultiDimensionalRateLimiter,
     RateLimitConfig,
+    SlidingWindowRateLimiter,
+    TokenBucketRateLimiter,
 )
 
 
@@ -200,7 +197,7 @@ class TestMultiDimensionalRateLimiter:
         limiter = MultiDimensionalRateLimiter(config)
 
         # First 5 requests should pass (limited by tool)
-        for i in range(5):
+        for _ in range(5):
             assert limiter.allow_request(
                 keys={"user": "user_1", "tool": "tool_a"}
             ) is True

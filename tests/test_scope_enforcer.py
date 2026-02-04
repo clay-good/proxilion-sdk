@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pytest
 
+from proxilion import UserContext
+from proxilion.exceptions import ScopeViolationError
 from proxilion.security.scope_enforcer import (
     BUILTIN_SCOPES,
     DEFAULT_TOOL_CLASSIFICATIONS,
@@ -16,13 +18,9 @@ from proxilion.security.scope_enforcer import (
     ScopeBinding,
     ScopeContext,
     ScopeEnforcer,
-    ToolClassification,
     create_scope_enforcer,
     scoped_execution,
 )
-from proxilion.exceptions import ScopeViolationError
-from proxilion import UserContext
-
 
 # =============================================================================
 # ExecutionScope Tests
@@ -465,7 +463,9 @@ class TestScopeContext:
         assert ctx.is_tool_allowed("get_user", "read")
         assert not ctx.is_tool_allowed("delete_user", "delete")
 
-    def test_get_calls_tracks_validated_tools(self, enforcer: ScopeEnforcer, user: UserContext) -> None:
+    def test_get_calls_tracks_validated_tools(
+        self, enforcer: ScopeEnforcer, user: UserContext,
+    ) -> None:
         """Test that validated calls are tracked."""
         scope = enforcer.get_scope("admin")
         ctx = ScopeContext(enforcer, scope, user)
@@ -538,14 +538,18 @@ class TestScopedExecution:
             assert ctx.scope.scope == ExecutionScope.ADMIN
             ctx.validate_tool("delete_user", "delete")
 
-    def test_context_manager_closes_on_success(self, enforcer: ScopeEnforcer, user: UserContext) -> None:
+    def test_context_manager_closes_on_success(
+        self, enforcer: ScopeEnforcer, user: UserContext,
+    ) -> None:
         """Test context is closed after successful execution."""
         with scoped_execution(enforcer, "read_only", user) as ctx:
             ctx.validate_tool("get_user", "read")
 
         assert ctx.is_closed
 
-    def test_context_manager_closes_on_exception(self, enforcer: ScopeEnforcer, user: UserContext) -> None:
+    def test_context_manager_closes_on_exception(
+        self, enforcer: ScopeEnforcer, user: UserContext,
+    ) -> None:
         """Test context is closed even on exception."""
         ctx = None
         try:
@@ -566,11 +570,15 @@ class TestScopedExecution:
 
         assert len(ctx.get_calls()) == 3
 
-    def test_context_manager_blocks_disallowed_tools(self, enforcer: ScopeEnforcer, user: UserContext) -> None:
+    def test_context_manager_blocks_disallowed_tools(
+        self, enforcer: ScopeEnforcer, user: UserContext,
+    ) -> None:
         """Test context manager raises on disallowed tools."""
-        with pytest.raises(ScopeViolationError):
-            with scoped_execution(enforcer, "read_only", user) as ctx:
-                ctx.validate_tool("delete_user", "delete")
+        with (
+            pytest.raises(ScopeViolationError),
+            scoped_execution(enforcer, "read_only", user) as ctx,
+        ):
+            ctx.validate_tool("delete_user", "delete")
 
 
 # =============================================================================

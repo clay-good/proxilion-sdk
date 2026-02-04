@@ -12,21 +12,17 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import pytest
 
-from proxilion import Proxilion, Policy, UserContext, AgentContext
+from proxilion import Policy, Proxilion, UserContext
 from proxilion.contrib.openai import (
-    ProxilionFunctionHandler,
     FunctionCallResult,
+    ProxilionFunctionHandler,
     RegisteredFunction,
     create_secure_function,
     process_openai_response,
-    FunctionNotFoundError,
-    FunctionExecutionError,
 )
 from proxilion.exceptions import AuthorizationError
 

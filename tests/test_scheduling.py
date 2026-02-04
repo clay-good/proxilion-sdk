@@ -2,17 +2,15 @@
 Tests for request priority queue and scheduler.
 """
 
-import time
 import threading
-from concurrent.futures import Future
-from datetime import datetime, timezone, timedelta
+import time
 
 import pytest
 
 from proxilion.scheduling import (
     PriorityLevel,
-    QueuedRequest,
     PriorityQueue,
+    QueuedRequest,
     RequestScheduler,
     SchedulerConfig,
 )
@@ -220,7 +218,7 @@ class TestPriorityQueue:
 
         # Old request should have been boosted
         # With aging_interval=0.1 and one interval passed, should boost by 1
-        dequeued = queue.dequeue(block=False)
+        _dequeued = queue.dequeue(block=False)
         # The aged request should now compete more fairly
 
     def test_expired_requests_removed(self):
@@ -269,9 +267,9 @@ class TestPriorityQueue:
 
         # Start multiple threads
         threads = []
-        for i in range(3):
-            threads.append(threading.Thread(target=enqueue_worker, args=(i,)))
-        for i in range(3):
+        for idx in range(3):
+            threads.append(threading.Thread(target=enqueue_worker, args=(idx,)))
+        for _ in range(3):
             threads.append(threading.Thread(target=dequeue_worker))
 
         for t in threads:
@@ -477,13 +475,13 @@ class TestRequestScheduler:
 
         try:
             # Submit first request (will be processing)
-            f1 = scheduler.submit(payload="first")
+            _f1 = scheduler.submit(payload="first")
 
             # Give it time to start processing
             time.sleep(0.1)
 
             # Submit second request (fills queue)
-            f2 = scheduler.submit(payload="second")
+            _f2 = scheduler.submit(payload="second")
 
             # Third request should get queue full error
             f3 = scheduler.submit(payload="third")

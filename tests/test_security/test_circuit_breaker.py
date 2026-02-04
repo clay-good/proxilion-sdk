@@ -11,16 +11,18 @@ Tests cover:
 
 from __future__ import annotations
 
+import contextlib
 import time
+
 import pytest
 
+from proxilion.exceptions import CircuitOpenError
 from proxilion.security.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerRegistry,
     CircuitState,
     CircuitStats,
 )
-from proxilion.exceptions import CircuitOpenError
 
 
 class TestCircuitBreakerStates:
@@ -170,10 +172,8 @@ class TestCircuitBreakerStats:
         breaker = CircuitBreaker(failure_threshold=10, reset_timeout=10)
 
         for _ in range(3):
-            try:
+            with contextlib.suppress(ValueError):
                 breaker.call(lambda: (_ for _ in ()).throw(ValueError("fail")))
-            except ValueError:
-                pass
 
         stats = breaker.stats
         assert stats.failures == 3
@@ -204,7 +204,9 @@ class TestCircuitBreakerRegistry:
         breaker2 = circuit_breaker_registry.get("tool_a")
         assert breaker is breaker2
 
-    def test_different_tools_different_breakers(self, circuit_breaker_registry: CircuitBreakerRegistry):
+    def test_different_tools_different_breakers(
+        self, circuit_breaker_registry: CircuitBreakerRegistry,
+    ):
         """Test that different tools get different breakers."""
         breaker_a = circuit_breaker_registry.get("tool_a")
         breaker_b = circuit_breaker_registry.get("tool_b")
@@ -307,10 +309,8 @@ class TestCircuitBreakerEdgeCases:
         breaker = CircuitBreaker(failure_threshold=1, reset_timeout=100)
 
         # Open it
-        try:
+        with contextlib.suppress(ValueError):
             breaker.call(lambda: (_ for _ in ()).throw(ValueError()))
-        except ValueError:
-            pass
 
         assert breaker.state == CircuitState.OPEN
 
@@ -324,20 +324,16 @@ class TestCircuitBreakerEdgeCases:
 
         # Cause 2 failures (not enough to open)
         for _ in range(2):
-            try:
+            with contextlib.suppress(ValueError):
                 breaker.call(lambda: (_ for _ in ()).throw(ValueError()))
-            except ValueError:
-                pass
 
         # Reset
         breaker.reset()
 
         # Should be able to have 2 more failures without opening
         for _ in range(2):
-            try:
+            with contextlib.suppress(ValueError):
                 breaker.call(lambda: (_ for _ in ()).throw(ValueError()))
-            except ValueError:
-                pass
 
         # Still closed (only 2 failures since reset)
         assert breaker.state == CircuitState.CLOSED

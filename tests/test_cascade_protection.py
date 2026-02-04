@@ -9,13 +9,10 @@ from proxilion.security import (
     CascadeEvent,
     CascadeProtector,
     CascadeState,
-    CircuitBreaker,
     CircuitBreakerRegistry,
-    CircuitState,
     DependencyGraph,
     DependencyInfo,
 )
-
 
 # =============================================================================
 # DependencyGraph Tests
@@ -275,7 +272,7 @@ class TestCascadeProtector:
         assert protector.check_cascade_health("database") == CascadeState.ISOLATED
 
         # Then recover it
-        recovered = protector.recover_tool("database")
+        _recovered = protector.recover_tool("database")
 
         # Database should be healthy again
         state = protector.check_cascade_health("database")
@@ -420,7 +417,7 @@ class TestCascadeAwareCircuitBreakerRegistry:
         registry.on_circuit_open("database")
 
         # Then close it
-        recovered = registry.on_circuit_close("database")
+        _recovered = registry.on_circuit_close("database")
 
         # Database should be healthy again
         state = protector.check_cascade_health("database")
@@ -557,7 +554,7 @@ class TestCascadeIntegration:
         assert protector.check_cascade_health("api_gateway") == CascadeState.HEALTHY
 
         # Now simulate recovery
-        recovered = protector.recover_tool("main_db")
+        _recovered = protector.recover_tool("main_db")
 
         # main_db should be healthy again
         assert protector.check_cascade_health("main_db") == CascadeState.HEALTHY

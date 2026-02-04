@@ -11,28 +11,26 @@ Tests cover:
 - Authorization integration
 """
 
-import asyncio
-import json
+import re
+from unittest.mock import MagicMock
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock
 
 from proxilion.streaming.detector import (
-    StreamEventType,
-    StreamEvent,
-    PartialToolCall,
     DetectedToolCall,
+    PartialToolCall,
+    StreamEvent,
+    StreamEventType,
     StreamingToolCallDetector,
 )
 from proxilion.streaming.transformer import (
-    StreamTransformer,
-    FilteredStream,
     BufferedStreamTransformer,
+    FilteredStream,
     StreamAggregator,
-    create_guarded_stream,
+    StreamTransformer,
     create_authorization_stream,
+    create_guarded_stream,
 )
-
 
 # ==================== PartialToolCall Tests ====================
 
@@ -951,7 +949,7 @@ class TestBufferedStreamTransformer:
     def test_add_invalid_pattern(self):
         """Test adding invalid regex pattern."""
         transformer = BufferedStreamTransformer()
-        with pytest.raises(Exception):  # re.error
+        with pytest.raises(re.error):
             transformer.add_pattern_filter(r"[invalid", "")
 
     @pytest.mark.asyncio
@@ -1000,7 +998,7 @@ class TestStreamAggregator:
         aggregator = StreamAggregator(max_chars=10, timeout=10.0)
 
         async def source():
-            for i in range(5):
+            for _ in range(5):
                 yield "12345"  # 5 chars each
 
         results = []

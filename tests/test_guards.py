@@ -14,33 +14,30 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
-import re
 
+from proxilion import Proxilion
+from proxilion.exceptions import (
+    GuardViolation,
+    InputGuardViolation,
+    OutputGuardViolation,
+)
 from proxilion.guards import (
-    InputGuard,
-    OutputGuard,
     GuardAction,
     GuardResult,
     InjectionPattern,
-    LeakagePattern,
+    InputGuard,
     LeakageCategory,
+    LeakagePattern,
     OutputFilter,
+    OutputGuard,
 )
 from proxilion.guards.input_guard import (
     DEFAULT_INJECTION_PATTERNS,
     create_input_guard,
 )
 from proxilion.guards.output_guard import (
-    DEFAULT_LEAKAGE_PATTERNS,
     create_output_guard,
 )
-from proxilion.exceptions import (
-    GuardViolation,
-    InputGuardViolation,
-    OutputGuardViolation,
-)
-from proxilion import Proxilion, UserContext
-
 
 # =============================================================================
 # Input Guard Tests
@@ -459,7 +456,12 @@ class TestOutputGuard:
     # Bearer Token Detection
     def test_bearer_token_detected(self, guard):
         """Test detection of bearer tokens (JWT)."""
-        output = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        output = (
+            "Authorization: Bearer "
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+            "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        )
         result = guard.check(output)
         assert not result.passed
         assert "bearer_token" in result.matched_patterns

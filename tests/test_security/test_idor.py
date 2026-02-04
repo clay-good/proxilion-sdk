@@ -10,11 +10,8 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
-
 from proxilion.security.idor_protection import (
     IDORProtector,
-    IDPattern,
     ResourceScope,
 )
 

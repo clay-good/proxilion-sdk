@@ -19,12 +19,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from proxilion import Proxilion, Policy, UserContext, AuthorizationError
+from proxilion import AuthorizationError, Policy, Proxilion, UserContext
 from proxilion.types import AuthorizationResult
-from proxilion.exceptions import PolicyNotFoundError, RateLimitExceeded
 
 if TYPE_CHECKING:
-    from tests.conftest import MockTool
+    pass
 
 
 class TestProxilionInitialization:
@@ -436,5 +435,5 @@ class TestErrorHandling:
             return "result"
 
         # Should raise or handle gracefully when no user
-        with pytest.raises((AuthorizationError, ValueError, TypeError)):
+        with pytest.raises(AuthorizationError):
             needs_user()  # No user provided

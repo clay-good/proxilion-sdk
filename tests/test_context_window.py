@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from proxilion.context.context_window import (
     ContextStrategy,
     ContextWindow,
@@ -19,9 +17,17 @@ from proxilion.context.context_window import (
 from proxilion.context.message_history import Message, MessageRole
 
 
-def create_message(content: str, role: MessageRole = MessageRole.USER, tokens: int | None = None) -> Message:
+def create_message(
+    content: str,
+    role: MessageRole = MessageRole.USER,
+    tokens: int | None = None,
+) -> Message:
     """Helper to create test messages."""
-    return Message(role=role, content=content, token_count=tokens or len(content.split()) * 2)
+    return Message(
+        role=role,
+        content=content,
+        token_count=tokens or len(content.split()) * 2,
+    )
 
 
 class TestSlidingWindowStrategy:

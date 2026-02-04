@@ -7,15 +7,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from proxilion.security import (
-    AgentIdentity,
     DEFAULT_BOUNDARIES,
+    AgentIdentity,
     DelegationToken,
     TrustBoundary,
     TrustBoundaryViolation,
     TrustEnforcer,
     TrustLevel,
 )
-
 
 # =============================================================================
 # TrustLevel Tests

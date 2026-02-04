@@ -12,40 +12,36 @@ Tests the EU AI Act, SOC 2, and ISO 27001 exporters including:
 from __future__ import annotations
 
 import json
-import pytest
 from datetime import datetime, timedelta, timezone
-from typing import Any
+
+import pytest
 
 from proxilion.audit import (
-    InMemoryAuditLogger,
-    AuditEventV2,
     AuditEventData,
+    AuditEventV2,
     EventType,
+    InMemoryAuditLogger,
 )
 from proxilion.audit.compliance import (
+    AccessControlA9Evidence,
+    AccessControlEvidence,
     # Base
-    BaseComplianceExporter,
+    ChangeManagementEvidence,
     ComplianceEvidence,
     ComplianceFramework,
     ComplianceMetadata,
     ComplianceReport,
+    DecisionAuditTrailEntry,
     # EU AI Act
     EUAIActExporter,
-    DecisionAuditTrailEntry,
     HumanOversightEvidence,
-    RiskAssessmentEntry,
-    # SOC 2
-    SOC2Exporter,
-    AccessControlEvidence,
-    MonitoringEvidence,
-    ChangeManagementEvidence,
+    IncidentManagementA16Evidence,
     # ISO 27001
     ISO27001Exporter,
-    AccessControlA9Evidence,
+    MonitoringEvidence,
     OperationsSecurityA12Evidence,
-    IncidentManagementA16Evidence,
+    SOC2Exporter,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -732,7 +728,10 @@ class TestIntegration:
 
         # All should have the same total events
         assert eu_report.summary["total_operations"] == soc2_report.summary["total_operations"]
-        assert soc2_report.summary["total_operations"] == iso_report.summary["total_events_analyzed"]
+        assert (
+            soc2_report.summary["total_operations"]
+            == iso_report.summary["total_events_analyzed"]
+        )
 
     def test_complete_workflow(self, now):
         """Complete workflow from logging to export."""

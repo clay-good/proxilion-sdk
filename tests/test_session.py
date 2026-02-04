@@ -4,18 +4,16 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Any
 
 import pytest
 
+from proxilion.context.message_history import MessageRole
 from proxilion.context.session import (
     Session,
     SessionConfig,
     SessionManager,
     SessionState,
 )
-from proxilion.context.message_history import Message, MessageRole
 from proxilion.types import UserContext
 
 
@@ -343,7 +341,7 @@ class TestSessionManager:
         """Get expired session returns None."""
         config = SessionConfig(max_duration=0)
         manager = SessionManager(config)
-        session = manager.create_session(user, session_id="sess_123")
+        _session = manager.create_session(user, session_id="sess_123")
 
         # Session immediately expires
         result = manager.get_session("sess_123")
@@ -461,9 +459,9 @@ class TestSessionManager:
         user1 = UserContext(user_id="alice", roles=["admin"])
         user2 = UserContext(user_id="bob", roles=["user"])
 
-        s1 = manager.create_session(user1)
-        s2 = manager.create_session(user2)
-        s3 = manager.create_session(user1)
+        _s1 = manager.create_session(user1)
+        _s2 = manager.create_session(user2)
+        _s3 = manager.create_session(user1)
 
         alice_sessions = manager.get_user_sessions("alice")
         bob_sessions = manager.get_user_sessions("bob")
@@ -519,7 +517,7 @@ class TestSessionManagerThreadSafety:
         errors = []
 
         def create_sessions():
-            for i in range(50):
+            for _ in range(50):
                 try:
                     manager.create_session(user)
                 except Exception as e:
@@ -538,7 +536,7 @@ class TestSessionManagerThreadSafety:
         """Concurrent session access should be thread-safe."""
         manager = SessionManager()
         user = UserContext(user_id="test", roles=[])
-        session = manager.create_session(user, session_id="shared")
+        _session = manager.create_session(user, session_id="shared")
         errors = []
 
         def access_session():

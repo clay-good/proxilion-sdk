@@ -9,31 +9,28 @@ Tests cover:
 - Integration with Proxilion core
 """
 
-import asyncio
-import pytest
-from dataclasses import dataclass
-from typing import Any, Optional
-from unittest.mock import MagicMock, AsyncMock
+from typing import Any
 
+import pytest
+
+from proxilion import Proxilion
+from proxilion.tools.decorators import (
+    get_tool_definition,
+    infer_schema_from_function,
+    register_tool,
+    tool,
+    unregister_tool,
+)
 from proxilion.tools.registry import (
-    ToolCategory,
     RiskLevel,
+    ToolCategory,
     ToolDefinition,
-    ToolRegistry,
     ToolExecutionResult,
+    ToolRegistry,
     get_global_registry,
     set_global_registry,
 )
-from proxilion.tools.decorators import (
-    tool,
-    register_tool,
-    infer_schema_from_function,
-    unregister_tool,
-    get_tool_definition,
-)
-from proxilion import Proxilion
 from proxilion.types import UserContext
-
 
 # =============================================================================
 # ToolCategory Tests
@@ -705,7 +702,7 @@ class TestSchemaInference:
     def test_infer_schema_optional_type(self):
         """Infer schema with Optional type."""
 
-        def func(value: Optional[str] = None) -> None:
+        def func(value: str | None = None) -> None:
             pass
 
         schema = infer_schema_from_function(func)
@@ -1142,7 +1139,11 @@ class TestProxilionToolIntegration:
         def search() -> None:
             pass
 
-        @auth.tool(category=ToolCategory.DATABASE, risk_level=RiskLevel.HIGH, requires_approval=True)
+        @auth.tool(
+            category=ToolCategory.DATABASE,
+            risk_level=RiskLevel.HIGH,
+            requires_approval=True,
+        )
         def dangerous() -> None:
             pass
 
@@ -1159,7 +1160,7 @@ class TestProxilionToolIntegration:
     def test_set_tool_registry(self):
         """Set a new tool registry."""
         auth = Proxilion()
-        old_registry = auth.get_tool_registry()
+        _old_registry = auth.get_tool_registry()
 
         new_registry = ToolRegistry()
         new_registry.register(

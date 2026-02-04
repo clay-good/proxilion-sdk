@@ -11,38 +11,31 @@ Tests cover:
 - Auto-degradation and recovery
 """
 
-import asyncio
 import time
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from proxilion.resilience.retry import (
-    RetryPolicy,
-    RetryContext,
-    RetryStats,
-    RetryBudget,
-    retry_with_backoff,
-    retry_async,
-    retry_sync,
-    DEFAULT_RETRY_POLICY,
+import pytest
+
+from proxilion.resilience.degradation import (
+    DegradationTier,
+    GracefulDegradation,
+    TierConfig,
 )
 from proxilion.resilience.fallback import (
-    FallbackOption,
-    FallbackResult,
     FallbackChain,
     FallbackCondition,
+    FallbackOption,
+    FallbackResult,
     ModelFallback,
     ToolFallback,
 )
-from proxilion.resilience.degradation import (
-    DegradationTier,
-    TierConfig,
-    GracefulDegradation,
-    DegradationEvent,
-    DEFAULT_TIERS,
+from proxilion.resilience.retry import (
+    RetryBudget,
+    RetryContext,
+    RetryPolicy,
+    RetryStats,
+    retry_with_backoff,
 )
-
 
 # ==================== RetryPolicy Tests ====================
 
@@ -964,7 +957,7 @@ class TestResilienceIntegration:
 
         # Check which tools are available
         available = degradation.is_tool_available("search")
-        unavailable = degradation.is_tool_available("code_execution")
+        _unavailable = degradation.is_tool_available("code_execution")
 
         assert available is True  # search should be in minimal tier
 

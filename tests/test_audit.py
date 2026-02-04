@@ -16,17 +16,15 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
-
-from proxilion.types import UserContext, ToolCallRequest
 from proxilion.audit.events import (
-    AuditEventV2,
     AuditEventData,
+    AuditEventV2,
     EventType,
     RedactionConfig,
 )
-from proxilion.audit.hash_chain import HashChain, MerkleTree, GENESIS_HASH
+from proxilion.audit.hash_chain import GENESIS_HASH, HashChain, MerkleTree
 from proxilion.audit.logger import AuditLogger, LoggerConfig, RotationPolicy
+from proxilion.types import ToolCallRequest, UserContext
 
 
 def create_audit_event_data(
@@ -75,7 +73,9 @@ class TestAuditEventV2:
         assert event.data.user_id == basic_user.user_id
         assert event.data.tool_name == search_tool_request.tool_name
 
-    def test_event_has_unique_id(self, basic_user: UserContext, search_tool_request: ToolCallRequest):
+    def test_event_has_unique_id(
+        self, basic_user: UserContext, search_tool_request: ToolCallRequest
+    ):
         """Test that each event gets a unique ID."""
         data1 = create_audit_event_data(user=basic_user, tool_request=search_tool_request)
         data2 = create_audit_event_data(user=basic_user, tool_request=search_tool_request)
@@ -141,7 +141,12 @@ class TestHashChain:
         assert hash_chain is not None
         assert hash_chain.last_hash == GENESIS_HASH
 
-    def test_append_event(self, hash_chain: HashChain, basic_user: UserContext, search_tool_request: ToolCallRequest):
+    def test_append_event(
+        self,
+        hash_chain: HashChain,
+        basic_user: UserContext,
+        search_tool_request: ToolCallRequest,
+    ):
         """Test appending an event to the chain."""
         data = create_audit_event_data(user=basic_user, tool_request=search_tool_request)
         event = AuditEventV2(data=data, previous_hash=GENESIS_HASH)
@@ -286,7 +291,12 @@ class TestAuditLogger:
         """Test audit logger initialization."""
         assert audit_logger is not None
 
-    def test_log_event(self, audit_logger: AuditLogger, basic_user: UserContext, search_tool_request: ToolCallRequest):
+    def test_log_event(
+        self,
+        audit_logger: AuditLogger,
+        basic_user: UserContext,
+        search_tool_request: ToolCallRequest,
+    ):
         """Test logging an event."""
         data = create_audit_event_data(user=basic_user, tool_request=search_tool_request)
         event = AuditEventV2(data=data, previous_hash=audit_logger.chain.chain.last_hash)
@@ -295,7 +305,12 @@ class TestAuditLogger:
         # Verify event count via chain
         assert audit_logger.chain.chain.length >= 1
 
-    def test_log_writes_to_file(self, temp_audit_dir: Path, basic_user: UserContext, search_tool_request: ToolCallRequest):
+    def test_log_writes_to_file(
+        self,
+        temp_audit_dir: Path,
+        basic_user: UserContext,
+        search_tool_request: ToolCallRequest,
+    ):
         """Test that logging writes to file."""
         log_path = temp_audit_dir / "test_audit.jsonl"
         config = LoggerConfig(
@@ -327,7 +342,9 @@ class TestAuditLogger:
 
         assert audit_logger.chain.chain.length == 5
 
-    def test_logger_maintains_chain_integrity(self, audit_logger: AuditLogger, basic_user: UserContext):
+    def test_logger_maintains_chain_integrity(
+        self, audit_logger: AuditLogger, basic_user: UserContext
+    ):
         """Test that logger maintains hash chain integrity."""
         for i in range(3):
             request = ToolCallRequest(

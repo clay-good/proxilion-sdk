@@ -12,23 +12,22 @@ Tests cover:
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from proxilion import Proxilion, Policy, UserContext, AgentContext
+from proxilion import AgentContext, Policy, Proxilion, UserContext
 from proxilion.contrib.mcp import (
+    InvalidClientError,
     MCPSession,
     MCPSessionManager,
-    ToolDefinitionRegistry,
     MCPToolWrapper,
     ProxilionMCPServer,
-    extract_user_from_mcp_context,
-    create_mcp_tool_handler,
-    ToolShadowingError,
     SessionExpiredError,
-    InvalidClientError,
+    ToolDefinitionRegistry,
+    ToolShadowingError,
+    create_mcp_tool_handler,
+    extract_user_from_mcp_context,
 )
 from proxilion.exceptions import AuthorizationError
 

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from proxilion.observability.cost_tracker import CostTracker
 from proxilion.security.cost_limiter import (
     CostLimit,
     CostLimiter,
@@ -18,8 +19,6 @@ from proxilion.security.cost_limiter import (
     LimitScope,
     create_cost_limiter,
 )
-from proxilion.observability.cost_tracker import CostTracker, BudgetPolicy
-
 
 # =============================================================================
 # CostLimit Tests
@@ -224,8 +223,14 @@ class TestCostLimitChecking:
     def test_check_limit_multi_tier(self) -> None:
         """Test multi-tier limits."""
         limiter = CostLimiter(limits=[
-            CostLimit(max_cost=1.00, period=timedelta(minutes=1), scope=LimitScope.USER, name="burst"),
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), scope=LimitScope.USER, name="hourly"),
+            CostLimit(
+                max_cost=1.00, period=timedelta(minutes=1),
+                scope=LimitScope.USER, name="burst",
+            ),
+            CostLimit(
+                max_cost=10.00, period=timedelta(hours=1),
+                scope=LimitScope.USER, name="hourly",
+            ),
         ])
 
         # Record spend to exceed burst limit
@@ -373,7 +378,7 @@ class TestStatusReporting:
 
         assert status["user_id"] == "user_123"
         assert len(status["limits"]) == 2
-        assert any(l["name"] == "hourly" for l in status["limits"])
+        assert any(lim["name"] == "hourly" for lim in status["limits"])
 
 
 # =============================================================================
@@ -460,7 +465,7 @@ class TestCreateCostLimiter:
 
         # Should have default limits
         assert len(limits) >= 3
-        assert any("burst" in l.name for l in limits)
+        assert any("burst" in lim.name for lim in limits)
 
     def test_create_without_defaults(self) -> None:
         """Test factory without defaults."""

@@ -11,17 +11,15 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from proxilion.exceptions import BudgetExceededError
 from proxilion.observability.cost_tracker import (
-    BudgetPolicy,
-    CostSummary,
-    CostTracker,
     DEFAULT_PRICING,
+    BudgetPolicy,
+    CostTracker,
     ModelPricing,
     UsageRecord,
     create_cost_tracker,
 )
-from proxilion.exceptions import BudgetExceededError
-
 
 # =============================================================================
 # ModelPricing Tests
@@ -545,7 +543,7 @@ class TestRecordsManagement:
         """Test getting limited records."""
         tracker = CostTracker()
 
-        for i in range(10):
+        for _ in range(10):
             tracker.record_usage(
                 model="claude-sonnet-4-20250514",
                 input_tokens=1000,
@@ -580,7 +578,7 @@ class TestRecordsManagement:
         """Test clearing all records."""
         tracker = CostTracker()
 
-        for i in range(5):
+        for _ in range(5):
             tracker.record_usage(
                 model="claude-sonnet-4-20250514",
                 input_tokens=1000,
@@ -611,7 +609,7 @@ class TestRecordsManagement:
         """Test exporting records as JSONL."""
         tracker = CostTracker()
 
-        for i in range(3):
+        for _ in range(3):
             tracker.record_usage(
                 model="claude-sonnet-4-20250514",
                 input_tokens=1000,
@@ -685,7 +683,7 @@ class TestDefaultPricing:
 
     def test_default_pricing_valid(self) -> None:
         """Test all default pricing has valid values."""
-        for model, pricing in DEFAULT_PRICING.items():
+        for _model, pricing in DEFAULT_PRICING.items():
             assert pricing.input_price_per_1k > 0
             assert pricing.output_price_per_1k > 0
             assert pricing.model_name

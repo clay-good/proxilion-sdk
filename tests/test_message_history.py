@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from typing import Any
-
-import pytest
 
 from proxilion.context.message_history import (
     Message,
@@ -207,7 +204,7 @@ class TestMessageHistory:
             # Use fixed token count to make test deterministic
             history.append(Message(role=MessageRole.USER, content=f"Message {i}", token_count=10))
 
-        original_count = len(history)
+        _original_count = len(history)
         original_tokens = history.get_total_tokens()
         removed = history.truncate_to_token_limit(25)
 

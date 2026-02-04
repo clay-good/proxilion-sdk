@@ -7,25 +7,23 @@ authorization flow, and result formatting.
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timezone
-from typing import Any
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
-from proxilion import Proxilion, Policy, UserContext
+import pytest
+
+from proxilion import Policy, Proxilion, UserContext
 from proxilion.contrib.google import (
-    ProxilionVertexHandler,
     GeminiFunctionCall,
     GeminiToolResult,
-    RegisteredGeminiTool,
     GoogleIntegrationError,
-    ToolNotFoundError,
+    ProxilionVertexHandler,
     ToolExecutionError,
+    ToolNotFoundError,
     extract_function_calls,
     format_tool_response,
     to_gemini_tools,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -1042,7 +1040,9 @@ class TestGeminiToolsExport:
         if isinstance(tools[0], dict):
             assert "function_declarations" in tools[0]
 
-    def test_tool_declarations_property(self, handler, weather_tool_declaration, database_tool_declaration):
+    def test_tool_declarations_property(
+        self, handler, weather_tool_declaration, database_tool_declaration,
+    ):
         """Get tool declarations."""
         handler.register_tool(
             name="get_weather",
