@@ -520,10 +520,11 @@ class MCPToolWrapper:
             )
 
         # Build context for authorization
+        # Spread arguments first so trusted keys can't be overridden
         context = {
+            **arguments,  # Flatten arguments for policy access
             "arguments": arguments,
             "tool_name": self.name,
-            **arguments,  # Flatten arguments for policy access
         }
 
         # Check authorization

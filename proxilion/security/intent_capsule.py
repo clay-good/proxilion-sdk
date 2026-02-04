@@ -769,10 +769,12 @@ class IntentCapsuleManager:
             return False
 
     def verify_capsule(self, capsule_id: str) -> bool:
-        """Verify a capsule's signature."""
+        """Verify a capsule's signature and that it hasn't expired."""
         with self._lock:
             capsule = self._capsules.get(capsule_id)
             if not capsule:
+                return False
+            if capsule.is_expired():
                 return False
             return capsule.verify(self._secret_key)
 

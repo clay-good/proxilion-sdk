@@ -325,9 +325,9 @@ class ProxilionToolHandler:
         # Check authorization
         if user is not None:
             context = {
+                **input_data,
                 "tool_name": tool_name,
                 "input": input_data,
-                **input_data,
             }
 
             auth_result = self.proxilion.check(user, tool.action, tool.resource, context)
@@ -436,9 +436,9 @@ class ProxilionToolHandler:
         # Check authorization
         if user is not None:
             context = {
+                **input_data,
                 "tool_name": tool_name,
                 "input": input_data,
-                **input_data,
             }
 
             auth_result = self.proxilion.check(user, tool.action, tool.resource, context)

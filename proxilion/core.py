@@ -2489,13 +2489,12 @@ class Proxilion:
             ...     tools=tools,
             ... )
         """
-        # Get filtered tools
+        # Get filtered tools (apply both filters when both are provided)
+        tools = self._tool_registry.list_enabled()
         if category is not None:
-            tools = self._tool_registry.list_by_category(category)
-        elif max_risk_level is not None:
-            tools = self._tool_registry.list_by_risk_level(max_risk_level)
-        else:
-            tools = self._tool_registry.list_enabled()
+            tools = [t for t in tools if t.category == category]
+        if max_risk_level is not None:
+            tools = [t for t in tools if t.risk_level.value <= max_risk_level.value]
 
         # Export each tool manually
         if format == "openai":
@@ -2821,8 +2820,9 @@ class Proxilion:
         results = []
         for call in tool_calls:
             merged_context = dict(context or {})
-            merged_context["tool_call_id"] = call.id
             merged_context.update(call.arguments)
+            # Set tool_call_id after arguments to prevent override from untrusted data
+            merged_context["tool_call_id"] = call.id
 
             auth_result = self.check(user, "execute", call.name, merged_context)
             results.append((call, auth_result))
@@ -2864,8 +2864,9 @@ class Proxilion:
         results = []
         for call in tool_calls:
             merged_context = dict(context or {})
-            merged_context["tool_call_id"] = call.id
             merged_context.update(call.arguments)
+            # Set tool_call_id after arguments to prevent override from untrusted data
+            merged_context["tool_call_id"] = call.id
 
             # Check authorization
             auth_result = self.check(user, "execute", call.name, merged_context)
@@ -2939,13 +2940,12 @@ class Proxilion:
             ...     tools=openai_tools,
             ... )
         """
-        # Get filtered tools
+        # Get filtered tools (apply both filters when both are provided)
+        tools = self._tool_registry.list_enabled()
         if category is not None:
-            tools = self._tool_registry.list_by_category(category)
-        elif max_risk_level is not None:
-            tools = self._tool_registry.list_by_risk_level(max_risk_level)
-        else:
-            tools = self._tool_registry.list_enabled()
+            tools = [t for t in tools if t.category == category]
+        if max_risk_level is not None:
+            tools = [t for t in tools if t.risk_level.value <= max_risk_level.value]
 
         adapter = get_adapter(provider=provider)
         return adapter.format_tools(tools)
@@ -3002,7 +3002,7 @@ class Proxilion:
             # Check authorization
             auth_result = self.check(
                 user, "execute", call.name,
-                {"tool_call_id": call.id, **call.arguments}
+                {**call.arguments, "tool_call_id": call.id}
             )
 
             if not auth_result.allowed:

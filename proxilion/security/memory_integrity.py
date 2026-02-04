@@ -711,15 +711,15 @@ class ContextWindowGuard:
         Raises:
             ContextIntegrityError: If verification fails.
         """
-        result = self.verify()
-        if not result.valid:
-            from proxilion.exceptions import ContextIntegrityError
-            raise ContextIntegrityError(
-                f"Context integrity violated: {result.violations[0].message}",
-                violations=result.violations,
-            )
-
         with self._lock:
+            result = self._guard.verify_context(self._messages)
+            if not result.valid:
+                from proxilion.exceptions import ContextIntegrityError
+                raise ContextIntegrityError(
+                    f"Context integrity violated: {result.violations[0].message}",
+                    violations=result.violations,
+                )
+
             return [
                 {"role": msg.role, "content": msg.content}
                 for msg in self._messages

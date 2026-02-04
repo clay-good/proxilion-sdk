@@ -314,9 +314,9 @@ class ProxilionFunctionHandler:
         # Check authorization
         if user is not None:
             context = {
+                **arguments,
                 "function_name": function_name,
                 "arguments": arguments,
-                **arguments,
             }
 
             auth_result = self.proxilion.check(user, func.action, func.resource, context)
@@ -430,9 +430,9 @@ class ProxilionFunctionHandler:
         # Check authorization
         if user is not None:
             context = {
+                **arguments,
                 "function_name": function_name,
                 "arguments": arguments,
-                **arguments,
             }
 
             auth_result = self.proxilion.check(user, func.action, func.resource, context)
