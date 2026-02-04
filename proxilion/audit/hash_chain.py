@@ -162,6 +162,7 @@ class HashChain:
                 )
 
             expected_previous = GENESIS_HASH
+            last_sequence = -1
 
             for i, event in enumerate(self._events):
                 # Check previous_hash linkage
@@ -184,6 +185,19 @@ class HashChain:
                         error_index=i,
                         verified_count=i,
                     )
+
+                # Verify monotonically increasing sequence numbers
+                if event.sequence_number <= last_sequence:
+                    return ChainVerificationResult(
+                        valid=False,
+                        error_message=(
+                            f"Sequence number not monotonically increasing at index {i}: "
+                            f"got {event.sequence_number}, previous was {last_sequence}"
+                        ),
+                        error_index=i,
+                        verified_count=i,
+                    )
+                last_sequence = event.sequence_number
 
                 expected_previous = event.event_hash
 

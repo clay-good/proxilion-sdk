@@ -177,6 +177,8 @@ class DeadlineContext:
             operation: Optional operation name for error messages.
             raise_on_expire: Whether to raise TimeoutError when expired.
         """
+        if timeout <= 0:
+            raise ValueError(f"Timeout must be positive, got {timeout}")
         self.timeout = timeout
         self.operation = operation
         self.raise_on_expire = raise_on_expire

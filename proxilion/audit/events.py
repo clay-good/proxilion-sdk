@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -76,21 +77,24 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# Global sequence counter (thread-safe via GIL for simple increments)
+# Global sequence counter with thread-safe access
 _sequence_counter = 0
-_sequence_lock = None
+_sequence_lock = threading.Lock()
+
 
 def _next_sequence() -> int:
     """Get next sequence number (monotonically increasing)."""
     global _sequence_counter
-    _sequence_counter += 1
-    return _sequence_counter
+    with _sequence_lock:
+        _sequence_counter += 1
+        return _sequence_counter
 
 
 def reset_sequence(value: int = 0) -> None:
     """Reset the sequence counter (for testing)."""
     global _sequence_counter
-    _sequence_counter = value
+    with _sequence_lock:
+        _sequence_counter = value
 
 
 @dataclass

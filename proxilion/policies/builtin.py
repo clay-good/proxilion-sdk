@@ -304,7 +304,8 @@ class AttributeBasedPolicy(Policy[Any]):
         Returns:
             True if authorized, False otherwise.
         """
-        ctx = context or {}
+        # Copy to avoid mutating caller's dict
+        ctx = dict(context) if context else {}
 
         # Add user attributes to context for convenience
         ctx["user_id"] = self.user.user_id

@@ -195,8 +195,33 @@ class KeepFirstLastStrategy:
             total = sum(m.token_count or 0 for m in messages)
             if total <= max_tokens:
                 return messages
-            # Still need to truncate - use sliding window
-            return SlidingWindowStrategy().fit(messages, max_tokens)
+            # Still need to truncate — keep first and last, trim from middle
+            # to maintain the KeepFirstLast contract
+            first_msgs = messages[: self.keep_first]
+            last_msgs = messages[self.keep_first :]
+            first_tokens = sum(m.token_count or 0 for m in first_msgs)
+            remaining = max_tokens - first_tokens
+            if remaining <= 0:
+                # First messages alone exceed budget, trim first messages
+                kept: list[Message] = []
+                budget = 0
+                for msg in first_msgs:
+                    msg_tokens = msg.token_count or 0
+                    if budget + msg_tokens > max_tokens:
+                        break
+                    kept.append(msg)
+                    budget += msg_tokens
+                return kept
+            # Fill remaining budget from the end
+            kept_last: list[Message] = []
+            budget = 0
+            for msg in reversed(last_msgs):
+                msg_tokens = msg.token_count or 0
+                if budget + msg_tokens > remaining:
+                    break
+                kept_last.insert(0, msg)
+                budget += msg_tokens
+            return first_msgs + kept_last
 
         # Get first and last messages
         first_msgs = messages[: self.keep_first]

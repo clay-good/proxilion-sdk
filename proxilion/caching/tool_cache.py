@@ -23,6 +23,9 @@ from typing import Any, ParamSpec, TypeVar
 
 logger = logging.getLogger(__name__)
 
+# Sentinel object to distinguish cache misses from cached None values
+_CACHE_MISS = object()
+
 P = ParamSpec("P")
 T = TypeVar("T")
 
@@ -320,7 +323,8 @@ class ToolCache:
         tool_name: str,
         args: dict[str, Any],
         user_id: str | None = None,
-    ) -> Any | None:
+        default: Any = None,
+    ) -> Any:
         """
         Get a cached result.
 
@@ -328,9 +332,11 @@ class ToolCache:
             tool_name: Name of the tool.
             args: Tool arguments.
             user_id: Optional user ID.
+            default: Value to return if not found/expired (default: None).
+                Use _CACHE_MISS sentinel to distinguish misses from cached None.
 
         Returns:
-            Cached value or None if not found/expired.
+            Cached value or default if not found/expired.
         """
         key = self._generate_key(tool_name, args, user_id)
 
@@ -339,14 +345,14 @@ class ToolCache:
 
             if entry is None:
                 self._stats.misses += 1
-                return None
+                return default
 
             if entry.is_expired():
                 # Remove expired entry
                 del self._cache[key]
                 self._stats.misses += 1
                 self._stats.expirations += 1
-                return None
+                return default
 
             # Record hit and move to end (for LRU)
             entry.access()
@@ -557,7 +563,7 @@ class ToolCache:
     def __contains__(self, key: tuple[str, dict[str, Any]]) -> bool:
         """Check if a tool/args combination is cached."""
         tool_name, args = key
-        return self.get(tool_name, args) is not None
+        return self.get(tool_name, args, default=_CACHE_MISS) is not _CACHE_MISS
 
     def __len__(self) -> int:
         """Get number of cached entries."""
@@ -613,9 +619,9 @@ def cached_tool(
             else:
                 cache_args = all_args
 
-            # Check cache
-            cached_result = cache.get(tool_name, cache_args)
-            if cached_result is not None:
+            # Check cache — use sentinel to handle cached falsy values (None, False, 0)
+            cached_result = cache.get(tool_name, cache_args, default=_CACHE_MISS)
+            if cached_result is not _CACHE_MISS:
                 logger.debug(f"Cache hit for {tool_name}")
                 return cached_result
 

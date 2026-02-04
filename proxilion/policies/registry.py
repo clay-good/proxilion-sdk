@@ -339,6 +339,7 @@ class PolicyRegistry:
 
 # Global registry instance for convenience
 _global_registry: PolicyRegistry | None = None
+_global_registry_lock = threading.Lock()
 
 
 def get_global_registry() -> PolicyRegistry:
@@ -359,9 +360,13 @@ def get_global_registry() -> PolicyRegistry:
         ...     pass
     """
     global _global_registry
-    if _global_registry is None:
-        _global_registry = PolicyRegistry()
-    return _global_registry
+    if _global_registry is not None:
+        return _global_registry
+    with _global_registry_lock:
+        # Double-check after acquiring lock
+        if _global_registry is None:
+            _global_registry = PolicyRegistry()
+        return _global_registry
 
 
 def reset_global_registry() -> None:
@@ -371,6 +376,7 @@ def reset_global_registry() -> None:
     Clears the global registry instance. Primarily useful for testing.
     """
     global _global_registry
-    if _global_registry is not None:
-        _global_registry.clear()
-    _global_registry = None
+    with _global_registry_lock:
+        if _global_registry is not None:
+            _global_registry.clear()
+        _global_registry = None
