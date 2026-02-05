@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -204,7 +205,6 @@ class OPAPolicyEngine(BasePolicyEngine):
 
             # Wait before retry (except on last attempt)
             if attempt < self.retry_count - 1:
-                import time
                 time.sleep(self.retry_delay * (attempt + 1))
 
         raise PolicyEvaluationError(
@@ -349,7 +349,7 @@ class OPAPolicyEngine(BasePolicyEngine):
             AuthorizationResult with the decision.
         """
         # Run sync version in thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, self.evaluate, user, action, resource, context
         )

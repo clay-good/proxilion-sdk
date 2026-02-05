@@ -394,6 +394,8 @@ class OutputGuard:
 
         self.filters = filters or []
         self.action = action
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("Threshold must be between 0.0 and 1.0")
         self.threshold = threshold
         self._pattern_index: dict[str, LeakagePattern] = {p.name: p for p in self.patterns}
 

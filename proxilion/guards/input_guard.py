@@ -277,6 +277,8 @@ class InputGuard:
         """
         self.patterns = patterns if patterns is not None else list(DEFAULT_INJECTION_PATTERNS)
         self.action = action
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("Threshold must be between 0.0 and 1.0")
         self.threshold = threshold
         self._sanitize_func = sanitize_func
         self._pattern_index: dict[str, InjectionPattern] = {p.name: p for p in self.patterns}
