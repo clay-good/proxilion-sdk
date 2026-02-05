@@ -248,7 +248,10 @@ class CircuitBreaker:
             return result
 
         except self.excluded_exceptions:
-            # Don't count as failure, but re-raise
+            # Don't count as failure, but free the half-open slot
+            if state == CircuitState.HALF_OPEN:
+                with self._lock:
+                    self._half_open_count = max(0, self._half_open_count - 1)
             raise
 
         except Exception as e:
@@ -309,6 +312,10 @@ class CircuitBreaker:
             return result
 
         except self.excluded_exceptions:
+            # Don't count as failure, but free the half-open slot
+            if state == CircuitState.HALF_OPEN:
+                with self._lock:
+                    self._half_open_count = max(0, self._half_open_count - 1)
             raise
 
         except Exception as e:

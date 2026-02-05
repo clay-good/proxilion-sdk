@@ -565,27 +565,16 @@ class BufferedStreamTransformer:
         async for chunk in stream:
             self._buffer += chunk
 
-            # If buffer is large enough, process it
+            # If buffer is large enough, process and emit it.
+            # The buffer_size acts as the accumulation window: we
+            # collect enough data to catch patterns that may span
+            # multiple chunks before applying regex and yielding.
             if len(self._buffer) >= self.buffer_size:
-                # Apply patterns
                 result = self._buffer
                 for pattern, replacement in self._patterns:
                     result = re.sub(pattern, replacement, result)
-
-                # Yield processed content, keeping overlap from original
-                # buffer so boundary patterns get re-examined with new data.
-                # Overlap is based on original buffer to keep alignment.
-                overlap = min(100, len(self._buffer) // 2)
-                if overlap > 0:
-                    # Apply patterns only to the portion being yielded
-                    yield_part = self._buffer[:-overlap]
-                    for pattern, replacement in self._patterns:
-                        yield_part = re.sub(pattern, replacement, yield_part)
-                    yield yield_part
-                    self._buffer = self._buffer[-overlap:]
-                else:
-                    yield result
-                    self._buffer = ""
+                yield result
+                self._buffer = ""
 
         # Flush remaining buffer
         if self._buffer:

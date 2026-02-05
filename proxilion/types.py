@@ -313,11 +313,19 @@ class AuditEvent:
         """
         if not self.event_hash:
             return False
-        expected = self.compute_hash()
-        # Restore the original hash since compute_hash modifies it
-        current = self.event_hash
-        self.event_hash = current
-        return current == expected
+
+        # Store original hash before computing
+        stored_hash = self.event_hash
+
+        # Compute expected hash without calling compute_hash()
+        # to avoid overwriting the stored hash
+        canonical = self._canonical_json()
+        expected = f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+
+        # Restore original hash
+        self.event_hash = stored_hash
+
+        return stored_hash == expected
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""

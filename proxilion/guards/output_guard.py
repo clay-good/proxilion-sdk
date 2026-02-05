@@ -488,7 +488,10 @@ class OutputGuard:
                     else:
                         severities.append(0.7)
             except Exception as e:
+                # Fail-closed: treat filter exceptions as failures
                 logger.error(f"Output filter {filter_.name} raised exception: {e}")
+                filter_failures.append(filter_.name)
+                severities.append(1.0)
 
         # Calculate risk score
         risk_score = self._calculate_risk_score(severities)
