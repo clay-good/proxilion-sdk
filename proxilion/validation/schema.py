@@ -460,7 +460,7 @@ class SchemaValidator:
             # Pattern constraint
             if "pattern" in constraints:
                 pattern = constraints["pattern"]
-                if not re.match(pattern, value):
+                if not re.fullmatch(pattern, value):
                     errors.append(
                         f"Parameter '{name}' does not match pattern '{pattern}'"
                     )
@@ -525,8 +525,11 @@ class SchemaValidator:
         if "%252e%252e" in value.lower():
             return True
 
-        # Unicode variants
-        return ".." in value
+        # Unicode full-width variants (U+FF0E = ．)
+        if "\uff0e\uff0e" in value:
+            return True
+
+        return False
 
     def _check_sql_injection(self, value: str) -> bool:
         """

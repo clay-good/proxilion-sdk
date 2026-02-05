@@ -7,6 +7,7 @@ reduced service capacity.
 
 from __future__ import annotations
 
+import copy
 import logging
 import threading
 from collections.abc import Callable
@@ -253,7 +254,7 @@ class GracefulDegradation:
             recovery_threshold: Consecutive successes before recovering.
             auto_recover: Whether to auto-recover after successes.
         """
-        self._tiers = tiers or dict(DEFAULT_TIERS)
+        self._tiers = tiers or copy.deepcopy(DEFAULT_TIERS)
         self._current_tier = initial_tier
         self._failure_threshold = failure_threshold
         self._recovery_threshold = recovery_threshold
@@ -573,10 +574,25 @@ class GracefulDegradation:
             tier: The tier to reset to.
         """
         with self._lock:
+            old_tier = self._current_tier
             self._current_tier = tier
             self._failure_counts.clear()
             self._success_counts.clear()
             self._history.clear()
+
+            if old_tier != tier:
+                event = DegradationEvent(
+                    timestamp=datetime.now(timezone.utc),
+                    from_tier=old_tier,
+                    to_tier=tier,
+                    reason="reset",
+                    triggered_by="manual",
+                )
+                for callback in self._callbacks:
+                    try:
+                        callback(event)
+                    except Exception as e:
+                        logger.error(f"Degradation callback error: {e}")
 
     def get_tier_config(self, tier: DegradationTier) -> TierConfig:
         """

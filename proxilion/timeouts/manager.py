@@ -101,7 +101,12 @@ class TimeoutConfig:
         Args:
             tool_name: Name of the tool.
             timeout: Timeout value in seconds.
+
+        Raises:
+            ValueError: If timeout is not positive.
         """
+        if timeout <= 0:
+            raise ValueError(f"Timeout must be positive, got {timeout}")
         self.tool_timeouts[tool_name] = timeout
 
     def to_dict(self) -> dict[str, Any]:

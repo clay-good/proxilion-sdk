@@ -356,6 +356,9 @@ class AzureBlobExporter(BaseCloudExporter):
                 self._container_client.get_container_properties()
             else:
                 # Try to get container properties
+                if not self._account_name:
+                    logger.error("Account name not configured")
+                    return False
                 url = (
                     f"https://{self._account_name}.blob.core.windows.net/"
                     f"{self.config.bucket_name}?restype=container"

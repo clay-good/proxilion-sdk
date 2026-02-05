@@ -665,7 +665,7 @@ class TestThreadSafety:
         def writer():
             for i in range(100):
                 try:
-                    manager.set_tool_timeout(f"tool_{i}", float(i))
+                    manager.set_tool_timeout(f"tool_{i}", float(i + 1))
                 except Exception as e:
                     errors.append(e)
 

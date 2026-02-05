@@ -413,6 +413,11 @@ class ToolCache:
             while len(self._cache) >= self.config.max_size:
                 self._evict_one()
 
+            # If replacing an existing entry, subtract its size first
+            old_entry = self._cache.get(key)
+            if old_entry is not None:
+                self._stats.size_bytes -= old_entry.size_bytes
+
             self._cache[key] = entry
             self._stats.size = len(self._cache)
             self._stats.size_bytes += entry.size_bytes

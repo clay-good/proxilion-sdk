@@ -81,9 +81,10 @@ class SlidingWindowStrategy:
             msg_tokens = msg.token_count or 0
             if total + msg_tokens > max_tokens:
                 break
-            result.insert(0, msg)
+            result.append(msg)
             total += msg_tokens
 
+        result.reverse()
         return result
 
 

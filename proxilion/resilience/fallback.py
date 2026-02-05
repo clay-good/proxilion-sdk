@@ -259,17 +259,24 @@ class FallbackChain(Generic[T]):
         start_time = datetime.now(timezone.utc)
         result = FallbackResult[T](success=False)
 
-        # Build execution order
-        handlers: list[tuple[str, Callable[..., Any], bool]] = []
+        # Build execution order: (name, handler, is_fallback, option_or_None)
+        handlers: list[tuple[str, Callable[..., Any], bool, FallbackOption | None]] = []
         if primary:
-            handlers.append(("primary", primary, False))
+            handlers.append(("primary", primary, False, None))
 
         with self._lock:
             for option in self._options:
                 if option.enabled:
-                    handlers.append((option.name, option.handler, True))
+                    handlers.append((option.name, option.handler, True, option))
 
-        for name, handler, is_fallback in handlers:
+        last_exception: Exception | None = None
+
+        for name, handler, is_fallback, option in handlers:
+            # Check if this fallback's conditions match the last exception
+            if is_fallback and option is not None and last_exception is not None:
+                if not option.matches_condition(last_exception):
+                    continue
+
             result.attempts += 1
 
             try:
@@ -293,11 +300,9 @@ class FallbackChain(Generic[T]):
                 break
 
             except Exception as e:
+                last_exception = e
                 result.exceptions.append((name, e))
                 logger.warning(f"Fallback chain: '{name}' failed: {e}")
-
-                # Check if next option matches condition
-                # (simplified - in full implementation would check conditions)
 
         result.execution_time = (
             datetime.now(timezone.utc) - start_time
@@ -324,17 +329,24 @@ class FallbackChain(Generic[T]):
         start_time = datetime.now(timezone.utc)
         result = FallbackResult[T](success=False)
 
-        # Build execution order
-        handlers: list[tuple[str, Callable[..., Any], bool]] = []
+        # Build execution order: (name, handler, is_fallback, option_or_None)
+        handlers: list[tuple[str, Callable[..., Any], bool, FallbackOption | None]] = []
         if primary:
-            handlers.append(("primary", primary, False))
+            handlers.append(("primary", primary, False, None))
 
         with self._lock:
             for option in self._options:
                 if option.enabled:
-                    handlers.append((option.name, option.handler, True))
+                    handlers.append((option.name, option.handler, True, option))
 
-        for name, handler, is_fallback in handlers:
+        last_exception: Exception | None = None
+
+        for name, handler, is_fallback, option in handlers:
+            # Check if this fallback's conditions match the last exception
+            if is_fallback and option is not None and last_exception is not None:
+                if not option.matches_condition(last_exception):
+                    continue
+
             result.attempts += 1
 
             try:
@@ -357,6 +369,7 @@ class FallbackChain(Generic[T]):
                 break
 
             except Exception as e:
+                last_exception = e
                 result.exceptions.append((name, e))
                 logger.warning(f"Fallback chain: '{name}' failed: {e}")
 

@@ -184,6 +184,10 @@ class GCSExporter(BaseCloudExporter):
 
         with urllib.request.urlopen(request, timeout=30) as response:
             token_data = json.loads(response.read())
+            if "access_token" not in token_data:
+                raise ValueError(
+                    f"Token response missing 'access_token': {list(token_data.keys())}"
+                )
             self._access_token = token_data["access_token"]
             self._token_expiry = time.time() + token_data.get("expires_in", 3600) - 60
 
@@ -296,6 +300,9 @@ class GCSExporter(BaseCloudExporter):
         """
         try:
             if HAS_GCS:
+                if self._bucket is None:
+                    logger.error("GCS bucket not initialized")
+                    return False
                 self._bucket.reload()
             else:
                 # Try to get bucket metadata

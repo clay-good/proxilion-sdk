@@ -1451,6 +1451,19 @@ class Proxilion:
 
         # Fall back to policy engine
         result = self._engine.evaluate(user, action, resource, context)
+
+        # Apply default deny: if the engine allowed but no explicit
+        # policy was found, and default_deny is enabled, deny the request.
+        if (
+            result.allowed
+            and self._default_deny
+            and policy_class is None
+            and not result.policies_evaluated
+        ):
+            return AuthorizationResult.deny(
+                reason="No explicit policy found and default_deny is enabled",
+            )
+
         return result
 
     def authorize_or_raise(
@@ -1683,16 +1696,20 @@ class Proxilion:
             raise
 
         finally:
-            # 7. Audit logging
+            # 7. Audit logging (wrapped in try/except to avoid masking
+            # the original exception if audit logging fails)
             if log_audit:
-                self._log_audit_event(
-                    user=user,
-                    agent=agent,
-                    tool_request=tool_request,
-                    auth_result=auth_result,
-                    execution_result=execution_result,
-                    error_message=error_message,
-                )
+                try:
+                    self._log_audit_event(
+                        user=user,
+                        agent=agent,
+                        tool_request=tool_request,
+                        auth_result=auth_result,
+                        execution_result=execution_result,
+                        error_message=error_message,
+                    )
+                except Exception as audit_err:
+                    logger.error(f"Audit logging failed: {audit_err}")
 
     def _execute_with_auth_sync(
         self,
@@ -1794,14 +1811,17 @@ class Proxilion:
 
         finally:
             if log_audit:
-                self._log_audit_event(
-                    user=user,
-                    agent=agent,
-                    tool_request=tool_request,
-                    auth_result=auth_result,
-                    execution_result=execution_result,
-                    error_message=error_message,
-                )
+                try:
+                    self._log_audit_event(
+                        user=user,
+                        agent=agent,
+                        tool_request=tool_request,
+                        auth_result=auth_result,
+                        execution_result=execution_result,
+                        error_message=error_message,
+                    )
+                except Exception as audit_err:
+                    logger.error(f"Audit logging failed: {audit_err}")
 
     def _validate_schema(self, tool_name: str, arguments: dict[str, Any]) -> None:
         """Validate arguments against registered schema."""
@@ -2538,25 +2558,24 @@ class Proxilion:
             ...     print(result.result)
         """
         if authorize:
-            tool_def = self._tool_registry.get(name)
-            if tool_def:
-                # Check authorization
-                auth_result = self.check(user, "execute", name, kwargs)
-                if not auth_result.allowed:
-                    raise AuthorizationError(
-                        user=user.user_id,
-                        action="execute",
-                        resource=name,
-                        reason=auth_result.reason,
-                    )
+            # Always check authorization regardless of registry status
+            auth_result = self.check(user, "execute", name, kwargs)
+            if not auth_result.allowed:
+                raise AuthorizationError(
+                    user=user.user_id,
+                    action="execute",
+                    resource=name,
+                    reason=auth_result.reason,
+                )
 
-                # Check if tool requires approval before execution
-                if tool_def.requires_approval:
-                    raise ApprovalRequiredError(
-                        tool_name=name,
-                        user=user.user_id,
-                        reason="Tool is marked as requiring approval before execution",
-                    )
+            # Check if tool requires approval before execution
+            tool_def = self._tool_registry.get(name)
+            if tool_def and tool_def.requires_approval:
+                raise ApprovalRequiredError(
+                    tool_name=name,
+                    user=user.user_id,
+                    reason="Tool is marked as requiring approval before execution",
+                )
 
         return self._tool_registry.execute(name, **kwargs)
 
@@ -2592,25 +2611,24 @@ class Proxilion:
             ...     print(result.result)
         """
         if authorize:
-            tool_def = self._tool_registry.get(name)
-            if tool_def:
-                # Check authorization
-                auth_result = self.check(user, "execute", name, kwargs)
-                if not auth_result.allowed:
-                    raise AuthorizationError(
-                        user=user.user_id,
-                        action="execute",
-                        resource=name,
-                        reason=auth_result.reason,
-                    )
+            # Always check authorization regardless of registry status
+            auth_result = self.check(user, "execute", name, kwargs)
+            if not auth_result.allowed:
+                raise AuthorizationError(
+                    user=user.user_id,
+                    action="execute",
+                    resource=name,
+                    reason=auth_result.reason,
+                )
 
-                # Check if tool requires approval before execution
-                if tool_def.requires_approval:
-                    raise ApprovalRequiredError(
-                        tool_name=name,
-                        user=user.user_id,
-                        reason="Tool is marked as requiring approval before execution",
-                    )
+            # Check if tool requires approval before execution
+            tool_def = self._tool_registry.get(name)
+            if tool_def and tool_def.requires_approval:
+                raise ApprovalRequiredError(
+                    tool_name=name,
+                    user=user.user_id,
+                    reason="Tool is marked as requiring approval before execution",
+                )
 
         return await self._tool_registry.execute_async(name, **kwargs)
 
