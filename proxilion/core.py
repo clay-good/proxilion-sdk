@@ -2895,6 +2895,14 @@ class Proxilion:
             # Try to execute if tool is registered
             tool_def = self._tool_registry.get(call.name)
             if tool_def:
+                # Check if tool requires approval before execution
+                if tool_def.requires_approval:
+                    from proxilion.exceptions import ApprovalRequiredError
+                    raise ApprovalRequiredError(
+                        tool_name=call.name,
+                        user=user.user_id,
+                        reason="Tool is marked as requiring approval before execution",
+                    )
                 exec_result = self._tool_registry.execute(call.name, **call.arguments)
                 results.append((call, exec_result))
             else:
@@ -3033,6 +3041,14 @@ class Proxilion:
             if execute_tools:
                 tool_def = self._tool_registry.get(call.name)
                 if tool_def:
+                    # Check if tool requires approval before execution
+                    if tool_def.requires_approval:
+                        from proxilion.exceptions import ApprovalRequiredError
+                        raise ApprovalRequiredError(
+                            tool_name=call.name,
+                            user=user.user_id,
+                            reason="Tool is marked as requiring approval before execution",
+                        )
                     exec_result = await self._tool_registry.execute_async(
                         call.name, **call.arguments
                     )

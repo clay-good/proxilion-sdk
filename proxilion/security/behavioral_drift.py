@@ -224,9 +224,9 @@ class BehavioralMonitor:
             data: Event data.
         """
         now = time.time()
-        self._event_times.append(now)
 
         with self._lock:
+            self._event_times.append(now)
             if event_type == "tool_call":
                 self._record_tool_call(data, now)
             elif event_type == "response":
@@ -250,9 +250,9 @@ class BehavioralMonitor:
     ) -> None:
         """Record a tool call event."""
         now = time.time()
-        self._event_times.append(now)
 
         with self._lock:
+            self._event_times.append(now)
             self._tool_history.append(tool_name)
 
             # Calculate call rate (calls per minute)
@@ -296,9 +296,9 @@ class BehavioralMonitor:
     def record_error(self, error_info: dict[str, Any]) -> None:
         """Record an error event."""
         now = time.time()
-        self._error_count += 1
 
         with self._lock:
+            self._error_count += 1
             # Error rate (errors per minute)
             recent_errors = sum(
                 1 for mv in self._metrics[DriftMetric.ERROR_RATE]

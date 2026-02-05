@@ -537,9 +537,15 @@ class EUAIActExporter(BaseComplianceExporter):
         risk_log = self.export_risk_assessment_log(start, end)
         # Article 15 compliance requires that security events have mitigation responses
         # or no security events occurred during the period
+        # Each security event entry contains a mitigation_action field
+        security_events = risk_log["security_events"]
+        events_with_mitigation = [
+            e for e in security_events
+            if e.get("mitigation_action")
+        ]
         art_15_compliant = (
-            len(risk_log["security_events"]) == 0 or
-            len(risk_log.get("mitigation_actions", [])) > 0
+            len(security_events) == 0 or
+            len(events_with_mitigation) == len(security_events)
         )
         article_15_evidence = ComplianceEvidence(
             control_id="Article 15",

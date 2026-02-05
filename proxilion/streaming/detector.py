@@ -222,6 +222,7 @@ class StreamingToolCallDetector:
         self._partial_calls: dict[str, PartialToolCall] = {}
         self._text_buffer: str = ""
         self._detected: bool = False
+        self._max_partial_calls = 1000  # Prevent unbounded memory growth
 
     def process_chunk(self, chunk: Any) -> list[StreamEvent]:
         """
@@ -236,6 +237,9 @@ class StreamingToolCallDetector:
         Raises:
             ValueError: If the provider cannot be determined.
         """
+        # Cleanup completed calls if too many accumulated
+        self._cleanup_completed_calls()
+
         # Detect provider from chunk structure if auto
         if self.provider == "auto" and not self._detected:
             detected = self._detect_provider(chunk)
@@ -696,6 +700,30 @@ class StreamingToolCallDetector:
                     break
 
         return events
+
+    def _cleanup_completed_calls(self) -> None:
+        """
+        Remove completed calls if the dictionary exceeds max size.
+
+        This prevents unbounded memory growth in long-running streams.
+        Completed calls are removed first as they're no longer needed
+        for streaming state.
+        """
+        if len(self._partial_calls) <= self._max_partial_calls:
+            return
+
+        # Remove completed calls first (oldest first by started_at)
+        completed = [
+            (key, call)
+            for key, call in self._partial_calls.items()
+            if call.is_complete
+        ]
+        completed.sort(key=lambda x: x[1].started_at)
+
+        # Remove oldest completed calls until under limit
+        to_remove = len(self._partial_calls) - self._max_partial_calls
+        for key, _ in completed[:to_remove]:
+            del self._partial_calls[key]
 
     def get_pending_calls(self) -> list[PartialToolCall]:
         """
