@@ -426,13 +426,22 @@ class BaseCloudExporter(ABC):
         Returns:
             ExportResult if batch was exported, None otherwise.
         """
+        events = None
         with self._lock:
             self._pending_events.append(event)
 
             if len(self._pending_events) >= self.config.batch_size:
                 events = self._pending_events
                 self._pending_events = []
+
+        if events is not None:
+            try:
                 return self.export(events)
+            except Exception:
+                # Restore events on export failure to prevent data loss
+                with self._lock:
+                    self._pending_events = events + self._pending_events
+                raise
 
         return None
 
@@ -449,7 +458,14 @@ class BaseCloudExporter(ABC):
 
             events = self._pending_events
             self._pending_events = []
+
+        try:
             return self.export(events)
+        except Exception:
+            # Restore events on export failure to prevent data loss
+            with self._lock:
+                self._pending_events = events + self._pending_events
+            raise
 
     def get_content_type(self) -> str:
         """Get the content type for exported files."""

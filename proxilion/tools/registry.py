@@ -421,11 +421,12 @@ class ToolRegistry:
         Returns:
             True if tool was found.
         """
-        tool = self.get(name)
-        if tool:
-            tool.enabled = True
-            return True
-        return False
+        with self._lock:
+            tool = self._tools.get(name)
+            if tool:
+                tool.enabled = True
+                return True
+            return False
 
     def disable(self, name: str) -> bool:
         """
@@ -437,11 +438,12 @@ class ToolRegistry:
         Returns:
             True if tool was found.
         """
-        tool = self.get(name)
-        if tool:
-            tool.enabled = False
-            return True
-        return False
+        with self._lock:
+            tool = self._tools.get(name)
+            if tool:
+                tool.enabled = False
+                return True
+            return False
 
     def export_all(
         self,

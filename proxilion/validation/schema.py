@@ -465,8 +465,8 @@ class SchemaValidator:
                         f"Parameter '{name}' does not match pattern '{pattern}'"
                     )
 
-            # Path traversal check
-            if not constraints.get("allow_path_traversal", True):
+            # Path traversal check (default: reject traversal sequences)
+            if not constraints.get("allow_path_traversal", False):
                 if self._check_path_traversal(value):
                     errors.append(
                         f"Parameter '{name}' contains path traversal sequence"

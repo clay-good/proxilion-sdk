@@ -572,10 +572,20 @@ class BufferedStreamTransformer:
                 for pattern, replacement in self._patterns:
                     result = re.sub(pattern, replacement, result)
 
-                # Yield processed content, keeping some buffer for overlap
-                overlap = min(100, len(result) // 2)
-                yield result[:-overlap]
-                self._buffer = self._buffer[-overlap:]
+                # Yield processed content, keeping overlap from original
+                # buffer so boundary patterns get re-examined with new data.
+                # Overlap is based on original buffer to keep alignment.
+                overlap = min(100, len(self._buffer) // 2)
+                if overlap > 0:
+                    # Apply patterns only to the portion being yielded
+                    yield_part = self._buffer[:-overlap]
+                    for pattern, replacement in self._patterns:
+                        yield_part = re.sub(pattern, replacement, yield_part)
+                    yield yield_part
+                    self._buffer = self._buffer[-overlap:]
+                else:
+                    yield result
+                    self._buffer = ""
 
         # Flush remaining buffer
         if self._buffer:

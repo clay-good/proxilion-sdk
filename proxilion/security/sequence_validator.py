@@ -279,19 +279,21 @@ class SequenceValidator:
 
     def enable_rule(self, name: str) -> bool:
         """Enable a rule by name."""
-        rule = self.get_rule(name)
-        if rule:
-            rule.enabled = True
-            return True
-        return False
+        with self._lock:
+            for rule in self._rules:
+                if rule.name == name:
+                    rule.enabled = True
+                    return True
+            return False
 
     def disable_rule(self, name: str) -> bool:
         """Disable a rule by name."""
-        rule = self.get_rule(name)
-        if rule:
-            rule.enabled = False
-            return True
-        return False
+        with self._lock:
+            for rule in self._rules:
+                if rule.name == name:
+                    rule.enabled = False
+                    return True
+            return False
 
     def record_call(
         self,

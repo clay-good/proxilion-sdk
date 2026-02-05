@@ -33,6 +33,8 @@ Example:
     ...         response_msg = adapter.format_tool_result(call, result)
 """
 
+import threading
+
 from proxilion.providers.adapter import (
     BaseAdapter,
     Provider,
@@ -58,6 +60,7 @@ _ADAPTERS: dict[str, type[BaseAdapter]] = {
 
 # Singleton instances
 _adapter_instances: dict[str, BaseAdapter] = {}
+_adapter_lock = threading.Lock()
 
 
 def get_adapter(
@@ -98,16 +101,22 @@ def get_adapter(
     # Convert Provider enum to string
     provider_key = provider.value if isinstance(provider, Provider) else provider.lower()
 
-    # Get or create adapter instance
-    if provider_key not in _adapter_instances:
-        if provider_key not in _ADAPTERS:
-            raise ValueError(
-                f"Unknown provider: {provider_key}. "
-                f"Supported: {list(_ADAPTERS.keys())}"
-            )
-        _adapter_instances[provider_key] = _ADAPTERS[provider_key]()
+    # Fast path: check without lock
+    if provider_key in _adapter_instances:
+        return _adapter_instances[provider_key]
 
-    return _adapter_instances[provider_key]
+    # Slow path: create under lock
+    with _adapter_lock:
+        # Double-check after acquiring lock
+        if provider_key not in _adapter_instances:
+            if provider_key not in _ADAPTERS:
+                raise ValueError(
+                    f"Unknown provider: {provider_key}. "
+                    f"Supported: {list(_ADAPTERS.keys())}"
+                )
+            _adapter_instances[provider_key] = _ADAPTERS[provider_key]()
+
+        return _adapter_instances[provider_key]
 
 
 def register_adapter(name: str, adapter_class: type[BaseAdapter]) -> None:
@@ -124,10 +133,11 @@ def register_adapter(name: str, adapter_class: type[BaseAdapter]) -> None:
         >>> register_adapter("custom", MyCustomAdapter)
         >>> adapter = get_adapter("custom")
     """
-    _ADAPTERS[name.lower()] = adapter_class
-    # Clear cached instance if exists
-    if name.lower() in _adapter_instances:
-        del _adapter_instances[name.lower()]
+    with _adapter_lock:
+        _ADAPTERS[name.lower()] = adapter_class
+        # Clear cached instance if exists
+        if name.lower() in _adapter_instances:
+            del _adapter_instances[name.lower()]
 
 
 def list_providers() -> list[str]:

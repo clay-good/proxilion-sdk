@@ -255,8 +255,9 @@ class ProxilionTool:
             return
 
         # Build context from input
+        # Spread untrusted input first so trusted keys can't be overridden
         if isinstance(tool_input, dict):
-            context = {"tool_input": tool_input, **tool_input}
+            context = {**tool_input, "tool_input": tool_input}
         else:
             context = {"tool_input": str(tool_input)}
 

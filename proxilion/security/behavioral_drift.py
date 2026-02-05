@@ -376,8 +376,9 @@ class BehavioralMonitor:
                 mean = statistics.mean(samples)
                 std_dev = statistics.stdev(samples) if len(samples) > 1 else 0.0
                 sorted_samples = sorted(samples)
-                p95_idx = int(len(sorted_samples) * 0.95)
-                p99_idx = int(len(sorted_samples) * 0.99)
+                n = len(sorted_samples)
+                p95_idx = max(0, min(int((n - 1) * 0.95), n - 1))
+                p99_idx = max(0, min(int((n - 1) * 0.99), n - 1))
 
                 self._baseline[metric] = BaselineStats(
                     metric=metric,
@@ -386,14 +387,8 @@ class BehavioralMonitor:
                     min_value=min(samples),
                     max_value=max(samples),
                     sample_count=len(samples),
-                    percentile_95=(
-                        sorted_samples[p95_idx] if p95_idx < len(sorted_samples)
-                        else max(samples)
-                    ),
-                    percentile_99=(
-                        sorted_samples[p99_idx] if p99_idx < len(sorted_samples)
-                        else max(samples)
-                    ),
+                    percentile_95=sorted_samples[p95_idx],
+                    percentile_99=sorted_samples[p99_idx],
                 )
 
             self._baseline_locked = True
