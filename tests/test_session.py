@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import timedelta
 
 import pytest
 
@@ -102,8 +103,11 @@ class TestSession:
 
     def test_cannot_add_to_expired_session(self, user: UserContext):
         """Cannot add messages to expired session."""
-        config = SessionConfig(max_duration=0)  # Immediately expires
+        # Use a very small duration that expires almost immediately
+        config = SessionConfig(max_duration=1)  # 1 second
         session = Session(session_id="sess_123", user=user, config=config)
+        # Manually set created_at to the past to simulate expiration
+        session.created_at = session.created_at - timedelta(seconds=2)
         session.is_expired()  # Force state update
 
         with pytest.raises(ValueError, match="Cannot add message"):
@@ -174,16 +178,20 @@ class TestSession:
 
     def test_expiration_by_duration(self, user: UserContext):
         """Session expires after max duration."""
-        config = SessionConfig(max_duration=0)  # Immediate expiration
+        config = SessionConfig(max_duration=1)  # 1 second
         session = Session(session_id="sess_123", user=user, config=config)
+        # Manually set created_at to the past to simulate expiration
+        session.created_at = session.created_at - timedelta(seconds=2)
 
         assert session.is_expired() is True
         assert session.state == SessionState.EXPIRED
 
     def test_expiration_by_idle(self, user: UserContext):
         """Session expires after idle time."""
-        config = SessionConfig(max_duration=None, max_idle_time=0)
+        config = SessionConfig(max_duration=None, max_idle_time=1)  # 1 second
         session = Session(session_id="sess_123", user=user, config=config)
+        # Manually set last_activity to the past to simulate idle expiration
+        session.last_activity = session.last_activity - timedelta(seconds=2)
 
         assert session.is_expired() is True
 
@@ -339,11 +347,13 @@ class TestSessionManager:
 
     def test_get_expired_session_returns_none(self, user: UserContext):
         """Get expired session returns None."""
-        config = SessionConfig(max_duration=0)
+        config = SessionConfig(max_duration=1)  # 1 second
         manager = SessionManager(config)
-        _session = manager.create_session(user, session_id="sess_123")
+        session = manager.create_session(user, session_id="sess_123")
+        # Manually expire the session
+        session.created_at = session.created_at - timedelta(seconds=2)
 
-        # Session immediately expires
+        # Session is now expired
         result = manager.get_session("sess_123")
         assert result is None
 
@@ -357,18 +367,22 @@ class TestSessionManager:
 
     def test_get_user_sessions_filters_expired(self, user: UserContext):
         """Get user sessions filters out expired by default."""
-        config = SessionConfig(max_duration=0)
+        config = SessionConfig(max_duration=1)  # 1 second
         manager = SessionManager(config)
-        manager.create_session(user)
+        session = manager.create_session(user)
+        # Manually expire the session
+        session.created_at = session.created_at - timedelta(seconds=2)
 
         sessions = manager.get_user_sessions(user.user_id)
         assert len(sessions) == 0
 
     def test_get_user_sessions_include_expired(self, user: UserContext):
         """Get user sessions can include expired."""
-        config = SessionConfig(max_duration=0)
+        config = SessionConfig(max_duration=1)  # 1 second
         manager = SessionManager(config)
-        manager.create_session(user)
+        session = manager.create_session(user)
+        # Manually expire the session
+        session.created_at = session.created_at - timedelta(seconds=2)
 
         sessions = manager.get_user_sessions(user.user_id, include_expired=True)
         assert len(sessions) == 1
@@ -409,11 +423,14 @@ class TestSessionManager:
 
     def test_cleanup_expired(self, user: UserContext):
         """Cleanup removes expired sessions."""
-        config = SessionConfig(max_duration=0, auto_cleanup=False)
-        manager = SessionManager(config, cleanup_interval=0)
+        config = SessionConfig(max_duration=1, auto_cleanup=False)  # 1 second
+        manager = SessionManager(config, cleanup_interval=1)
 
-        manager.create_session(user, session_id="sess_1")
-        manager.create_session(user, session_id="sess_2")
+        sess1 = manager.create_session(user, session_id="sess_1")
+        sess2 = manager.create_session(user, session_id="sess_2")
+        # Manually expire the sessions
+        sess1.created_at = sess1.created_at - timedelta(seconds=2)
+        sess2.created_at = sess2.created_at - timedelta(seconds=2)
 
         count = manager.cleanup_expired()
         assert count == 2

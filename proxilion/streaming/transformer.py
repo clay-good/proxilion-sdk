@@ -523,7 +523,13 @@ class BufferedStreamTransformer:
 
         Args:
             buffer_size: Maximum buffer size in characters.
+
+        Raises:
+            ValueError: If buffer_size <= 0.
         """
+        if buffer_size <= 0:
+            raise ValueError("buffer_size must be greater than 0")
+
         self.buffer_size = buffer_size
         self._buffer: str = ""
         self._patterns: list[tuple[str, str]] = []
@@ -621,7 +627,19 @@ class StreamAggregator:
             max_chars: Maximum characters to buffer.
             timeout: Timeout in seconds before yielding.
             delimiter: Optional delimiter that triggers yield.
+
+        Raises:
+            ValueError: If min_chars < 0, max_chars <= 0, min_chars > max_chars, or timeout < 0.
         """
+        if min_chars < 0:
+            raise ValueError("min_chars must be >= 0")
+        if max_chars <= 0:
+            raise ValueError("max_chars must be greater than 0")
+        if min_chars > max_chars:
+            raise ValueError("min_chars must not exceed max_chars")
+        if timeout < 0:
+            raise ValueError("timeout must be >= 0")
+
         self.min_chars = min_chars
         self.max_chars = max_chars
         self.timeout = timeout

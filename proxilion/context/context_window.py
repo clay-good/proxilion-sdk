@@ -130,8 +130,9 @@ class KeepSystemRecentStrategy:
                 msg_tokens = msg.token_count or 0
                 if total + msg_tokens > max_tokens:
                     break
-                result.insert(0, msg)
+                result.append(msg)
                 total += msg_tokens
+            result.reverse()  # O(n) instead of O(n²) insert(0)
             return result
 
         # Calculate remaining tokens for other messages
@@ -144,8 +145,9 @@ class KeepSystemRecentStrategy:
             msg_tokens = msg.token_count or 0
             if recent_tokens + msg_tokens > remaining:
                 break
-            recent.insert(0, msg)
+            recent.append(msg)
             recent_tokens += msg_tokens
+        recent.reverse()  # O(n) instead of O(n²) insert(0)
 
         return system_msgs + recent
 
@@ -173,7 +175,15 @@ class KeepFirstLastStrategy:
         Args:
             keep_first: Number of messages to keep from start.
             keep_last: Number of messages to keep from end.
+
+        Raises:
+            ValueError: If keep_first < 0 or keep_last < 0.
         """
+        if keep_first < 0:
+            raise ValueError("keep_first must be >= 0")
+        if keep_last < 0:
+            raise ValueError("keep_last must be >= 0")
+
         self.keep_first = keep_first
         self.keep_last = keep_last
 
@@ -364,7 +374,15 @@ class ContextWindow:
             max_tokens: Maximum tokens for context.
             strategy: The fitting strategy to use.
             reserve_output: Tokens to reserve for output generation.
+
+        Raises:
+            ValueError: If max_tokens <= 0 or reserve_output < 0.
         """
+        if max_tokens <= 0:
+            raise ValueError("max_tokens must be greater than 0")
+        if reserve_output < 0:
+            raise ValueError("reserve_output must be >= 0")
+
         self.max_tokens = max_tokens
         self.reserve_output = reserve_output
         self._strategy = strategy

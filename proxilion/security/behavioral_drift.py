@@ -179,11 +179,23 @@ class BehavioralMonitor:
 
         Args:
             agent_id: Unique identifier for the agent.
-            baseline_window: Number of samples for baseline calculation.
-            detection_window: Recent samples for drift detection.
-            drift_threshold: Z-score threshold for drift detection.
-            min_baseline_samples: Minimum samples before baseline is valid.
+            baseline_window: Number of samples for baseline calculation. Must be > 0.
+            detection_window: Recent samples for drift detection. Must be > 0.
+            drift_threshold: Z-score threshold for drift detection. Must be > 0.
+            min_baseline_samples: Minimum samples before baseline is valid. Must be > 0.
+
+        Raises:
+            ValueError: If any numeric parameter is <= 0.
         """
+        if baseline_window <= 0:
+            raise ValueError("baseline_window must be greater than 0")
+        if detection_window <= 0:
+            raise ValueError("detection_window must be greater than 0")
+        if drift_threshold <= 0:
+            raise ValueError("drift_threshold must be greater than 0")
+        if min_baseline_samples <= 0:
+            raise ValueError("min_baseline_samples must be greater than 0")
+
         self.agent_id = agent_id
         self._baseline_window = baseline_window
         self._detection_window = detection_window

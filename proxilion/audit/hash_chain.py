@@ -550,7 +550,13 @@ class BatchedHashChain:
 
         Args:
             batch_size: Number of events per batch.
+
+        Raises:
+            ValueError: If batch_size <= 0.
         """
+        if batch_size <= 0:
+            raise ValueError("batch_size must be greater than 0")
+
         self._chain = HashChain()
         self._current_tree = MerkleTree()
         self._batch_size = batch_size

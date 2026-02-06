@@ -60,6 +60,9 @@ class LoggerConfig:
         batch_size: Events per Merkle batch.
         redaction_config: Config for sensitive data redaction.
         sync_writes: If True, flush after each write.
+
+    Raises:
+        ValueError: If batch_size <= 0 or max_size_mb <= 0.
     """
     log_path: Path
     rotation: RotationPolicy = RotationPolicy.DAILY
@@ -68,6 +71,13 @@ class LoggerConfig:
     batch_size: int = 100
     redaction_config: RedactionConfig | None = None
     sync_writes: bool = True
+
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be greater than 0")
+        if self.max_size_mb <= 0:
+            raise ValueError("max_size_mb must be greater than 0")
 
     @classmethod
     def default(cls, log_path: str | Path) -> LoggerConfig:

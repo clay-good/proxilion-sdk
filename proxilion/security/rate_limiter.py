@@ -64,9 +64,17 @@ class TokenBucketRateLimiter:
 
         Args:
             capacity: Maximum tokens in the bucket.
-            refill_rate: Tokens added per second.
+            refill_rate: Tokens added per second. Must be greater than 0.
             key_func: Optional function to extract rate limit key from requests.
+
+        Raises:
+            ValueError: If capacity <= 0 or refill_rate <= 0.
         """
+        if capacity <= 0:
+            raise ValueError("capacity must be greater than 0")
+        if refill_rate <= 0:
+            raise ValueError("refill_rate must be greater than 0")
+
         self.capacity = capacity
         self.refill_rate = refill_rate
         self.key_func = key_func

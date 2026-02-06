@@ -74,6 +74,23 @@ class ParameterSchema:
                 f"Valid types: {valid_types}"
             )
 
+        # Validate constraint consistency
+        min_len = self.constraints.get("min_length")
+        max_len = self.constraints.get("max_length")
+        if min_len is not None and max_len is not None and min_len > max_len:
+            raise ValueError(
+                f"Parameter '{self.name}': min_length ({min_len}) cannot be "
+                f"greater than max_length ({max_len})"
+            )
+
+        min_val = self.constraints.get("min")
+        max_val = self.constraints.get("max")
+        if min_val is not None and max_val is not None and min_val > max_val:
+            raise ValueError(
+                f"Parameter '{self.name}': min ({min_val}) cannot be "
+                f"greater than max ({max_val})"
+            )
+
 
 @dataclass
 class ToolSchema:

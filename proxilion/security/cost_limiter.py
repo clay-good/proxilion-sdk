@@ -271,7 +271,7 @@ class CostLimiter:
                         )
 
                 # Check warning threshold
-                if limit.warn_at > 0:
+                if limit.warn_at > 0 and limit.max_cost > 0:
                     usage_pct = (current_spend + estimated_cost) / limit.max_cost
                     if usage_pct >= limit.warn_at:
                         warnings.append(

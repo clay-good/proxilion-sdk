@@ -87,14 +87,28 @@ class CircuitBreaker:
         Initialize the circuit breaker.
 
         Args:
-            failure_threshold: Number of failures before opening circuit.
-            reset_timeout: Seconds to wait before trying half-open.
-            half_open_max: Max concurrent requests in half-open state.
-            success_threshold: Successes needed to close circuit from half-open.
+            failure_threshold: Number of failures before opening circuit. Must be > 0.
+            reset_timeout: Seconds to wait before trying half-open. Must be > 0.
+            half_open_max: Max concurrent requests in half-open state. Must be > 0.
+            success_threshold: Successes needed to close circuit from half-open. Must be > 0.
             excluded_exceptions: Exceptions that don't count as failures.
             exponential_backoff: If True, increase timeout on repeated failures.
-            max_backoff: Maximum backoff timeout in seconds.
+            max_backoff: Maximum backoff timeout in seconds. Must be > 0.
+
+        Raises:
+            ValueError: If any numeric parameter is <= 0.
         """
+        if failure_threshold <= 0:
+            raise ValueError("failure_threshold must be greater than 0")
+        if reset_timeout <= 0:
+            raise ValueError("reset_timeout must be greater than 0")
+        if half_open_max <= 0:
+            raise ValueError("half_open_max must be greater than 0")
+        if success_threshold <= 0:
+            raise ValueError("success_threshold must be greater than 0")
+        if max_backoff <= 0:
+            raise ValueError("max_backoff must be greater than 0")
+
         self.failure_threshold = failure_threshold
         self.reset_timeout = reset_timeout
         self.half_open_max = half_open_max

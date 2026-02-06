@@ -168,10 +168,20 @@ class PriorityQueue:
         Initialize the priority queue.
 
         Args:
-            max_size: Maximum number of requests in queue.
-            aging_interval: Seconds before priority boost.
-            aging_boost: Priority levels to boost on aging.
+            max_size: Maximum number of requests in queue. Must be > 0.
+            aging_interval: Seconds before priority boost. Must be > 0.
+            aging_boost: Priority levels to boost on aging. Must be >= 0.
+
+        Raises:
+            ValueError: If max_size <= 0 or aging_interval <= 0.
         """
+        if max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+        if aging_interval <= 0:
+            raise ValueError("aging_interval must be greater than 0")
+        if aging_boost < 0:
+            raise ValueError("aging_boost must be >= 0")
+
         self.max_size = max_size
         self.aging_interval = aging_interval
         self.aging_boost = aging_boost

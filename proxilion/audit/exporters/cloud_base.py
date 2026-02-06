@@ -74,6 +74,22 @@ class CloudExporterConfig:
 
     def __post_init__(self) -> None:
         """Validate and normalize configuration."""
+        # Validate numeric parameters
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be greater than 0")
+        if self.connection_timeout <= 0:
+            raise ValueError("connection_timeout must be greater than 0")
+        if self.read_timeout <= 0:
+            raise ValueError("read_timeout must be greater than 0")
+        if self.max_retries < 0:
+            raise ValueError("max_retries must be >= 0")
+        if self.retry_delay <= 0:
+            raise ValueError("retry_delay must be greater than 0")
+
+        # Validate bucket_name is not empty
+        if not self.bucket_name or not self.bucket_name.strip():
+            raise ValueError("bucket_name must not be empty")
+
         # Ensure prefix ends with / if not empty
         if self.prefix and not self.prefix.endswith("/"):
             self.prefix = self.prefix + "/"

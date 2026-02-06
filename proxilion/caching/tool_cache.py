@@ -55,12 +55,22 @@ class CacheConfig:
         ...     default_ttl=600,
         ...     eviction_policy=EvictionPolicy.LRU,
         ... )
+
+    Raises:
+        ValueError: If max_size <= 0 or default_ttl <= 0.
     """
 
     max_size: int = 1000
     default_ttl: int | None = 300  # 5 minutes
     eviction_policy: EvictionPolicy = EvictionPolicy.LRU
     per_user_cache: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+        if self.default_ttl is not None and self.default_ttl <= 0:
+            raise ValueError("default_ttl must be greater than 0 or None")
 
 
 @dataclass

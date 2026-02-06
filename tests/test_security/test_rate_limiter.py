@@ -96,7 +96,8 @@ class TestTokenBucketRateLimiter:
 
     def test_thread_safety(self):
         """Test thread safety of rate limiter."""
-        limiter = TokenBucketRateLimiter(capacity=100, refill_rate=0)
+        # Use a very small refill rate to prevent tokens from refilling during the test
+        limiter = TokenBucketRateLimiter(capacity=100, refill_rate=0.001)
 
         results = []
 
@@ -190,9 +191,10 @@ class TestMultiDimensionalRateLimiter:
 
     def test_checks_all_dimensions(self):
         """Test that all dimensions are checked."""
+        # Use a very small refill rate to prevent tokens from refilling during the test
         config = {
-            "user": RateLimitConfig(capacity=10, refill_rate=0),
-            "tool": RateLimitConfig(capacity=5, refill_rate=0),
+            "user": RateLimitConfig(capacity=10, refill_rate=0.001),
+            "tool": RateLimitConfig(capacity=5, refill_rate=0.001),
         }
         limiter = MultiDimensionalRateLimiter(config)
 
@@ -209,8 +211,9 @@ class TestMultiDimensionalRateLimiter:
 
     def test_different_tools_separate_limits(self):
         """Test that different tools have separate limits."""
+        # Use a very small refill rate to prevent tokens from refilling during the test
         config = {
-            "tool": RateLimitConfig(capacity=2, refill_rate=0),
+            "tool": RateLimitConfig(capacity=2, refill_rate=0.001),
         }
         limiter = MultiDimensionalRateLimiter(config)
 
@@ -224,9 +227,10 @@ class TestMultiDimensionalRateLimiter:
 
     def test_combined_user_and_tool_limits(self):
         """Test combined user and tool rate limiting."""
+        # Use a very small refill rate to prevent tokens from refilling during the test
         config = {
-            "user": RateLimitConfig(capacity=10, refill_rate=0),
-            "tool": RateLimitConfig(capacity=3, refill_rate=0),
+            "user": RateLimitConfig(capacity=10, refill_rate=0.001),
+            "tool": RateLimitConfig(capacity=3, refill_rate=0.001),
         }
         limiter = MultiDimensionalRateLimiter(config)
 

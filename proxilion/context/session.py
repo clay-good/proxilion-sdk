@@ -39,6 +39,9 @@ class SessionConfig:
         max_tokens: Maximum total tokens per session.
         auto_cleanup: Whether to automatically cleanup expired sessions.
         metadata_schema: Optional schema for validating session metadata.
+
+    Raises:
+        ValueError: If any numeric parameter is not None and <= 0.
     """
 
     max_duration: int | None = 3600  # 1 hour default
@@ -47,6 +50,17 @@ class SessionConfig:
     max_tokens: int | None = None
     auto_cleanup: bool = True
     metadata_schema: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.max_duration is not None and self.max_duration <= 0:
+            raise ValueError("max_duration must be greater than 0 or None")
+        if self.max_idle_time is not None and self.max_idle_time <= 0:
+            raise ValueError("max_idle_time must be greater than 0 or None")
+        if self.max_messages is not None and self.max_messages <= 0:
+            raise ValueError("max_messages must be greater than 0 or None")
+        if self.max_tokens is not None and self.max_tokens <= 0:
+            raise ValueError("max_tokens must be greater than 0 or None")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""

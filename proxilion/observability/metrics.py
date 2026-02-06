@@ -151,7 +151,15 @@ class MetricsCollector:
         Args:
             event_window_size: Maximum events to keep in memory.
             aggregation_window_seconds: Window for rate calculations.
+
+        Raises:
+            ValueError: If event_window_size <= 0 or aggregation_window_seconds <= 0.
         """
+        if event_window_size <= 0:
+            raise ValueError("event_window_size must be greater than 0")
+        if aggregation_window_seconds <= 0:
+            raise ValueError("aggregation_window_seconds must be greater than 0")
+
         self._event_window_size = event_window_size
         self._aggregation_window = aggregation_window_seconds
 
@@ -406,7 +414,10 @@ class MetricsCollector:
 
     def get_rate(self, event_type: EventType, window_seconds: float | None = None) -> float:
         """Get event rate (events per second)."""
-        window = window_seconds or self._aggregation_window
+        window = window_seconds if window_seconds is not None else self._aggregation_window
+        if window <= 0:
+            raise ValueError("window_seconds must be greater than 0")
+
         now = time.time()
         cutoff = now - window
 

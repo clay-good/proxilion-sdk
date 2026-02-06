@@ -501,5 +501,6 @@ class MessageHistory:
             max_tokens=data.get("max_tokens"),
         )
         for msg_data in data.get("messages", []):
-            history._messages.append(Message.from_dict(msg_data))
+            # Use append() to properly enforce limits during deserialization
+            history.append(Message.from_dict(msg_data))
         return history
