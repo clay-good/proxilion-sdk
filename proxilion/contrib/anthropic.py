@@ -148,23 +148,23 @@ class ProxilionToolHandler:
         >>>
         >>> handler = ProxilionToolHandler(auth)
         >>>
-        >>> def calculate(expression: str) -> str:
-        ...     return str(eval(expression))
+        >>> def search(query: str) -> str:
+        ...     return f"Results for: {query}"
         >>>
         >>> handler.register_tool(
-        ...     name="calculator",
+        ...     name="search",
         ...     schema={
-        ...         "name": "calculator",
-        ...         "description": "Evaluate a math expression",
+        ...         "name": "search",
+        ...         "description": "Search for information",
         ...         "input_schema": {
         ...             "type": "object",
         ...             "properties": {
-        ...                 "expression": {"type": "string"}
+        ...                 "query": {"type": "string"}
         ...             },
-        ...             "required": ["expression"]
+        ...             "required": ["query"]
         ...         }
         ...     },
-        ...     implementation=calculate,
+        ...     implementation=search,
         ...     resource="calculator",
         ... )
         >>>

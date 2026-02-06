@@ -181,21 +181,21 @@ class ProxilionTool:
         ...         return True
         >>>
         >>> # Create a mock tool
-        >>> class CalcTool:
-        ...     name = "calculator"
-        ...     description = "Perform calculations"
+        >>> class SearchTool:
+        ...     name = "search"
+        ...     description = "Search for information"
         ...     def _run(self, query):
-        ...         return eval(query)
+        ...         return f"Results for: {query}"
         >>>
-        >>> secure_calc = ProxilionTool(
-        ...     original_tool=CalcTool(),
+        >>> secure_search = ProxilionTool(
+        ...     original_tool=SearchTool(),
         ...     proxilion=auth,
         ...     resource="calculator",
         ... )
         >>>
         >>> # Set user context and run
         >>> set_langchain_user(UserContext(user_id="alice", roles=["user"]))
-        >>> result = secure_calc.run("2 + 2")
+        >>> result = secure_search.run("python docs")
     """
 
     def __init__(
