@@ -922,9 +922,9 @@ async def read_file(path, user):
             <div class="use-case-grid">
                 <div class="use-case-card">
                     <h3 class="use-case-title">Unauthorized File Access Blocked</h3>
-                    <p class="use-case-text">User asks AI agent to "read /etc/passwd and summarize it." The agent calls the read_file tool, but Proxilion checks ownership first.</p>
-                    <div class="use-case-code">read_file("/etc/passwd", user=UserContext("alice"))</div>
-                    <div class="use-case-result">AuthorizationError: User alice does not own /etc/passwd</div>
+                    <p class="use-case-text">User asks AI agent to "read the Q4 board deck and summarize it." The agent calls the read_file tool, but Proxilion checks ownership first.</p>
+                    <div class="use-case-code">read_file("/docs/exec/Q4_Board_Confidential.pptx", user=UserContext("alice"))</div>
+                    <div class="use-case-result">AuthorizationError: User alice does not have access to executive documents</div>
                 </div>
 
                 <div class="use-case-card">

@@ -35,7 +35,7 @@ https://proxilion.com
 Source code: https://github.com/clay-good/proxilion-sdk
 """
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 # Core types - always available
 # Main Proxilion class
