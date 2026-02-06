@@ -809,9 +809,9 @@ Proxilion explicitly avoids:
 
 - **[Quick Start Guide](docs/quickstart.md)** - Get running in 5 minutes
 - **[Core Concepts](docs/concepts.md)** - Deterministic vs probabilistic security
-- **[API Reference](docs/api/)** - Full API documentation
-- **[Examples](examples/)** - Real-world integration examples
 - **[Security Model](docs/security.md)** - Threat model and guarantees
+- **[Features Guide](docs/features/README.md)** - Detailed feature documentation
+- **[Authorization Engine](docs/features/authorization.md)** - Policy-based access control
 
 ---
 

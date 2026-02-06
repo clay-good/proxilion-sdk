@@ -463,5 +463,4 @@ Proxilion helps with compliance requirements:
 ## Next Steps
 
 - [Features Guide](./features/README.md) - Detailed feature documentation
-- [API Reference](./api/README.md) - Complete API documentation
 - [Quickstart](./quickstart.md) - Get started quickly

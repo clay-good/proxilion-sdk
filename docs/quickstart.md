@@ -208,5 +208,4 @@ asyncio.run(main())
 
 - [Core Concepts](./concepts.md) - Understand deterministic vs probabilistic security
 - [Security Model](./security.md) - Deep dive into the security architecture
-- [API Reference](./api/README.md) - Complete API documentation
 - [Features Guide](./features/README.md) - Detailed feature documentation

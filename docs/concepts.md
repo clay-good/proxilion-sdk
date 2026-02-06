@@ -327,4 +327,3 @@ Proxilion addresses the OWASP Agentic Security Initiative Top 10:
 
 - [Security Model](./security.md) - Deep dive into security architecture
 - [Features Guide](./features/README.md) - Detailed feature documentation
-- [API Reference](./api/README.md) - Complete API documentation
