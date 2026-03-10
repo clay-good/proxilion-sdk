@@ -74,7 +74,8 @@ class SequenceRule:
         required_pattern: For REQUIRE_BEFORE, the pattern that must precede.
         forbidden_pattern: For FORBID_AFTER, the pattern that triggers block.
         sequence_patterns: For REQUIRE_SEQUENCE, ordered list of patterns.
-        max_count: For MAX_CONSECUTIVE, maximum consecutive calls.
+        max_count: For MAX_CONSECUTIVE, maximum allowed consecutive calls
+            (e.g. max_count=3 allows 3 calls, blocks the 4th).
         cooldown_seconds: For COOLDOWN, minimum seconds between calls.
         window_seconds: Time window for FORBID_AFTER and lookback.
         description: Human-readable description of the rule.
@@ -478,11 +479,16 @@ class SequenceValidator:
             if rule.matches_pattern(record.tool_name, expected_prior):
                 found_prior = True
                 break
-            # If we find any other step from the sequence that's not the expected one
+            # If we find a different step from the sequence before the expected one,
+            # the sequence is out of order
             for i, pattern in enumerate(sequence):
                 if i != step_index - 1 and rule.matches_pattern(record.tool_name, pattern):
-                    # Found a different step - sequence may be broken
-                    pass
+                    break
+            else:
+                # No sequence step matched this record; keep searching
+                continue
+            # Inner loop broke — a wrong-order step was found
+            break
 
         if not found_prior:
             return SequenceViolation(

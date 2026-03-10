@@ -1682,8 +1682,9 @@ class Proxilion:
             return result
 
         except (AuthorizationError, PolicyViolation, SchemaValidationError,
-                RateLimitExceeded, CircuitOpenError, IDORViolationError):
-            # Re-raise Proxilion exceptions
+                RateLimitExceeded, CircuitOpenError, IDORViolationError) as e:
+            # Re-raise Proxilion exceptions (capture for audit trail)
+            error_message = str(e)
             raise
 
         except Exception as e:
@@ -1798,7 +1799,8 @@ class Proxilion:
             return result
 
         except (AuthorizationError, PolicyViolation, SchemaValidationError,
-                RateLimitExceeded, CircuitOpenError, IDORViolationError):
+                RateLimitExceeded, CircuitOpenError, IDORViolationError) as e:
+            error_message = str(e)
             raise
 
         except Exception as e:
@@ -1829,7 +1831,7 @@ class Proxilion:
         if not result.valid:
             raise SchemaValidationError(
                 tool_name=tool_name,
-                errors=result.errors,
+                validation_errors=result.errors,
             )
 
     def _apply_rate_limit(self, user: UserContext, tool_name: str) -> None:
@@ -1865,7 +1867,7 @@ class Proxilion:
             tool_name=tool_request.tool_name,
             tool_arguments=filtered_args,
             allowed=auth_result.allowed if auth_result else False,
-            reason=auth_result.reason if auth_result else None,
+            reason=auth_result.reason if auth_result else error_message or "pre-authorization failure",
             policies_evaluated=auth_result.policies_evaluated if auth_result else [],
             session_id=user.session_id,
             user_attributes=dict(user.attributes),

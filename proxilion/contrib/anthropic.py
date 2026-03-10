@@ -346,11 +346,23 @@ class ProxilionToolHandler:
         # Execute tool
         try:
             if tool.async_impl:
-                loop = asyncio.new_event_loop()
                 try:
-                    output = loop.run_until_complete(tool.implementation(**input_data))
-                finally:
-                    loop.close()
+                    asyncio.get_running_loop()
+                    # Already inside an event loop (e.g. Jupyter, async framework)
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        output = pool.submit(
+                            asyncio.run, tool.implementation(**input_data)
+                        ).result()
+                except RuntimeError:
+                    # No running loop — safe to create one
+                    loop = asyncio.new_event_loop()
+                    try:
+                        output = loop.run_until_complete(
+                            tool.implementation(**input_data)
+                        )
+                    finally:
+                        loop.close()
             else:
                 output = tool.implementation(**input_data)
 

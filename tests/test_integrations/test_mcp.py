@@ -86,8 +86,26 @@ class TestMCPSession:
         assert session.has_permission("file_write", "delete") is True
         # Permission not in list
         assert session.has_permission("file_read", "delete") is False
-        # Resource not restricted
+        # Resource not restricted - default_permission=True allows it
         assert session.has_permission("calculator", "execute") is True
+
+    def test_session_default_deny(self, basic_user: UserContext):
+        """Test session with default-deny permission model."""
+        session = MCPSession(
+            session_id="session_123",
+            user_context=basic_user,
+            permissions={
+                "file_read": ["execute"],
+            },
+            default_permission=False,
+        )
+
+        # Explicitly allowed
+        assert session.has_permission("file_read", "execute") is True
+        # Action not in allowed list
+        assert session.has_permission("file_read", "delete") is False
+        # Resource not in permissions dict - denied by default
+        assert session.has_permission("calculator", "execute") is False
 
     def test_session_with_agent_context(
         self, basic_user: UserContext, basic_agent: AgentContext

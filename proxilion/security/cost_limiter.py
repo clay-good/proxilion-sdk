@@ -303,8 +303,10 @@ class CostLimiter:
         if self._cost_tracker:
             if limit.scope == LimitScope.USER:
                 return self._cost_tracker.get_user_spend(user_id, limit.period)
-            elif limit.scope == LimitScope.ORG or limit.scope == LimitScope.GLOBAL:
-                return self._cost_tracker.get_org_spend(limit.period)
+            elif limit.scope == LimitScope.ORG:
+                return self._cost_tracker.get_org_spend(limit.period, org_id=org_id)
+            elif limit.scope == LimitScope.GLOBAL:
+                return self._cost_tracker.get_global_spend(limit.period)
             elif limit.scope == LimitScope.TOOL and tool_name:
                 # Get tool-specific spend from summary
                 summary = self._cost_tracker.get_summary(

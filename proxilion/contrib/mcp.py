@@ -155,6 +155,7 @@ class MCPSession:
     expires_at: datetime | None = None
     permissions: dict[str, list[str]] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    default_permission: bool = True
 
     def is_expired(self) -> bool:
         """Check if the session has expired."""
@@ -163,9 +164,19 @@ class MCPSession:
         return datetime.now(timezone.utc) > self.expires_at
 
     def has_permission(self, resource: str, action: str) -> bool:
-        """Check if session has a specific permission."""
+        """Check if session has a specific permission.
+
+        When a resource is not listed in the permissions dict, the
+        ``default_permission`` field controls the outcome:
+
+        - ``True`` (default): unlisted resources are allowed.  The
+          permissions dict acts as an additional restriction layer on
+          top of normal Proxilion authorization.
+        - ``False``: unlisted resources are denied.  The permissions
+          dict acts as an explicit allowlist.
+        """
         if resource not in self.permissions:
-            return True  # No explicit restriction
+            return self.default_permission
         return action in self.permissions[resource]
 
 

@@ -600,9 +600,32 @@ class CostTracker:
 
             return total
 
-    def get_org_spend(self, period: timedelta) -> float:
+    def get_org_spend(self, period: timedelta, org_id: str | None = None) -> float:
         """
         Get total organization spend over a period.
+
+        Args:
+            period: Time period to check.
+            org_id: Organization ID to filter by (reserved for future use).
+
+        Returns:
+            Total spend in USD.
+        """
+        with self._lock:
+            now = datetime.now(timezone.utc)
+            cutoff = now - period
+
+            total = 0.0
+            for record in reversed(self._records):
+                if record.timestamp < cutoff:
+                    break
+                total += record.cost_usd
+
+            return total
+
+    def get_global_spend(self, period: timedelta) -> float:
+        """
+        Get total global spend across all users and orgs over a period.
 
         Args:
             period: Time period to check.
