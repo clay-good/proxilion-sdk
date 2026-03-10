@@ -759,19 +759,37 @@ class ProxilionMCPServer:
         self,
         user_context: UserContext,
         agent_context: AgentContext | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        client_metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> MCPSession:
         """
         Create a new session for this server.
 
+        If a client_id is provided, validates the client via
+        :meth:`validate_client` before creating the session.
+
         Args:
             user_context: The user for the session.
             agent_context: Optional agent context.
+            client_id: Optional client identifier for validation.
+            client_secret: Optional client secret for validation.
+            client_metadata: Optional client metadata for validation.
             **kwargs: Additional session parameters.
 
         Returns:
             The created session.
+
+        Raises:
+            MCPSecurityError: If client validation fails.
         """
+        if client_id is not None:
+            if not self.validate_client(client_id, client_secret, client_metadata):
+                raise MCPSecurityError(
+                    f"Client validation failed for client_id={client_id!r}"
+                )
+
         return self.session_manager.create_session(
             user_context=user_context,
             agent_context=agent_context,

@@ -504,6 +504,89 @@ class TestProxilionMCPServer:
         assert session is not None
         assert session.user_context == basic_user
 
+    def test_server_create_session_with_client_validation(
+        self, proxilion_simple: Proxilion, basic_user: UserContext
+    ):
+        """Test creating a session with client validation (default accepts all)."""
+        class MockServer:
+            tools = []
+
+        server = ProxilionMCPServer(
+            original_server=MockServer(),
+            proxilion=proxilion_simple,
+        )
+
+        session = server.create_session(
+            basic_user, client_id="my-client", client_secret="secret"
+        )
+        assert session is not None
+        assert session.user_context == basic_user
+
+    def test_server_create_session_client_validation_rejected(
+        self, proxilion_simple: Proxilion, basic_user: UserContext
+    ):
+        """Test that session creation fails when client validation is rejected."""
+        from proxilion.contrib.mcp import MCPSecurityError
+
+        class MockServer:
+            tools = []
+
+        server = ProxilionMCPServer(
+            original_server=MockServer(),
+            proxilion=proxilion_simple,
+        )
+
+        # Override validate_client to reject
+        server.validate_client = lambda cid, csec=None, meta=None: False
+
+        with pytest.raises(MCPSecurityError, match="Client validation failed"):
+            server.create_session(basic_user, client_id="bad-client")
+
+    def test_server_create_session_custom_validate_client(
+        self, proxilion_simple: Proxilion, basic_user: UserContext
+    ):
+        """Test custom validate_client override via subclass."""
+        class MockServer:
+            tools = []
+
+        class CustomMCPServer(ProxilionMCPServer):
+            def validate_client(self, client_id, client_secret=None, metadata=None):
+                return client_id == "trusted-client"
+
+        server = CustomMCPServer(
+            original_server=MockServer(),
+            proxilion=proxilion_simple,
+        )
+
+        # Trusted client succeeds
+        session = server.create_session(basic_user, client_id="trusted-client")
+        assert session is not None
+
+        # Untrusted client fails
+        from proxilion.contrib.mcp import MCPSecurityError
+        with pytest.raises(MCPSecurityError):
+            server.create_session(basic_user, client_id="untrusted-client")
+
+    def test_server_create_session_no_client_id_skips_validation(
+        self, proxilion_simple: Proxilion, basic_user: UserContext
+    ):
+        """Test that omitting client_id skips validation entirely."""
+        class MockServer:
+            tools = []
+
+        server = ProxilionMCPServer(
+            original_server=MockServer(),
+            proxilion=proxilion_simple,
+        )
+
+        # Override to always reject — but shouldn't be called
+        server.validate_client = lambda cid, csec=None, meta=None: (_ for _ in ()).throw(
+            AssertionError("validate_client should not be called")
+        )
+
+        session = server.create_session(basic_user)
+        assert session is not None
+
 
 class TestExtractUserFromMCPContext:
     """Tests for extract_user_from_mcp_context function."""
