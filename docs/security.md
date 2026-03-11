@@ -50,35 +50,32 @@ Proxilion is designed to protect against threats in agentic AI systems:
 **Threat Mitigated:** Injection attacks (SQL, command, path traversal)
 
 ```python
-from proxilion.guardrails import InputValidator, ValidationRule, ThreatLevel
+from proxilion.guards.input_guard import InputGuard, InjectionPattern
 
-validator = InputValidator()
+guard = InputGuard()
 
 # SQL Injection prevention
-validator.add_rule(ValidationRule(
+guard.add_pattern(InjectionPattern(
     name="sql_injection",
     pattern=r"(\bUNION\b.*\bSELECT\b|\bDROP\b|\bDELETE\b|\b--\b|;\s*$)",
-    action="block",
-    threat_level=ThreatLevel.CRITICAL,
-    message="SQL injection attempt detected"
+    severity=1.0,
+    description="SQL injection attempt detected"
 ))
 
 # Command injection prevention
-validator.add_rule(ValidationRule(
+guard.add_pattern(InjectionPattern(
     name="command_injection",
     pattern=r"(;\s*|\||\$\(|`|&&|\|\|)",
-    action="block",
-    threat_level=ThreatLevel.CRITICAL,
-    message="Command injection attempt detected"
+    severity=1.0,
+    description="Command injection attempt detected"
 ))
 
 # Path traversal prevention
-validator.add_rule(ValidationRule(
+guard.add_pattern(InjectionPattern(
     name="path_traversal",
     pattern=r"(\.\.\/|\.\.\\|%2e%2e|%252e)",
-    action="block",
-    threat_level=ThreatLevel.HIGH,
-    message="Path traversal attempt detected"
+    severity=0.8,
+    description="Path traversal attempt detected"
 ))
 ```
 
@@ -286,7 +283,7 @@ if drift_result.is_drifting:
 **Threat Mitigated:** Runaway agents, emergency situations
 
 ```python
-from proxilion.guardrails import KillSwitch
+from proxilion.security.behavioral_drift import KillSwitch
 
 kill_switch = KillSwitch()
 

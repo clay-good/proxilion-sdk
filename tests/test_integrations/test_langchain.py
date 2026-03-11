@@ -243,6 +243,43 @@ class TestProxilionTool:
             from proxilion.contrib.langchain import _langchain_user_context
             _langchain_user_context.reset(token)
 
+    def test_tool_copies_langchain_attributes(self, proxilion_simple: Proxilion):
+        """Test that LangChain BaseTool attributes are copied for duck-typing compatibility."""
+        class MockTool:
+            name = "tool_with_attrs"
+            description = "A tool"
+            args_schema = {"type": "object", "properties": {"q": {"type": "string"}}}
+            return_direct = True
+            verbose = True
+
+            def run(self, query):
+                return query
+
+        wrapped = ProxilionTool(
+            original_tool=MockTool(),
+            proxilion=proxilion_simple,
+        )
+
+        assert wrapped.args_schema == MockTool.args_schema
+        assert wrapped.return_direct is True
+        assert wrapped.verbose is True
+
+    def test_tool_missing_langchain_attributes_not_set(self, proxilion_simple: Proxilion):
+        """Test that missing LangChain attributes are not set on wrapper."""
+        class MockTool:
+            name = "minimal_tool"
+            def run(self, query):
+                return query
+
+        wrapped = ProxilionTool(
+            original_tool=MockTool(),
+            proxilion=proxilion_simple,
+        )
+
+        assert not hasattr(wrapped, "args_schema")
+        assert not hasattr(wrapped, "return_direct")
+        assert not hasattr(wrapped, "verbose")
+
 
 class TestProxilionCallbackHandler:
     """Tests for ProxilionCallbackHandler class."""

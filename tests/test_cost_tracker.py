@@ -832,3 +832,63 @@ class TestThreadSafety:
             t.join()
 
         assert len(results) == 50
+
+
+# =============================================================================
+# Input Validation Tests
+# =============================================================================
+
+
+class TestInputValidation:
+    """Tests for negative/NaN/Inf cost value validation."""
+
+    def test_negative_input_tokens_rejected(self) -> None:
+        tracker = CostTracker()
+        with pytest.raises(ValueError, match="input_tokens must be non-negative"):
+            tracker.record_usage(model="claude-sonnet-4-20250514", input_tokens=-1, output_tokens=10)
+
+    def test_negative_output_tokens_rejected(self) -> None:
+        tracker = CostTracker()
+        with pytest.raises(ValueError, match="output_tokens must be non-negative"):
+            tracker.record_usage(model="claude-sonnet-4-20250514", input_tokens=10, output_tokens=-5)
+
+    def test_negative_cache_read_tokens_rejected(self) -> None:
+        tracker = CostTracker()
+        with pytest.raises(ValueError, match="cache_read_tokens must be non-negative"):
+            tracker.record_usage(
+                model="claude-sonnet-4-20250514",
+                input_tokens=10, output_tokens=10, cache_read_tokens=-1,
+            )
+
+    def test_negative_cache_write_tokens_rejected(self) -> None:
+        tracker = CostTracker()
+        with pytest.raises(ValueError, match="cache_write_tokens must be non-negative"):
+            tracker.record_usage(
+                model="claude-sonnet-4-20250514",
+                input_tokens=10, output_tokens=10, cache_write_tokens=-1,
+            )
+
+    def test_zero_tokens_accepted(self) -> None:
+        tracker = CostTracker()
+        record = tracker.record_usage(
+            model="claude-sonnet-4-20250514", input_tokens=0, output_tokens=0
+        )
+        assert record.cost_usd == 0.0
+
+    def test_nan_pricing_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be finite"):
+            ModelPricing(
+                model_name="bad", input_price_per_1k=float("nan"), output_price_per_1k=0.01
+            )
+
+    def test_inf_pricing_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be finite"):
+            ModelPricing(
+                model_name="bad", input_price_per_1k=0.01, output_price_per_1k=float("inf")
+            )
+
+    def test_negative_pricing_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be non-negative"):
+            ModelPricing(
+                model_name="bad", input_price_per_1k=-0.01, output_price_per_1k=0.01
+            )

@@ -103,18 +103,21 @@ class FileAccessPolicy(Policy):
 Pattern-based validation catches dangerous inputs before tool execution:
 
 ```python
-validator = InputValidator()
+from proxilion.guards.input_guard import InputGuard, InjectionPattern
+
+guard = InputGuard()
 
 # Regex pattern - deterministic matching
-validator.add_rule(ValidationRule(
+guard.add_pattern(InjectionPattern(
+    name="destructive_sql",
     pattern=r"(DROP\s+TABLE|DELETE\s+FROM|TRUNCATE)",
-    action="block",
-    message="Destructive SQL operation blocked"
+    severity=1.0,
+    description="Destructive SQL operation blocked"
 ))
 
 # This ALWAYS blocks, regardless of how the LLM was prompted
-result = validator.validate("DROP TABLE users; --")
-# result.is_safe == False, guaranteed
+result = guard.check("DROP TABLE users; --")
+# result.passed == False, guaranteed
 ```
 
 **Deterministic properties:**

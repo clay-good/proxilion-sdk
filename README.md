@@ -496,7 +496,7 @@ else:
 Detect when agent behavior deviates from baseline and halt if needed.
 
 ```python
-from proxilion.security import BehavioralMonitor, KillSwitch
+from proxilion.security.behavioral_drift import BehavioralMonitor, KillSwitch
 
 # Create monitor
 monitor = BehavioralMonitor(

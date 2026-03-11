@@ -92,7 +92,7 @@ monitor = BehavioralMonitor(
 Emergency halt mechanism for runaway agents.
 
 ```python
-from proxilion.security import KillSwitch
+from proxilion.security.behavioral_drift import KillSwitch
 
 kill_switch = KillSwitch()
 kill_switch.activate(reason="Manual intervention required")

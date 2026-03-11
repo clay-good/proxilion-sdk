@@ -226,7 +226,9 @@ class ProxilionTool:
         self.name = getattr(original_tool, "name", self.resource)
         self.description = getattr(original_tool, "description", "")
 
-        # Copy other common attributes
+        # Copy LangChain BaseTool attributes used by the framework reflectively.
+        # These are not referenced by Proxilion code but must be present for
+        # LangChain to treat this wrapper as a valid tool (duck-typing).
         for attr in ["args_schema", "return_direct", "verbose"]:
             if hasattr(original_tool, attr):
                 setattr(self, attr, getattr(original_tool, attr))

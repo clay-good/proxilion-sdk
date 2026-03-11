@@ -89,27 +89,29 @@ async def call_external_api(endpoint: str, user: UserContext = None):
 Detect and block dangerous inputs before they reach your tools:
 
 ```python
-from proxilion.guardrails import InputValidator, ValidationRule
+from proxilion.guards.input_guard import InputGuard, InjectionPattern
 
-validator = InputValidator()
+guard = InputGuard()
 
 # Block SQL injection attempts
-validator.add_rule(ValidationRule(
+guard.add_pattern(InjectionPattern(
+    name="sql_injection",
     pattern=r"(\bUNION\b|\bSELECT\b.*\bFROM\b|\bDROP\b|\bDELETE\b)",
-    action="block",
-    message="SQL injection detected"
+    severity=1.0,
+    description="SQL injection detected"
 ))
 
-# Redact API keys from logs
-validator.add_rule(ValidationRule(
+# Block API key leakage
+guard.add_pattern(InjectionPattern(
+    name="api_key_leak",
     pattern=r"(sk-[a-zA-Z0-9]{20,}|api[_-]?key[=:]\s*['\"]?[\w-]+)",
-    action="redact",
-    message="API key detected"
+    severity=0.9,
+    description="API key detected"
 ))
 
-# Validate input before processing
-result = validator.validate(user_input)
-if not result.is_safe:
+# Check input before processing
+result = guard.check(user_input)
+if not result.passed:
     raise SecurityError(result.message)
 ```
 
@@ -149,7 +151,7 @@ from proxilion import (
     rate_limited,
     circuit_protected,
 )
-from proxilion.guardrails import InputValidator, ValidationRule
+from proxilion.guards.input_guard import InputGuard, InjectionPattern
 from proxilion.audit import AuditLogger
 
 # Initialize
@@ -157,11 +159,12 @@ auth = Proxilion()
 logger = AuditLogger("./logs/audit.jsonl", enable_hash_chain=True)
 
 # Input validation
-validator = InputValidator()
-validator.add_rule(ValidationRule(
+guard = InputGuard()
+guard.add_pattern(InjectionPattern(
+    name="dangerous_command",
     pattern=r"(rm\s+-rf|sudo|chmod\s+777)",
-    action="block",
-    message="Dangerous command pattern"
+    severity=1.0,
+    description="Dangerous command pattern"
 ))
 
 # Define policy

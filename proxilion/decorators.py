@@ -266,6 +266,8 @@ class QueueApprovalStrategy(ApprovalStrategy):
         context: dict[str, Any],
     ) -> bool:
         """Queue request and wait for approval (async)."""
+        import time
+
         self._request_counter += 1
         request_id = f"req_{self._request_counter}"
 
@@ -279,9 +281,9 @@ class QueueApprovalStrategy(ApprovalStrategy):
 
         logger.info(f"Approval request queued: {request_id}")
 
-        # Poll for approval
-        elapsed = 0.0
-        while elapsed < self.timeout:
+        # Poll for approval using monotonic time for accurate timeout
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < self.timeout:
             if request_id in self._approved:
                 self._approved.discard(request_id)
                 return True
@@ -289,7 +291,6 @@ class QueueApprovalStrategy(ApprovalStrategy):
                 self._denied.discard(request_id)
                 return False
             await asyncio.sleep(0.1)
-            elapsed += 0.1
 
         # Timeout
         self._pending.pop(request_id, None)

@@ -66,6 +66,17 @@ class ModelPricing:
     cache_read_price_per_1k: float = 0.0
     cache_write_price_per_1k: float = 0.0
 
+    def __post_init__(self) -> None:
+        """Validate pricing values are non-negative and finite."""
+        import math
+        for name in ("input_price_per_1k", "output_price_per_1k",
+                     "cache_read_price_per_1k", "cache_write_price_per_1k"):
+            value = getattr(self, name)
+            if math.isnan(value) or math.isinf(value):
+                raise ValueError(f"{name} must be finite, got {value}")
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative, got {value}")
+
     def calculate_cost(
         self,
         input_tokens: int,
@@ -398,6 +409,16 @@ class CostTracker:
         Returns:
             The created UsageRecord.
         """
+        # Validate token counts
+        for name, value in [
+            ("input_tokens", input_tokens),
+            ("output_tokens", output_tokens),
+            ("cache_read_tokens", cache_read_tokens),
+            ("cache_write_tokens", cache_write_tokens),
+        ]:
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative, got {value}")
+
         if timestamp is None:
             timestamp = datetime.now(timezone.utc)
 
