@@ -145,7 +145,14 @@ BUILTIN_SCOPES: dict[str, ScopeBinding] = {
         scope=ExecutionScope.READ_ONLY,
         allowed_actions={"read", "list", "get", "search", "query", "fetch", "find"},
         denied_actions={
-            "write", "delete", "execute", "modify", "create", "update", "remove", "drop",
+            "write",
+            "delete",
+            "execute",
+            "modify",
+            "create",
+            "update",
+            "remove",
+            "drop",
         },
         name="read_only",
         description="Read-only operations only",
@@ -153,8 +160,19 @@ BUILTIN_SCOPES: dict[str, ScopeBinding] = {
     "read_write": ScopeBinding(
         scope=ExecutionScope.READ_WRITE,
         allowed_actions={
-            "read", "list", "get", "search", "query", "fetch", "find",
-            "write", "create", "modify", "update", "add", "set",
+            "read",
+            "list",
+            "get",
+            "search",
+            "query",
+            "fetch",
+            "find",
+            "write",
+            "create",
+            "modify",
+            "update",
+            "add",
+            "set",
         },
         denied_actions={"delete", "execute", "remove", "drop", "destroy", "run"},
         name="read_write",
@@ -453,8 +471,19 @@ class ScopeEnforcer:
             return {"get_*", "read_*", "list_*", "search_*", "query_*", "fetch_*", "find_*"}
         elif scope.scope == ExecutionScope.READ_WRITE:
             return {
-                "get_*", "read_*", "list_*", "search_*", "query_*", "fetch_*", "find_*",
-                "create_*", "write_*", "update_*", "modify_*", "set_*", "add_*",
+                "get_*",
+                "read_*",
+                "list_*",
+                "search_*",
+                "query_*",
+                "fetch_*",
+                "find_*",
+                "create_*",
+                "write_*",
+                "update_*",
+                "modify_*",
+                "set_*",
+                "add_*",
             }
         elif scope.scope == ExecutionScope.ADMIN:
             return {"*"}
@@ -607,9 +636,7 @@ class ScopeContext:
     def close(self) -> None:
         """Close the scope context."""
         self._closed = True
-        logger.debug(
-            f"ScopeContext closed. Total calls: {len(self._calls)}"
-        )
+        logger.debug(f"ScopeContext closed. Total calls: {len(self._calls)}")
 
     @property
     def is_closed(self) -> bool:

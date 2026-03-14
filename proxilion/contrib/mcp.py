@@ -60,6 +60,7 @@ T = TypeVar("T")
 
 class MCPSecurityError(ProxilionError):
     """Base exception for MCP security errors."""
+
     pass
 
 
@@ -148,6 +149,7 @@ class MCPSession:
         permissions: Session-specific permissions.
         metadata: Additional session metadata.
     """
+
     session_id: str
     user_context: UserContext
     agent_context: AgentContext | None = None
@@ -183,6 +185,7 @@ class MCPSession:
 @dataclass
 class ToolDefinitionHash:
     """Hash of a tool definition for shadowing detection."""
+
     tool_name: str
     definition_hash: str
     registered_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -244,6 +247,7 @@ class MCPSessionManager:
         expires_at = None
         if session_ttl is not None:
             from datetime import timedelta
+
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=session_ttl)
 
         session = MCPSession(
@@ -305,10 +309,7 @@ class MCPSessionManager:
 
     def _cleanup_expired(self) -> None:
         """Remove expired sessions."""
-        expired = [
-            sid for sid, session in self._sessions.items()
-            if session.is_expired()
-        ]
+        expired = [sid for sid, session in self._sessions.items() if session.is_expired()]
         for sid in expired:
             del self._sessions[sid]
 
@@ -452,7 +453,7 @@ class MCPToolWrapper:
         """
         self.original_tool = original_tool
         self.proxilion = proxilion
-        self.resource = resource or getattr(original_tool, "name", "unknown")
+        self.resource: str = resource or str(getattr(original_tool, "name", "unknown"))
         self.action = action
         self.validate_schema = validate_schema
         self.require_session = require_session
@@ -566,6 +567,7 @@ class MCPToolWrapper:
     ) -> Any:
         """Synchronous wrapper for execute."""
         import asyncio
+
         return asyncio.run(self.execute(arguments, session, user_context))
 
 
@@ -647,7 +649,7 @@ class ProxilionMCPServer:
     def tools(self) -> list[Any]:
         """Get the list of available tools."""
         if hasattr(self.original_server, "tools"):
-            return self.original_server.tools
+            return list(self.original_server.tools)
         return []
 
     def get_wrapped_tool(self, tool_name: str) -> MCPToolWrapper | None:
@@ -786,9 +788,7 @@ class ProxilionMCPServer:
         """
         if client_id is not None:
             if not self.validate_client(client_id, client_secret, client_metadata):
-                raise MCPSecurityError(
-                    f"Client validation failed for client_id={client_id!r}"
-                )
+                raise MCPSecurityError(f"Client validation failed for client_id={client_id!r}")
 
         return self.session_manager.create_session(
             user_context=user_context,
@@ -856,7 +856,8 @@ def extract_user_from_mcp_context(
 
     # Extract remaining fields as attributes
     attributes = {
-        k: v for k, v in mcp_context.items()
+        k: v
+        for k, v in mcp_context.items()
         if k not in {user_id_field, roles_field, session_id_field}
     }
 

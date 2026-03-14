@@ -44,6 +44,7 @@ import asyncio
 import inspect
 import json
 import logging
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -62,6 +63,7 @@ T = TypeVar("T")
 
 class OpenAIIntegrationError(ProxilionError):
     """Error in OpenAI integration."""
+
     pass
 
 
@@ -85,6 +87,7 @@ class FunctionExecutionError(OpenAIIntegrationError):
 @dataclass
 class RegisteredFunction:
     """A registered function with its schema and implementation."""
+
     name: str
     schema: dict[str, Any]
     implementation: Callable[..., Any]
@@ -97,6 +100,7 @@ class RegisteredFunction:
 @dataclass
 class FunctionCallResult:
     """Result of a function call execution."""
+
     function_name: str
     success: bool
     result: Any | None = None
@@ -174,7 +178,7 @@ class ProxilionFunctionHandler:
         self.safe_errors = safe_errors
 
         self._functions: dict[str, RegisteredFunction] = {}
-        self._call_history: list[FunctionCallResult] = []
+        self._call_history: deque[FunctionCallResult] = deque(maxlen=10000)
 
     @property
     def functions(self) -> list[RegisteredFunction]:
@@ -244,29 +248,22 @@ class ProxilionFunctionHandler:
         """Get a registered function by name."""
         return self._functions.get(name)
 
-    def execute(
+    def _prepare_execution(
         self,
-        function_name: str | None = None,
-        arguments: dict[str, Any] | str | None = None,
-        user: UserContext | None = None,
-        agent: AgentContext | None = None,
-        function_call: Any | None = None,
-    ) -> FunctionCallResult:
-        """
-        Execute a function call with authorization.
+        function_name: str | None,
+        arguments: dict[str, Any] | str | None,
+        user: UserContext | None,
+        function_call: Any | None,
+    ) -> tuple[str, dict[str, Any], RegisteredFunction, None] | FunctionCallResult:
+        """Resolve and authorize a function call.
 
-        Can accept either explicit function_name/arguments or an OpenAI
-        function_call object.
-
-        Args:
-            function_name: Name of the function to call.
-            arguments: Function arguments (dict or JSON string).
-            user: User context for authorization.
-            agent: Optional agent context.
-            function_call: OpenAI function_call object (alternative).
+        Handles function_call object extraction, argument parsing,
+        function lookup, and authorization — the logic shared by
+        both ``execute()`` and ``execute_async()``.
 
         Returns:
-            FunctionCallResult with execution result or error.
+            A ``(function_name, call_args, func, None)`` tuple on success,
+            or a ``FunctionCallResult`` on early failure.
         """
         # Extract from function_call object if provided
         if function_call is not None:
@@ -313,8 +310,9 @@ class ProxilionFunctionHandler:
 
         # Check authorization
         if user is not None:
+            args_dict: dict[str, Any] = arguments if isinstance(arguments, dict) else {}
             context = {
-                **arguments,
+                **args_dict,
                 "function_name": function_name,
                 "arguments": arguments,
             }
@@ -331,6 +329,39 @@ class ProxilionFunctionHandler:
                 self._call_history.append(result)
                 return result
 
+        call_args: dict[str, Any] = arguments if isinstance(arguments, dict) else {}
+        return (function_name, call_args, func, None)
+
+    def execute(
+        self,
+        function_name: str | None = None,
+        arguments: dict[str, Any] | str | None = None,
+        user: UserContext | None = None,
+        agent: AgentContext | None = None,
+        function_call: Any | None = None,
+    ) -> FunctionCallResult:
+        """
+        Execute a function call with authorization.
+
+        Can accept either explicit function_name/arguments or an OpenAI
+        function_call object.
+
+        Args:
+            function_name: Name of the function to call.
+            arguments: Function arguments (dict or JSON string).
+            user: User context for authorization.
+            agent: Optional agent context.
+            function_call: OpenAI function_call object (alternative).
+
+        Returns:
+            FunctionCallResult with execution result or error.
+        """
+        prepared = self._prepare_execution(function_name, arguments, user, function_call)
+        if isinstance(prepared, FunctionCallResult):
+            return prepared
+
+        function_name, call_args, func, _ = prepared
+
         # Execute function
         try:
             if func.async_impl:
@@ -339,21 +370,18 @@ class ProxilionFunctionHandler:
                     asyncio.get_running_loop()
                     # Already inside an event loop (e.g. Jupyter, async framework)
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                        output = pool.submit(
-                            asyncio.run, func.implementation(**arguments)
-                        ).result()
+                        output = pool.submit(asyncio.run, func.implementation(**call_args)).result()
                 except RuntimeError:
                     # No running loop — safe to create one
                     loop = asyncio.new_event_loop()
                     try:
-                        output = loop.run_until_complete(
-                            func.implementation(**arguments)
-                        )
+                        output = loop.run_until_complete(func.implementation(**call_args))
                     finally:
                         loop.close()
             else:
-                output = func.implementation(**arguments)
+                output = func.implementation(**call_args)
 
             result = FunctionCallResult(
                 function_name=function_name,
@@ -398,76 +426,21 @@ class ProxilionFunctionHandler:
         Returns:
             FunctionCallResult with execution result or error.
         """
-        # Extract from function_call object if provided
-        if function_call is not None:
-            function_name = getattr(function_call, "name", None)
-            raw_args = getattr(function_call, "arguments", "{}")
-            if isinstance(raw_args, str):
-                try:
-                    arguments = json.loads(raw_args)
-                except json.JSONDecodeError:
-                    arguments = {}
-            else:
-                arguments = raw_args or {}
+        prepared = self._prepare_execution(function_name, arguments, user, function_call)
+        if isinstance(prepared, FunctionCallResult):
+            return prepared
 
-        if function_name is None:
-            return FunctionCallResult(
-                function_name="unknown",
-                success=False,
-                error="No function name provided",
-            )
-
-        if isinstance(arguments, str):
-            try:
-                arguments = json.loads(arguments)
-            except json.JSONDecodeError:
-                return FunctionCallResult(
-                    function_name=function_name,
-                    success=False,
-                    error="Invalid JSON arguments",
-                )
-
-        arguments = arguments or {}
-
-        func = self._functions.get(function_name)
-        if func is None:
-            result = FunctionCallResult(
-                function_name=function_name,
-                success=False,
-                error=f"Function not found: {function_name}",
-            )
-            self._call_history.append(result)
-            return result
-
-        # Check authorization
-        if user is not None:
-            context = {
-                **arguments,
-                "function_name": function_name,
-                "arguments": arguments,
-            }
-
-            auth_result = self.proxilion.check(user, func.action, func.resource, context)
-
-            if not auth_result.allowed:
-                result = FunctionCallResult(
-                    function_name=function_name,
-                    success=False,
-                    error="Not authorized" if self.safe_errors else auth_result.reason,
-                    authorized=False,
-                )
-                self._call_history.append(result)
-                return result
+        function_name, call_args, func, _ = prepared
 
         # Execute function
         try:
             if func.async_impl:
-                output = await func.implementation(**arguments)
+                output = await func.implementation(**call_args)
             else:
                 loop = asyncio.get_event_loop()
                 output = await loop.run_in_executor(
                     None,
-                    lambda: func.implementation(**arguments),
+                    lambda: func.implementation(**call_args),
                 )
 
             result = FunctionCallResult(
@@ -499,10 +472,7 @@ class ProxilionFunctionHandler:
         Returns:
             List of tool definitions for OpenAI API.
         """
-        return [
-            {"type": "function", "function": func.schema}
-            for func in self._functions.values()
-        ]
+        return [{"type": "function", "function": func.schema} for func in self._functions.values()]
 
 
 def create_secure_function(
@@ -550,6 +520,7 @@ def create_secure_function(
     is_async = inspect.iscoroutinefunction(implementation)
 
     if is_async:
+
         async def async_wrapper(
             user: UserContext | None = None,
             **kwargs: Any,
@@ -577,6 +548,7 @@ def create_secure_function(
 
         return function_def, async_wrapper
     else:
+
         def sync_wrapper(
             user: UserContext | None = None,
             **kwargs: Any,

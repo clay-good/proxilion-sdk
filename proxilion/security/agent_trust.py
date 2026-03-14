@@ -533,7 +533,8 @@ class AgentTrustManager:
 
                 # Revoke all tokens issued by or to this agent
                 tokens_to_revoke = [
-                    tid for tid, token in self._delegation_tokens.items()
+                    tid
+                    for tid, token in self._delegation_tokens.items()
                     if token.issuer_agent == agent_id or token.delegate_agent == agent_id
                 ]
                 for tid in tokens_to_revoke:
@@ -947,7 +948,8 @@ class AgentTrustManager:
         with self._lock:
             # Clean expired agents
             expired_agents = [
-                aid for aid, agent in self._agents.items()
+                aid
+                for aid, agent in self._agents.items()
                 if agent.expires_at and agent.expires_at < now
             ]
             for aid in expired_agents:
@@ -956,8 +958,7 @@ class AgentTrustManager:
 
             # Clean expired tokens
             expired_tokens = [
-                tid for tid, token in self._delegation_tokens.items()
-                if token.expires_at < now
+                tid for tid, token in self._delegation_tokens.items() if token.expires_at < now
             ]
             for tid in expired_tokens:
                 del self._delegation_tokens[tid]

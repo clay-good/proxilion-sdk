@@ -34,7 +34,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,8 @@ class CostLimit:
     hard_limit: bool = True
 
     def __post_init__(self) -> None:
+        if self.max_cost <= 0:
+            raise ValueError("max_cost must be greater than 0")
         if isinstance(self.scope, str):
             self.scope = LimitScope(self.scope.lower())
         if not self.name:
@@ -244,9 +246,7 @@ class CostLimiter:
 
             for limit in self._limits:
                 # Get the appropriate spend based on scope
-                current_spend = self._get_spend_for_scope(
-                    limit, user_id, org_id, tool_name
-                )
+                current_spend = self._get_spend_for_scope(limit, user_id, org_id, tool_name)
 
                 # Calculate remaining and reset time
                 remaining = max(0, limit.max_cost - current_spend)
@@ -302,17 +302,17 @@ class CostLimiter:
         """Get spend for a specific limit scope."""
         if self._cost_tracker:
             if limit.scope == LimitScope.USER:
-                return self._cost_tracker.get_user_spend(user_id, limit.period)
+                return cast(float, self._cost_tracker.get_user_spend(user_id, limit.period))
             elif limit.scope == LimitScope.ORG:
-                return self._cost_tracker.get_org_spend(limit.period, org_id=org_id)
+                return cast(float, self._cost_tracker.get_org_spend(limit.period, org_id=org_id))
             elif limit.scope == LimitScope.GLOBAL:
-                return self._cost_tracker.get_global_spend(limit.period)
+                return cast(float, self._cost_tracker.get_global_spend(limit.period))
             elif limit.scope == LimitScope.TOOL and tool_name:
                 # Get tool-specific spend from summary
                 summary = self._cost_tracker.get_summary(
                     start=datetime.now(timezone.utc) - limit.period
                 )
-                return summary.by_tool.get(tool_name, 0.0)
+                return cast(float, summary.by_tool.get(tool_name, 0.0))
         else:
             # Fallback to internal tracking
             return self._get_internal_spend(user_id, limit.period)
@@ -337,7 +337,7 @@ class CostLimiter:
     def _get_total_spend(self, user_id: str, period: timedelta) -> float:
         """Get total spend for a user."""
         if self._cost_tracker:
-            return self._cost_tracker.get_user_spend(user_id, period)
+            return cast(float, self._cost_tracker.get_user_spend(user_id, period))
         return self._get_internal_spend(user_id, period)
 
     def _get_min_remaining(
@@ -407,10 +407,7 @@ class CostLimiter:
             max_period = timedelta(days=30)
         cutoff = datetime.now(timezone.utc) - max_period
 
-        self._spend_records[key] = [
-            (t, c) for t, c in self._spend_records[key]
-            if t >= cutoff
-        ]
+        self._spend_records[key] = [(t, c) for t, c in self._spend_records[key] if t >= cutoff]
 
     def get_remaining_budget(
         self,
@@ -487,9 +484,10 @@ class CostLimiter:
         Returns:
             Dictionary with status for all limits.
         """
-        status = {
+        limits_list: list[dict[str, Any]] = []
+        status: dict[str, Any] = {
             "user_id": user_id,
-            "limits": [],
+            "limits": limits_list,
         }
 
         now = datetime.now(timezone.utc)
@@ -499,17 +497,21 @@ class CostLimiter:
             remaining = max(0, limit.max_cost - current)
             reset_at = self._calculate_reset_time(limit, now)
 
-            status["limits"].append({
-                "name": limit.name,
-                "scope": limit.scope.value,
-                "period_seconds": limit.period.total_seconds(),
-                "max_cost": limit.max_cost,
-                "current_spend": current,
-                "remaining": remaining,
-                "percentage_used": current / limit.max_cost if limit.max_cost > 0 else 0,
-                "reset_at": reset_at.isoformat(),
-                "hard_limit": limit.hard_limit,
-            })
+            limits_list.append(
+                {
+                    "name": limit.name,
+                    "scope": limit.scope.value
+                    if hasattr(limit.scope, "value")
+                    else str(limit.scope),
+                    "period_seconds": limit.period.total_seconds(),
+                    "max_cost": limit.max_cost,
+                    "current_spend": current,
+                    "remaining": remaining,
+                    "percentage_used": current / limit.max_cost if limit.max_cost > 0 else 0,
+                    "reset_at": reset_at.isoformat(),
+                    "hard_limit": limit.hard_limit,
+                }
+            )
 
         return status
 
@@ -587,9 +589,7 @@ class HybridRateLimiter:
 
         # Check cost limit
         if self._cost_limiter and estimated_cost > 0:
-            cost_result = self._cost_limiter.check_limit(
-                user_id, estimated_cost, org_id, tool_name
-            )
+            cost_result = self._cost_limiter.check_limit(user_id, estimated_cost, org_id, tool_name)
             if not cost_result.allowed:
                 return False, (
                     f"Cost limit exceeded ({cost_result.limit_name}): "
@@ -598,9 +598,7 @@ class HybridRateLimiter:
 
             # Log warnings
             if cost_result.warning:
-                logger.warning(
-                    f"Cost warning for user {user_id}: {cost_result.warning_message}"
-                )
+                logger.warning(f"Cost warning for user {user_id}: {cost_result.warning_message}")
 
         return True, None
 
@@ -662,29 +660,31 @@ def create_cost_limiter(
 
     if include_defaults:
         # Sensible default limits
-        all_limits.extend([
-            CostLimit(
-                max_cost=1.00,
-                period=timedelta(minutes=1),
-                scope=LimitScope.USER,
-                name="user_burst",
-                description="Burst protection",
-            ),
-            CostLimit(
-                max_cost=10.00,
-                period=timedelta(hours=1),
-                scope=LimitScope.USER,
-                name="user_hourly",
-                description="Hourly cap",
-            ),
-            CostLimit(
-                max_cost=50.00,
-                period=timedelta(days=1),
-                scope=LimitScope.USER,
-                name="user_daily",
-                description="Daily cap",
-            ),
-        ])
+        all_limits.extend(
+            [
+                CostLimit(
+                    max_cost=1.00,
+                    period=timedelta(minutes=1),
+                    scope=LimitScope.USER,
+                    name="user_burst",
+                    description="Burst protection",
+                ),
+                CostLimit(
+                    max_cost=10.00,
+                    period=timedelta(hours=1),
+                    scope=LimitScope.USER,
+                    name="user_hourly",
+                    description="Hourly cap",
+                ),
+                CostLimit(
+                    max_cost=50.00,
+                    period=timedelta(days=1),
+                    scope=LimitScope.USER,
+                    name="user_daily",
+                    description="Daily cap",
+                ),
+            ]
+        )
 
     if limits:
         all_limits.extend(limits)

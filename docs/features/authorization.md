@@ -25,12 +25,11 @@ from proxilion import Policy
 class FileAccessPolicy(Policy):
     """Users can only access their own files."""
 
-    def evaluate(self, context) -> bool:
-        user = context.user
-        file_owner = context.tool_call.parameters.get("owner_id")
+    def can_read(self, context) -> bool:
+        file_owner = context.get("owner_id")
 
         # Simple ownership check
-        return user.user_id == file_owner
+        return self.user.user_id == file_owner
 ```
 
 ### Protect a Tool
@@ -51,7 +50,6 @@ from proxilion import UserContext
 user = UserContext(
     user_id="alice",
     roles=["user"],
-    permissions=["file:read"]
 )
 
 # Allowed - alice accessing her own file
@@ -66,31 +64,20 @@ except AuthorizationError:
 
 ## Policy Evaluation Context
 
-Every policy receives a `PolicyContext` with full request details:
+Each policy has access to `self.user` (the authenticated user) and `self.resource` (the resource being accessed). The `can_<action>` methods receive an optional `context` dict with additional runtime information:
 
 ```python
 class MyPolicy(Policy):
-    def evaluate(self, context) -> bool:
-        # User making the request
-        user = context.user
-        user.user_id      # "alice"
-        user.roles        # ["user", "analyst"]
-        user.permissions  # ["file:read", "db:query"]
-        user.attributes   # {"department": "engineering"}
+    def can_read(self, context) -> bool:
+        # User making the request (via self.user)
+        self.user.user_id      # "alice"
+        self.user.roles        # ["user", "analyst"]
+        self.user.attributes   # {"department": "engineering"}
 
-        # Agent making the call (if applicable)
-        agent = context.agent
-        agent.agent_id    # "research-agent"
-        agent.trust_level # TrustLevel.LIMITED
+        # Additional context passed at authorization time
+        owner_id = context.get("owner_id")
 
-        # The tool call being authorized
-        tool_call = context.tool_call
-        tool_call.tool_name   # "read_file"
-        tool_call.action      # "read"
-        tool_call.resource    # "file_access"
-        tool_call.parameters  # {"path": "/data/...", "owner_id": "alice"}
-
-        return True  # or False
+        return self.user.user_id == owner_id
 ```
 
 ## Policy Patterns
@@ -102,8 +89,8 @@ class MyPolicy(Policy):
 class AdminPolicy(Policy):
     """Only admins can access admin panel."""
 
-    def evaluate(self, context) -> bool:
-        return "admin" in context.user.roles
+    def can_read(self, context) -> bool:
+        return "admin" in self.user.roles
 ```
 
 ### Permission-Based Access Control
@@ -113,21 +100,14 @@ class AdminPolicy(Policy):
 class DatabasePolicy(Policy):
     """Check specific permissions for database operations."""
 
-    PERMISSION_MAP = {
-        "read": "db:read",
-        "write": "db:write",
-        "delete": "db:delete",
-        "admin": "db:admin"
-    }
+    def can_read(self, context) -> bool:
+        return "db:read" in self.user.attributes.get("permissions", [])
 
-    def evaluate(self, context) -> bool:
-        action = context.tool_call.action
-        required_permission = self.PERMISSION_MAP.get(action)
+    def can_write(self, context) -> bool:
+        return "db:write" in self.user.attributes.get("permissions", [])
 
-        if not required_permission:
-            return False
-
-        return required_permission in context.user.permissions
+    def can_delete(self, context) -> bool:
+        return "db:delete" in self.user.attributes.get("permissions", [])
 ```
 
 ### Attribute-Based Access Control (ABAC)
@@ -137,9 +117,9 @@ class DatabasePolicy(Policy):
 class DepartmentPolicy(Policy):
     """Users can only access their department's data."""
 
-    def evaluate(self, context) -> bool:
-        user_dept = context.user.attributes.get("department")
-        data_dept = context.tool_call.parameters.get("department")
+    def can_read(self, context) -> bool:
+        user_dept = self.user.attributes.get("department")
+        data_dept = context.get("department")
 
         return user_dept == data_dept
 ```
@@ -153,7 +133,7 @@ from datetime import datetime
 class BusinessHoursPolicy(Policy):
     """Restrict access to business hours."""
 
-    def evaluate(self, context) -> bool:
+    def can_read(self, context) -> bool:
         now = datetime.now()
 
         # Weekdays only
@@ -174,15 +154,13 @@ class BusinessHoursPolicy(Policy):
 class SensitivePolicy(Policy):
     """Multiple conditions for sensitive operations."""
 
-    def evaluate(self, context) -> bool:
-        user = context.user
-
+    def can_execute(self, context) -> bool:
         # Must have explicit permission
-        if "sensitive:access" not in user.permissions:
+        if "sensitive:access" not in self.user.attributes.get("permissions", []):
             return False
 
         # Must be in security team
-        if "security" not in user.roles:
+        if "security" not in self.user.roles:
             return False
 
         # Must be during business hours
@@ -191,7 +169,7 @@ class SensitivePolicy(Policy):
             return False
 
         # Must not exceed daily limit (custom attribute)
-        daily_access = user.attributes.get("daily_sensitive_access", 0)
+        daily_access = self.user.attributes.get("daily_sensitive_access", 0)
         if daily_access >= 10:
             return False
 
@@ -226,25 +204,22 @@ from proxilion import UserContext, AgentContext
 user = UserContext(user_id="alice", roles=["user"])
 agent = AgentContext(
     agent_id="research-agent",
-    trust_level=TrustLevel.LIMITED
+    capabilities=["read", "search"],
+    trust_score=0.5,
 )
 
 @auth.policy("agent_restricted")
 class AgentRestrictedPolicy(Policy):
     """Agents have restricted access compared to direct users."""
 
-    def evaluate(self, context) -> bool:
-        # If no agent, user has full access based on permissions
-        if not context.agent:
-            return "data:read" in context.user.permissions
+    def can_read(self, context) -> bool:
+        # Check if data is public
+        is_public = context.get("public", False)
+        if is_public:
+            return True
 
-        # Agents are more restricted
-        if context.agent.trust_level < TrustLevel.STANDARD:
-            # Limited agents can only read public data
-            is_public = context.tool_call.parameters.get("public", False)
-            return is_public
-
-        return True
+        # Only users with data:read can access private data
+        return "data:read" in self.user.attributes.get("permissions", [])
 ```
 
 ## Error Handling
@@ -279,7 +254,7 @@ All policy evaluation is synchronous and blocking—no async overhead for simple
    ```python
    @auth.policy("default")
    class DefaultPolicy(Policy):
-       def evaluate(self, context):
+       def can_read(self, context):
            return False
    ```
 
@@ -290,6 +265,6 @@ All policy evaluation is synchronous and blocking—no async overhead for simple
 
 ## Next Steps
 
-- [Input Validation](./input-validation.md) - Add input security
-- [Rate Limiting](./rate-limiting.md) - Prevent abuse
-- [Audit Logging](./audit-logging.md) - Track all decisions
+- [Security Model](../security.md) - Deep dive into security architecture
+- [Core Concepts](../concepts.md) - Deterministic vs probabilistic security
+- [Quickstart](../quickstart.md) - Get started quickly

@@ -59,6 +59,7 @@ class AccessControlEvidence:
         unique_users: Number of unique users.
         unique_resources: Number of unique resources accessed.
     """
+
     authorization_checks: list[dict[str, Any]] = field(default_factory=list)
     access_denied: list[dict[str, Any]] = field(default_factory=list)
     privilege_escalation_blocked: list[dict[str, Any]] = field(default_factory=list)
@@ -79,7 +80,8 @@ class AccessControlEvidence:
                 "unique_resources": self.unique_resources,
                 "denial_rate": (
                     len(self.access_denied) / len(self.authorization_checks)
-                    if self.authorization_checks else 0.0
+                    if self.authorization_checks
+                    else 0.0
                 ),
             },
         }
@@ -96,6 +98,7 @@ class MonitoringEvidence:
         incident_responses: Incident response actions taken.
         monitoring_coverage: Percentage of operations monitored.
     """
+
     anomaly_detections: list[dict[str, Any]] = field(default_factory=list)
     security_alerts: list[dict[str, Any]] = field(default_factory=list)
     incident_responses: list[dict[str, Any]] = field(default_factory=list)
@@ -126,6 +129,7 @@ class ChangeManagementEvidence:
         policy_updates: Policy update events.
         approval_workflows: Approval workflow events.
     """
+
     configuration_changes: list[dict[str, Any]] = field(default_factory=list)
     policy_updates: list[dict[str, Any]] = field(default_factory=list)
     approval_workflows: list[dict[str, Any]] = field(default_factory=list)
@@ -224,17 +228,21 @@ class SOC2Exporter(BaseComplianceExporter):
 
             # Denied events
             if event.data.event_type == EventType.AUTHORIZATION_DENIED:
-                evidence.access_denied.append({
-                    **event_dict,
-                    "denial_reason": event.data.authorization_reason,
-                })
+                evidence.access_denied.append(
+                    {
+                        **event_dict,
+                        "denial_reason": event.data.authorization_reason,
+                    }
+                )
 
             # IDOR violations indicate privilege escalation attempts
             if event.data.event_type == EventType.IDOR_VIOLATION:
-                evidence.privilege_escalation_blocked.append({
-                    **event_dict,
-                    "violation_type": "unauthorized_resource_access",
-                })
+                evidence.privilege_escalation_blocked.append(
+                    {
+                        **event_dict,
+                        "violation_type": "unauthorized_resource_access",
+                    }
+                )
 
         evidence.unique_users = len(users)
         evidence.unique_resources = len(resources)
@@ -270,11 +278,13 @@ class SOC2Exporter(BaseComplianceExporter):
                 EventType.IDOR_VIOLATION,
                 EventType.SCHEMA_VALIDATION_FAILURE,
             ]:
-                evidence.anomaly_detections.append({
-                    **event_dict,
-                    "anomaly_type": event.data.event_type.value,
-                    "detected_at": event.timestamp.isoformat(),
-                })
+                evidence.anomaly_detections.append(
+                    {
+                        **event_dict,
+                        "anomaly_type": event.data.event_type.value,
+                        "detected_at": event.timestamp.isoformat(),
+                    }
+                )
 
             # Security alerts (rate limiting, circuit breakers)
             if event.data.event_type in [
@@ -282,19 +292,23 @@ class SOC2Exporter(BaseComplianceExporter):
                 EventType.CIRCUIT_BREAKER_OPEN,
             ]:
                 is_rate_limit = event.data.event_type == EventType.RATE_LIMIT_EXCEEDED
-                evidence.security_alerts.append({
-                    **event_dict,
-                    "alert_type": event.data.event_type.value,
-                    "severity": "medium" if is_rate_limit else "high",
-                })
+                evidence.security_alerts.append(
+                    {
+                        **event_dict,
+                        "alert_type": event.data.event_type.value,
+                        "severity": "medium" if is_rate_limit else "high",
+                    }
+                )
 
             # Denied authorizations are incident responses
             if event.data.event_type == EventType.AUTHORIZATION_DENIED:
-                evidence.incident_responses.append({
-                    **event_dict,
-                    "response_type": "access_blocked",
-                    "response_reason": event.data.authorization_reason,
-                })
+                evidence.incident_responses.append(
+                    {
+                        **event_dict,
+                        "response_type": "access_blocked",
+                        "response_reason": event.data.authorization_reason,
+                    }
+                )
 
         # All events are monitored, so coverage is 100%
         evidence.monitoring_coverage = 1.0
@@ -327,30 +341,38 @@ class SOC2Exporter(BaseComplianceExporter):
 
             # Look for policy-related metadata
             if event.data.authorization_metadata.get("policy_updated"):
-                evidence.policy_updates.append({
-                    **event_dict,
-                    "policy_name": event.data.authorization_metadata.get("policy_name"),
-                    "change_type": "update",
-                })
+                evidence.policy_updates.append(
+                    {
+                        **event_dict,
+                        "policy_name": event.data.authorization_metadata.get("policy_name"),
+                        "change_type": "update",
+                    }
+                )
 
             # Look for configuration changes
             if event.data.authorization_metadata.get("config_change"):
                 change_desc = event.data.authorization_metadata.get("change_description")
-                evidence.configuration_changes.append({
-                    **event_dict,
-                    "change_description": change_desc,
-                })
+                evidence.configuration_changes.append(
+                    {
+                        **event_dict,
+                        "change_description": change_desc,
+                    }
+                )
 
             # Approval workflows (requires_approval events that were granted)
             if (
-                event.data.authorization_metadata.get("requires_approval") and
-                event.data.authorization_allowed
+                event.data.authorization_metadata.get("requires_approval")
+                and event.data.authorization_allowed
             ):
-                evidence.approval_workflows.append({
-                    **event_dict,
-                    "approval_type": "tool_execution",
-                    "approved_by": event.data.authorization_metadata.get("approved_by", "system"),
-                })
+                evidence.approval_workflows.append(
+                    {
+                        **event_dict,
+                        "approval_type": "tool_execution",
+                        "approved_by": event.data.authorization_metadata.get(
+                            "approved_by", "system"
+                        ),
+                    }
+                )
 
         return evidence
 
@@ -392,7 +414,8 @@ class SOC2Exporter(BaseComplianceExporter):
             compliant=len(access.authorization_checks) > 0,
             notes=(
                 f"Showing 50 of {len(access.authorization_checks)} authorization events."
-                if len(access.authorization_checks) > 50 else None
+                if len(access.authorization_checks) > 50
+                else None
             ),
         )
         evidence_list.append(cc6_1_evidence)
@@ -417,9 +440,8 @@ class SOC2Exporter(BaseComplianceExporter):
 
         # CC7.2 is compliant if monitoring coverage exists and incident responses
         # are documented when anomalies are detected
-        cc7_2_compliant = (
-            monitoring.monitoring_coverage > 0.0 and
-            (len(monitoring.anomaly_detections) == 0 or len(monitoring.incident_responses) > 0)
+        cc7_2_compliant = monitoring.monitoring_coverage > 0.0 and (
+            len(monitoring.anomaly_detections) == 0 or len(monitoring.incident_responses) > 0
         )
         cc7_2_evidence = ComplianceEvidence(
             control_id="CC7.2",
@@ -456,8 +478,8 @@ class SOC2Exporter(BaseComplianceExporter):
         # exist for configuration changes
         total_changes = len(changes.policy_updates) + len(changes.configuration_changes)
         cc8_1_compliant = (
-            total_changes == 0 or  # No changes is compliant
-            len(changes.approval_workflows) > 0  # Changes should have approvals
+            total_changes == 0  # No changes is compliant
+            or len(changes.approval_workflows) > 0  # Changes should have approvals
         )
         cc8_1_evidence = ComplianceEvidence(
             control_id="CC8.1",

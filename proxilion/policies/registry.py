@@ -54,7 +54,7 @@ class PolicyRegistry:
         All operations are thread-safe via internal locking.
     """
 
-    def __init__(self, default_policy: type[Policy] | None = None) -> None:
+    def __init__(self, default_policy: type[Policy[Any]] | None = None) -> None:
         """
         Initialize the registry.
 
@@ -63,7 +63,7 @@ class PolicyRegistry:
                 policy is registered for a resource. If None, lookups for
                 unregistered resources will raise PolicyNotFoundError.
         """
-        self._policies: dict[str, type[Policy]] = {}
+        self._policies: dict[str, type[Policy[Any]]] = {}
         self._default_policy = default_policy
         self._lock = threading.RLock()
         self._authorized_resources: set[str] = set()
@@ -87,12 +87,14 @@ class PolicyRegistry:
             ...     def can_query(self, context: dict) -> bool:
             ...         return "analyst" in self.user.roles
         """
-        def decorator(policy_class: type[Policy]) -> type[Policy]:
+
+        def decorator(policy_class: type[Policy[Any]]) -> type[Policy[Any]]:
             self.register(resource_name, policy_class)
             return policy_class
+
         return decorator
 
-    def register(self, resource_name: str, policy_class: type[Policy]) -> None:
+    def register(self, resource_name: str, policy_class: type[Policy[Any]]) -> None:
         """
         Register a policy class for a resource.
 
@@ -122,7 +124,7 @@ class PolicyRegistry:
                 f"Registered policy '{policy_class.__name__}' for resource '{resource_name}'"
             )
 
-    def register_by_convention(self, policy_class: type[Policy]) -> None:
+    def register_by_convention(self, policy_class: type[Policy[Any]]) -> None:
         """
         Register a policy class using naming convention.
 
@@ -142,7 +144,7 @@ class PolicyRegistry:
         resource_name = policy_class.get_resource_name()
         self.register(resource_name, policy_class)
 
-    def get_policy(self, resource_name: str) -> type[Policy]:
+    def get_policy(self, resource_name: str) -> type[Policy[Any]]:
         """
         Get the policy class for a resource.
 
@@ -178,7 +180,7 @@ class PolicyRegistry:
         resource_name: str,
         user: UserContext,
         resource: Any = None,
-    ) -> Policy:
+    ) -> Policy[Any]:
         """
         Get an instantiated policy for a resource.
 
@@ -226,10 +228,7 @@ class PolicyRegistry:
             {'database': 'DatabasePolicy', 'file': 'FilePolicy'}
         """
         with self._lock:
-            return {
-                resource: policy.__name__
-                for resource, policy in self._policies.items()
-            }
+            return {resource: policy.__name__ for resource, policy in self._policies.items()}
 
     def unregister(self, resource_name: str) -> bool:
         """
@@ -259,7 +258,7 @@ class PolicyRegistry:
             self._authorized_resources.clear()
             logger.debug("Cleared all registered policies")
 
-    def set_default_policy(self, policy_class: type[Policy] | None) -> None:
+    def set_default_policy(self, policy_class: type[Policy[Any]] | None) -> None:
         """
         Set or clear the default policy.
 
@@ -321,7 +320,8 @@ class PolicyRegistry:
         """
         with self._lock:
             missing = [
-                resource for resource in expected_resources
+                resource
+                for resource in expected_resources
                 if resource not in self._authorized_resources
             ]
             return len(missing) == 0, missing

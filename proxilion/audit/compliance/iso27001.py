@@ -57,6 +57,7 @@ class AccessControlA9Evidence:
     - A.9.2: User access management
     - A.9.4: System and application access control
     """
+
     user_access_events: list[dict[str, Any]] = field(default_factory=list)
     access_denied_events: list[dict[str, Any]] = field(default_factory=list)
     privileged_access_events: list[dict[str, Any]] = field(default_factory=list)
@@ -94,6 +95,7 @@ class OperationsSecurityA12Evidence:
     - A.12.4: Logging and monitoring
     - A.12.6: Technical vulnerability management
     """
+
     operational_events: list[dict[str, Any]] = field(default_factory=list)
     logging_events: list[dict[str, Any]] = field(default_factory=list)
     vulnerability_events: list[dict[str, Any]] = field(default_factory=list)
@@ -122,6 +124,7 @@ class IncidentManagementA16Evidence:
     Covers:
     - A.16.1: Management of security incidents
     """
+
     security_incidents: list[dict[str, Any]] = field(default_factory=list)
     incident_responses: list[dict[str, Any]] = field(default_factory=list)
     incident_by_severity: dict[str, int] = field(default_factory=dict)
@@ -136,7 +139,8 @@ class IncidentManagementA16Evidence:
                 "incidents_responded": len(self.incident_responses),
                 "response_rate": (
                     len(self.incident_responses) / len(self.security_incidents)
-                    if self.security_incidents else 1.0
+                    if self.security_incidents
+                    else 1.0
                 ),
                 "by_severity": self.incident_by_severity,
             },
@@ -228,29 +232,35 @@ class ISO27001Exporter(BaseComplianceExporter):
                 EventType.AUTHORIZATION_DENIED,
                 EventType.AUTHORIZATION_REQUEST,
             ]:
-                evidence.user_access_events.append({
-                    **event_dict,
-                    "control": "A.9.4.1",
-                    "access_type": "granted" if event.data.authorization_allowed else "denied",
-                })
+                evidence.user_access_events.append(
+                    {
+                        **event_dict,
+                        "control": "A.9.4.1",
+                        "access_type": "granted" if event.data.authorization_allowed else "denied",
+                    }
+                )
 
             # Denied access events
             if event.data.event_type == EventType.AUTHORIZATION_DENIED:
-                evidence.access_denied_events.append({
-                    **event_dict,
-                    "control": "A.9.4.1",
-                    "denial_reason": event.data.authorization_reason,
-                })
+                evidence.access_denied_events.append(
+                    {
+                        **event_dict,
+                        "control": "A.9.4.1",
+                        "denial_reason": event.data.authorization_reason,
+                    }
+                )
 
             # Privileged access (admin roles or high-risk tools)
             is_admin = "admin" in event.data.user_roles
             is_high_risk = event.data.authorization_metadata.get("risk_level") == "high"
             if is_admin or is_high_risk:
-                evidence.privileged_access_events.append({
-                    **event_dict,
-                    "control": "A.9.2.3",
-                    "privilege_type": "admin" if is_admin else "high_risk_tool",
-                })
+                evidence.privileged_access_events.append(
+                    {
+                        **event_dict,
+                        "control": "A.9.2.3",
+                        "privilege_type": "admin" if is_admin else "high_risk_tool",
+                    }
+                )
 
         evidence.unique_users = len(users)
         evidence.unique_resources = len(resources)
@@ -286,34 +296,40 @@ class ISO27001Exporter(BaseComplianceExporter):
             event_dict = self.event_to_evidence_dict(event)
 
             # All events demonstrate logging (A.12.4.1)
-            evidence.logging_events.append({
-                **event_dict,
-                "control": "A.12.4.1",
-                "log_type": "authorization",
-            })
+            evidence.logging_events.append(
+                {
+                    **event_dict,
+                    "control": "A.12.4.1",
+                    "log_type": "authorization",
+                }
+            )
 
             # Operational events (successful executions)
             if event.data.event_type in [
                 EventType.TOOL_EXECUTION_SUCCESS,
                 EventType.AUTHORIZATION_GRANTED,
             ]:
-                evidence.operational_events.append({
-                    **event_dict,
-                    "control": "A.12.1.1",
-                    "operation_status": "success",
-                })
+                evidence.operational_events.append(
+                    {
+                        **event_dict,
+                        "control": "A.12.1.1",
+                        "operation_status": "success",
+                    }
+                )
 
             # Vulnerability-related events
             if event.data.event_type in [
                 EventType.IDOR_VIOLATION,
                 EventType.SCHEMA_VALIDATION_FAILURE,
             ]:
-                evidence.vulnerability_events.append({
-                    **event_dict,
-                    "control": "A.12.6.1",
-                    "vulnerability_type": event.data.event_type.value,
-                    "mitigation": "Request blocked by security control",
-                })
+                evidence.vulnerability_events.append(
+                    {
+                        **event_dict,
+                        "control": "A.12.6.1",
+                        "vulnerability_type": event.data.event_type.value,
+                        "mitigation": "Request blocked by security control",
+                    }
+                )
 
         return evidence
 
@@ -380,31 +396,37 @@ class ISO27001Exporter(BaseComplianceExporter):
                 evidence.security_incidents.append(incident)
 
                 # All detected incidents have automated response
-                evidence.incident_responses.append({
-                    **incident,
-                    "control": "A.16.1.5",
-                    "response_type": "automated_block",
-                    "response_time_ms": 0,  # Immediate
-                    "resolution": "Request blocked by security control",
-                })
+                evidence.incident_responses.append(
+                    {
+                        **incident,
+                        "control": "A.16.1.5",
+                        "response_type": "automated_block",
+                        "response_time_ms": 0,  # Immediate
+                        "resolution": "Request blocked by security control",
+                    }
+                )
 
             # Authorization denials are also security events
             if event.data.event_type == EventType.AUTHORIZATION_DENIED:
                 severity_counts["low"] += 1
-                evidence.security_incidents.append({
-                    **event_dict,
-                    "control": "A.16.1.2",
-                    "incident_type": "access_denied",
-                    "severity": "low",
-                    "reported_at": event.timestamp.isoformat(),
-                })
-                evidence.incident_responses.append({
-                    **event_dict,
-                    "control": "A.16.1.5",
-                    "response_type": "access_blocked",
-                    "response_time_ms": 0,
-                    "resolution": event.data.authorization_reason,
-                })
+                evidence.security_incidents.append(
+                    {
+                        **event_dict,
+                        "control": "A.16.1.2",
+                        "incident_type": "access_denied",
+                        "severity": "low",
+                        "reported_at": event.timestamp.isoformat(),
+                    }
+                )
+                evidence.incident_responses.append(
+                    {
+                        **event_dict,
+                        "control": "A.16.1.5",
+                        "response_type": "access_blocked",
+                        "response_time_ms": 0,
+                        "resolution": event.data.authorization_reason,
+                    }
+                )
 
         evidence.incident_by_severity = severity_counts
 

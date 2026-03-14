@@ -61,6 +61,7 @@ class HumanOversightEvidence:
         total_decisions: Total number of decisions made.
         human_involvement_rate: Percentage of decisions with human involvement.
     """
+
     approval_requests: list[dict[str, Any]] = field(default_factory=list)
     override_events: list[dict[str, Any]] = field(default_factory=list)
     intervention_points: list[dict[str, Any]] = field(default_factory=list)
@@ -101,6 +102,7 @@ class DecisionAuditTrailEntry:
         ai_system_id: Identifier of the AI system.
         rationale: Explanation for the decision.
     """
+
     timestamp: datetime
     decision_id: str
     decision_type: str
@@ -138,6 +140,7 @@ class RiskAssessmentEntry:
         mitigation_action: Action taken to mitigate.
         resolved: Whether the risk was resolved.
     """
+
     timestamp: datetime
     event_id: str
     risk_type: str
@@ -265,11 +268,13 @@ class EUAIActExporter(BaseComplianceExporter):
             # Identify intervention points (denied requests are intervention)
             if event.data.event_type == EventType.AUTHORIZATION_DENIED:
                 evidence.denied_requests.append(event_dict)
-                evidence.intervention_points.append({
-                    **event_dict,
-                    "intervention_type": "authorization_denied",
-                    "reason": event.data.authorization_reason,
-                })
+                evidence.intervention_points.append(
+                    {
+                        **event_dict,
+                        "intervention_type": "authorization_denied",
+                        "reason": event.data.authorization_reason,
+                    }
+                )
 
             # Security events are also intervention points
             if event.data.event_type in [
@@ -277,16 +282,18 @@ class EUAIActExporter(BaseComplianceExporter):
                 EventType.CIRCUIT_BREAKER_OPEN,
                 EventType.IDOR_VIOLATION,
             ]:
-                evidence.intervention_points.append({
-                    **event_dict,
-                    "intervention_type": event.data.event_type.value,
-                })
+                evidence.intervention_points.append(
+                    {
+                        **event_dict,
+                        "intervention_type": event.data.event_type.value,
+                    }
+                )
 
         # Calculate human involvement rate
         human_involved = (
-            len(evidence.approval_requests) +
-            len(evidence.override_events) +
-            len(evidence.denied_requests)
+            len(evidence.approval_requests)
+            + len(evidence.override_events)
+            + len(evidence.denied_requests)
         )
         if evidence.total_decisions > 0:
             evidence.human_involvement_rate = human_involved / evidence.total_decisions
@@ -539,13 +546,9 @@ class EUAIActExporter(BaseComplianceExporter):
         # or no security events occurred during the period
         # Each security event entry contains a mitigation_action field
         security_events = risk_log["security_events"]
-        events_with_mitigation = [
-            e for e in security_events
-            if e.get("mitigation_action")
-        ]
-        art_15_compliant = (
-            len(security_events) == 0 or
-            len(events_with_mitigation) == len(security_events)
+        events_with_mitigation = [e for e in security_events if e.get("mitigation_action")]
+        art_15_compliant = len(security_events) == 0 or len(events_with_mitigation) == len(
+            security_events
         )
         article_15_evidence = ComplianceEvidence(
             control_id="Article 15",
@@ -560,8 +563,8 @@ class EUAIActExporter(BaseComplianceExporter):
             compliant=art_15_compliant,
             notes=(
                 "All security events were handled with appropriate mitigation actions."
-                if risk_log["security_events"] else
-                "No security events detected during this period."
+                if risk_log["security_events"]
+                else "No security events detected during this period."
             ),
         )
         evidence.append(article_15_evidence)

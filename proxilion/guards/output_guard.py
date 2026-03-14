@@ -202,7 +202,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Slack API tokens",
         redaction="[SLACK_TOKEN_REDACTED]",
     ),
-
     # Private Keys
     LeakagePattern(
         name="private_key",
@@ -212,7 +211,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Private key headers",
         redaction="[PRIVATE_KEY_REDACTED]",
     ),
-
     # Connection Strings
     LeakagePattern(
         name="connection_string_mongodb",
@@ -246,7 +244,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Redis connection strings with credentials",
         redaction="[REDIS_CONN_REDACTED]",
     ),
-
     # Internal Paths
     LeakagePattern(
         name="internal_path_unix",
@@ -264,7 +261,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Windows user paths",
         redaction="[PATH_REDACTED]",
     ),
-
     # System Prompt Leakage
     LeakagePattern(
         name="system_prompt_leak",
@@ -282,7 +278,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="System prompt formatting markers",
         redaction="[SYSTEM_MARKER_REDACTED]",
     ),
-
     # PII Patterns
     LeakagePattern(
         name="email_address",
@@ -308,7 +303,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Social Security Numbers",
         redaction="[SSN_REDACTED]",
     ),
-
     # Financial
     LeakagePattern(
         name="credit_card",
@@ -318,7 +312,6 @@ DEFAULT_LEAKAGE_PATTERNS: list[LeakagePattern] = [
         description="Credit card numbers (Visa, MC, Amex, Discover)",
         redaction="[CARD_REDACTED]",
     ),
-
     # Infrastructure
     LeakagePattern(
         name="internal_ip",
@@ -388,7 +381,8 @@ class OutputGuard:
         else:
             # Filter out PII patterns if not enabled
             self.patterns = [
-                p for p in DEFAULT_LEAKAGE_PATTERNS
+                p
+                for p in DEFAULT_LEAKAGE_PATTERNS
                 if enable_pii or p.category != LeakageCategory.PII
             ]
 
@@ -469,15 +463,17 @@ class OutputGuard:
                 severities.append(pattern.severity)
 
                 for match in matches:
-                    all_matches.append({
-                        "pattern": pattern.name,
-                        "category": pattern.category.value,
-                        "severity": pattern.severity,
-                        "matched_text": self._truncate_match(match.group()),
-                        "start": match.start(),
-                        "end": match.end(),
-                        "redaction": pattern.redaction,
-                    })
+                    all_matches.append(
+                        {
+                            "pattern": pattern.name,
+                            "category": pattern.category.value,
+                            "severity": pattern.severity,
+                            "matched_text": self._truncate_match(match.group()),
+                            "start": match.start(),
+                            "end": match.end(),
+                            "redaction": pattern.redaction,
+                        }
+                    )
 
         # Run custom filters
         filter_failures: list[str] = []
@@ -623,8 +619,7 @@ def create_output_guard(
 
     if include_defaults:
         default_patterns = [
-            p for p in DEFAULT_LEAKAGE_PATTERNS
-            if enable_pii or p.category != LeakageCategory.PII
+            p for p in DEFAULT_LEAKAGE_PATTERNS if enable_pii or p.category != LeakageCategory.PII
         ]
         patterns.extend(default_patterns)
 

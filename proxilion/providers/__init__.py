@@ -111,8 +111,7 @@ def get_adapter(
         if provider_key not in _adapter_instances:
             if provider_key not in _ADAPTERS:
                 raise ValueError(
-                    f"Unknown provider: {provider_key}. "
-                    f"Supported: {list(_ADAPTERS.keys())}"
+                    f"Unknown provider: {provider_key}. Supported: {list(_ADAPTERS.keys())}"
                 )
             _adapter_instances[provider_key] = _ADAPTERS[provider_key]()
 

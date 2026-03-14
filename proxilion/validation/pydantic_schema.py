@@ -8,7 +8,7 @@ validation capabilities. It requires the pydantic package to be installed.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from proxilion.validation.schema import (
     ParameterSchema,
@@ -28,6 +28,7 @@ try:
     from pydantic import BaseModel, ValidationError, create_model
     from pydantic.fields import FieldInfo
     from pydantic_core import PydanticUndefined
+
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False
@@ -318,7 +319,7 @@ class PydanticSchemaValidator(SchemaValidator):
             **field_definitions,
         )
 
-        return model
+        return cast(type[BaseModel], model)
 
     def _schema_type_to_python(self, type_str: str) -> type:
         """Convert schema type string to Python type."""

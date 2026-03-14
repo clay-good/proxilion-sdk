@@ -83,13 +83,12 @@ Policies are deterministic rules that evaluate authorization requests:
 
 ```python
 class FileAccessPolicy(Policy):
-    def evaluate(self, context) -> bool:
+    def can_read(self, context) -> bool:
         # Pure logic - no AI, no randomness
-        user = context.user
-        file_owner = context.tool_call.parameters.get("owner_id")
+        file_owner = context.get("owner_id")
 
         # Exact comparison - always returns same result for same inputs
-        return user.user_id == file_owner
+        return self.user.user_id == file_owner
 ```
 
 **Deterministic properties:**
@@ -163,15 +162,15 @@ async def external_service():
 Cryptographic verification ensures data hasn't been tampered:
 
 ```python
-from proxilion.guardrails import ContextIntegrity
+from proxilion.security import MemoryIntegrityGuard
 
-integrity = ContextIntegrity(secret_key="your-secret")
+guard = MemoryIntegrityGuard(secret_key="your-secret")
 
-# Sign data
-signed = integrity.sign({"user_id": "alice", "action": "read"})
+# Sign each message
+msg1 = guard.sign_message("user", "Help me with Python")
 
 # Verify - uses HMAC-SHA256, cryptographically deterministic
-result = integrity.verify(signed)
+result = guard.verify_context([msg1])
 # If data modified: result.valid == False, guaranteed
 ```
 
@@ -185,7 +184,10 @@ result = integrity.verify(signed)
 Tamper-evident logs with hash chains:
 
 ```python
-logger = AuditLogger(enable_hash_chain=True)
+from proxilion.audit import AuditLogger, LoggerConfig
+
+config = LoggerConfig.default("./logs/audit.jsonl")
+logger = AuditLogger(config)
 ```
 
 **Deterministic properties:**

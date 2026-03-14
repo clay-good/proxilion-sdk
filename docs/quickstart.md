@@ -28,12 +28,12 @@ from proxilion import Policy
 class FileAccessPolicy(Policy):
     """Only allow users to access their own files."""
 
-    def evaluate(self, context):
+    def can_read(self, context):
         # Get the file being accessed
-        file_owner = context.tool_call.parameters.get("owner_id")
+        file_owner = context.get("owner_id")
 
         # Users can only access their own files
-        return context.user.user_id == file_owner
+        return self.user.user_id == file_owner
 ```
 
 ### 3. Protect a Tool
@@ -56,7 +56,6 @@ async def main():
     user = UserContext(
         user_id="alice",
         roles=["user"],
-        permissions=["file:read"]
     )
 
     # This works - Alice accessing her own file
@@ -120,13 +119,11 @@ if not result.passed:
 Track all authorization decisions:
 
 ```python
-from proxilion.audit import AuditLogger
+from proxilion.audit import AuditLogger, LoggerConfig
 
 # Create audit logger with tamper-evident chain
-logger = AuditLogger(
-    log_path="./logs/audit.jsonl",
-    enable_hash_chain=True  # Cryptographic integrity
-)
+config = LoggerConfig.default("./logs/audit.jsonl")
+logger = AuditLogger(config)
 
 # Logs are automatically created for all authorization decisions
 # Each entry includes:
@@ -145,6 +142,7 @@ Here's a complete example combining multiple features:
 ```python
 import asyncio
 from proxilion import (
+    AuthorizationError,
     Proxilion,
     Policy,
     UserContext,
@@ -152,11 +150,12 @@ from proxilion import (
     circuit_protected,
 )
 from proxilion.guards.input_guard import InputGuard, InjectionPattern
-from proxilion.audit import AuditLogger
+from proxilion.audit import AuditLogger, LoggerConfig
 
 # Initialize
 auth = Proxilion()
-logger = AuditLogger("./logs/audit.jsonl", enable_hash_chain=True)
+config = LoggerConfig.default("./logs/audit.jsonl")
+logger = AuditLogger(config)
 
 # Input validation
 guard = InputGuard()
@@ -170,12 +169,12 @@ guard.add_pattern(InjectionPattern(
 # Define policy
 @auth.policy("database")
 class DatabasePolicy(Policy):
-    def evaluate(self, context):
+    def can_execute(self, context):
         # Admins can do anything
-        if "admin" in context.user.roles:
+        if "admin" in self.user.roles:
             return True
         # Users can only SELECT
-        query = context.tool_call.parameters.get("query", "")
+        query = context.get("query", "")
         return query.strip().upper().startswith("SELECT")
 
 # Protected tool with multiple layers

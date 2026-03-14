@@ -7,11 +7,18 @@ for managing conversation context within LLM token limits.
 
 from __future__ import annotations
 
+import logging
 import threading
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Type alias for token estimator callbacks
+TokenEstimator = Callable[[str], int]
 
 
 class MessageRole(Enum):
@@ -30,7 +37,13 @@ def estimate_tokens(text: str) -> int:
 
     Uses a blend of word-based and character-based heuristics that
     approximates tokenizer behavior for English text. This provides
-    a reasonable estimate (~10-15% accurate) without external dependencies.
+    a rough estimate (~10-15% accuracy) without external dependencies.
+
+    .. warning::
+        This heuristic can over- or under-count significantly for
+        non-English text, code, or structured data. For production use,
+        pass a ``token_estimator`` callback to :class:`MessageHistory`
+        that uses tiktoken or a provider-specific tokenizer.
 
     Args:
         text: The text to estimate tokens for.
@@ -88,6 +101,15 @@ class Message:
             import uuid
 
             self.message_id = str(uuid.uuid4())
+
+    def recount_tokens(self, estimator: TokenEstimator) -> None:
+        """
+        Recompute token count using a custom estimator.
+
+        Args:
+            estimator: A callable that takes text and returns a token count.
+        """
+        self.token_count = estimator(self.content)
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -151,6 +173,7 @@ class MessageHistory:
         self,
         max_messages: int | None = None,
         max_tokens: int | None = None,
+        token_estimator: TokenEstimator | None = None,
     ) -> None:
         """
         Initialize message history.
@@ -158,9 +181,14 @@ class MessageHistory:
         Args:
             max_messages: Maximum number of messages to retain. None for unlimited.
             max_tokens: Maximum total tokens to retain. None for unlimited.
+            token_estimator: Optional callable ``(str) -> int`` for token counting.
+                Defaults to the built-in heuristic :func:`estimate_tokens`.
+                For production accuracy, pass a tokenizer-backed function
+                (e.g. ``lambda text: len(tiktoken.encoding_for_model("gpt-4o").encode(text))``).
         """
         self.max_messages = max_messages
         self.max_tokens = max_tokens
+        self._token_estimator: TokenEstimator = token_estimator or estimate_tokens
         self._messages: list[Message] = []
         self._lock = threading.RLock()
 
@@ -169,7 +197,7 @@ class MessageHistory:
         with self._lock:
             return len(self._messages)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Message]:
         """Iterate over messages."""
         with self._lock:
             return iter(list(self._messages))
@@ -193,6 +221,9 @@ class MessageHistory:
             List of messages that were removed due to limits.
         """
         with self._lock:
+            # Recount tokens with custom estimator if one was provided
+            if self._token_estimator is not estimate_tokens:
+                message.recount_tokens(self._token_estimator)
             self._messages.append(message)
             return self._enforce_limits()
 
@@ -388,9 +419,7 @@ class MessageHistory:
             formatted["parts"] = [{"function_call": msg.metadata["function_call"]}]
 
         if msg.role == MessageRole.TOOL_RESULT and "function_response" in msg.metadata:
-            formatted["parts"] = [
-                {"function_response": msg.metadata["function_response"]}
-            ]
+            formatted["parts"] = [{"function_response": msg.metadata["function_response"]}]
 
         return formatted
 

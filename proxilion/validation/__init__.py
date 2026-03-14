@@ -48,6 +48,7 @@ try:
         PydanticSchemaValidator,
         create_pydantic_validator,
     )
+
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False

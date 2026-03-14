@@ -65,9 +65,7 @@ class DenyAllPolicy(Policy[Any]):
 
         Even actions without explicit can_<action> methods are denied.
         """
-        logger.debug(
-            f"DenyAllPolicy: Denying action '{action}' for user '{self.user.user_id}'"
-        )
+        logger.debug(f"DenyAllPolicy: Denying action '{action}' for user '{self.user.user_id}'")
         return False
 
 
@@ -130,9 +128,7 @@ class AllowAllPolicy(Policy[Any]):
 
         Even actions without explicit can_<action> methods are allowed.
         """
-        logger.debug(
-            f"AllowAllPolicy: Allowing action '{action}' for user '{self.user.user_id}'"
-        )
+        logger.debug(f"AllowAllPolicy: Allowing action '{action}' for user '{self.user.user_id}'")
         return True
 
 
@@ -184,13 +180,11 @@ class RoleBasedPolicy(Policy[Any]):
         if action not in self.allowed_roles:
             if self.default_allowed:
                 logger.debug(
-                    f"RoleBasedPolicy: Action '{action}' not in allowed_roles, "
-                    f"allowing by default"
+                    f"RoleBasedPolicy: Action '{action}' not in allowed_roles, allowing by default"
                 )
                 return True
             logger.debug(
-                f"RoleBasedPolicy: Action '{action}' not in allowed_roles, "
-                f"denying by default"
+                f"RoleBasedPolicy: Action '{action}' not in allowed_roles, denying by default"
             )
             return False
 
@@ -239,6 +233,7 @@ class RoleBasedPolicy(Policy[Any]):
             ... })
             >>> policy = ApiPolicy(user, api_resource)
         """
+
         class DynamicRolePolicy(cls):  # type: ignore[valid-type, misc]
             pass
 
@@ -370,17 +365,14 @@ class OwnershipPolicy(Policy[Any]):
             True if user is owner or action is in allow_non_owner_actions.
         """
         if action in self.allow_non_owner_actions:
-            logger.debug(
-                f"OwnershipPolicy: Action '{action}' allowed for non-owners"
-            )
+            logger.debug(f"OwnershipPolicy: Action '{action}' allowed for non-owners")
             return True
 
         is_owner = self.is_owner()
 
         if is_owner:
             logger.debug(
-                f"OwnershipPolicy: User '{self.user.user_id}' is owner, "
-                f"allowing action '{action}'"
+                f"OwnershipPolicy: User '{self.user.user_id}' is owner, allowing action '{action}'"
             )
         else:
             logger.debug(
@@ -479,7 +471,8 @@ class CompositePolicy(Policy[Any]):
             ...     require_all=True
             ... )
         """
-        class DynamicCompositePolicy(cls):
+
+        class DynamicCompositePolicy(cls):  # type: ignore[valid-type, misc]
             pass
 
         DynamicCompositePolicy.policies = list(policy_classes)

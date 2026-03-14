@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any
 
 from proxilion.providers.adapter import (
@@ -86,7 +87,7 @@ class OpenAIAdapter(BaseAdapter):
 
         return [UnifiedToolCall.from_openai(tc) for tc in tool_calls]
 
-    def _extract_from_dict(self, response: dict) -> list[UnifiedToolCall]:
+    def _extract_from_dict(self, response: dict[str, Any]) -> list[UnifiedToolCall]:
         """Extract tool calls from dictionary response."""
         choices = response.get("choices", [])
         if not choices:
@@ -233,26 +234,34 @@ class OpenAIAdapter(BaseAdapter):
                 formatted.append(tool.to_openai_format())
             elif hasattr(tool, "name") and hasattr(tool, "description"):
                 # Manual conversion
-                formatted.append({
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": getattr(tool, "parameters", {
-                            "type": "object",
-                            "properties": {},
-                        }),
-                    },
-                })
+                formatted.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": getattr(
+                                tool,
+                                "parameters",
+                                {
+                                    "type": "object",
+                                    "properties": {},
+                                },
+                            ),
+                        },
+                    }
+                )
             elif isinstance(tool, dict):
                 # Already in correct format or needs wrapping
                 if tool.get("type") == "function":
                     formatted.append(tool)
                 else:
-                    formatted.append({
-                        "type": "function",
-                        "function": tool,
-                    })
+                    formatted.append(
+                        {
+                            "type": "function",
+                            "function": tool,
+                        }
+                    )
 
         return formatted
 
@@ -281,7 +290,7 @@ class OpenAIAdapter(BaseAdapter):
         if tool_calls:
             message["tool_calls"] = [
                 {
-                    "id": tc.id,
+                    "id": tc.id or str(uuid.uuid4()),
                     "type": "function",
                     "function": {
                         "name": tc.name,

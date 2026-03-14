@@ -150,14 +150,16 @@ class IntentCapsule:
         """Record a tool call for tracking."""
         if len(self.tool_calls) >= self._max_tool_calls:
             # Remove oldest to prevent unbounded growth
-            self.tool_calls = self.tool_calls[-self._max_tool_calls + 1:]
+            self.tool_calls = self.tool_calls[-self._max_tool_calls + 1 :]
 
-        self.tool_calls.append({
-            "tool_name": tool_name,
-            "arguments": arguments,
-            "result_type": type(result).__name__ if result else None,
-            "timestamp": time.time(),
-        })
+        self.tool_calls.append(
+            {
+                "tool_name": tool_name,
+                "arguments": arguments,
+                "result_type": type(result).__name__ if result else None,
+                "timestamp": time.time(),
+            }
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict."""
@@ -260,46 +262,67 @@ class IntentCapsule:
         intent_lower = intent.lower()
 
         # Delete patterns
-        if any(word in intent_lower for word in [
-            "delete", "remove", "destroy", "erase", "drop", "clear"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["delete", "remove", "destroy", "erase", "drop", "clear"]
+        ):
             return IntentCategory.DELETE
 
         # Create patterns
-        if any(word in intent_lower for word in [
-            "create", "make", "generate", "build", "add", "new", "write"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["create", "make", "generate", "build", "add", "new", "write"]
+        ):
             return IntentCategory.CREATE
 
         # Update patterns
-        if any(word in intent_lower for word in [
-            "update", "modify", "change", "edit", "fix", "correct"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["update", "modify", "change", "edit", "fix", "correct"]
+        ):
             return IntentCategory.UPDATE
 
         # Execute patterns
-        if any(word in intent_lower for word in [
-            "run", "execute", "start", "launch", "deploy", "install"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["run", "execute", "start", "launch", "deploy", "install"]
+        ):
             return IntentCategory.EXECUTE
 
         # Communicate patterns
-        if any(word in intent_lower for word in [
-            "send", "email", "message", "notify", "alert", "share"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["send", "email", "message", "notify", "alert", "share"]
+        ):
             return IntentCategory.COMMUNICATE
 
         # Analyze patterns
-        if any(word in intent_lower for word in [
-            "analyze", "process", "calculate", "compute", "summarize"
-        ]):
+        if any(
+            word in intent_lower
+            for word in ["analyze", "process", "calculate", "compute", "summarize"]
+        ):
             return IntentCategory.ANALYZE
 
         # Query patterns (most common, check last)
-        if any(word in intent_lower for word in [
-            "find", "search", "get", "show", "list", "display", "fetch",
-            "what", "where", "when", "who", "how", "help", "tell"
-        ]):
+        if any(
+            word in intent_lower
+            for word in [
+                "find",
+                "search",
+                "get",
+                "show",
+                "list",
+                "display",
+                "fetch",
+                "what",
+                "where",
+                "when",
+                "who",
+                "how",
+                "help",
+                "tell",
+            ]
+        ):
             return IntentCategory.QUERY
 
         return IntentCategory.UNKNOWN
@@ -326,22 +349,26 @@ class IntentCapsule:
 # Hijacking detection patterns
 HIJACK_PATTERNS: list[tuple[str, str, float]] = [
     # (pattern, description, severity)
-    (r"(?i)ignore\s+(all\s+)?(previous|prior|original)\s+(intent|instructions?|goals?)",
-     "Intent override attempt", 0.95),
-    (r"(?i)new\s+(goal|objective|task|mission)\s*:",
-     "Goal replacement attempt", 0.9),
-    (r"(?i)forget\s+(your|the)\s+(original|primary|main)\s+(purpose|goal|task)",
-     "Purpose erasure attempt", 0.9),
-    (r"(?i)your\s+(real|true|actual)\s+(purpose|goal|mission)\s+is",
-     "False purpose injection", 0.95),
-    (r"(?i)override\s+(priority|directive|command)",
-     "Priority override attempt", 0.85),
-    (r"(?i)emergency\s+(override|protocol|mode)",
-     "Emergency bypass attempt", 0.8),
-    (r"(?i)admin(istrator)?\s+(mode|override|access)",
-     "Admin escalation attempt", 0.85),
-    (r"(?i)disregard\s+(user|original)\s+(request|intent)",
-     "Disregard user intent", 0.9),
+    (
+        r"(?i)ignore\s+(all\s+)?(previous|prior|original)\s+(intent|instructions?|goals?)",
+        "Intent override attempt",
+        0.95,
+    ),
+    (r"(?i)new\s+(goal|objective|task|mission)\s*:", "Goal replacement attempt", 0.9),
+    (
+        r"(?i)forget\s+(your|the)\s+(original|primary|main)\s+(purpose|goal|task)",
+        "Purpose erasure attempt",
+        0.9,
+    ),
+    (
+        r"(?i)your\s+(real|true|actual)\s+(purpose|goal|mission)\s+is",
+        "False purpose injection",
+        0.95,
+    ),
+    (r"(?i)override\s+(priority|directive|command)", "Priority override attempt", 0.85),
+    (r"(?i)emergency\s+(override|protocol|mode)", "Emergency bypass attempt", 0.8),
+    (r"(?i)admin(istrator)?\s+(mode|override|access)", "Admin escalation attempt", 0.85),
+    (r"(?i)disregard\s+(user|original)\s+(request|intent)", "Disregard user intent", 0.9),
 ]
 
 
@@ -643,8 +670,7 @@ class IntentGuard:
             "allowed_tools": list(self._capsule.allowed_tools),
             "tool_calls_made": len(self._capsule.tool_calls),
             "expires_in_seconds": max(
-                0,
-                (self._capsule.expires_at - datetime.now(timezone.utc)).total_seconds()
+                0, (self._capsule.expires_at - datetime.now(timezone.utc)).total_seconds()
             ),
         }
 
@@ -806,10 +832,7 @@ class IntentCapsuleManager:
     def _cleanup_expired(self) -> int:
         """Clean up expired capsules."""
         now = datetime.now(timezone.utc)
-        expired = [
-            cid for cid, capsule in self._capsules.items()
-            if capsule.expires_at < now
-        ]
+        expired = [cid for cid, capsule in self._capsules.items() if capsule.expires_at < now]
 
         for cid in expired:
             del self._capsules[cid]
@@ -817,8 +840,7 @@ class IntentCapsuleManager:
         # Clean up user mappings
         for uid in list(self._user_capsules.keys()):
             self._user_capsules[uid] = [
-                cid for cid in self._user_capsules[uid]
-                if cid in self._capsules
+                cid for cid in self._user_capsules[uid] if cid in self._capsules
             ]
             if not self._user_capsules[uid]:
                 del self._user_capsules[uid]

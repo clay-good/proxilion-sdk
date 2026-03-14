@@ -100,7 +100,7 @@ class FileExporter(Exporter):
 
         # Open file
         mode = "a" if append else "w"
-        self._file = open(self.path, mode, encoding="utf-8")
+        self._file = open(self.path, mode, encoding="utf-8")  # type: ignore[assignment]
 
     def export_event(self, event: AuditEventV2) -> None:
         """Export a single event to the file."""

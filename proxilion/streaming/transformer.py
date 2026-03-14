@@ -11,7 +11,7 @@ import asyncio
 import threading
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, TypeVar, cast
 
 from proxilion.streaming.detector import (
     DetectedToolCall,
@@ -104,9 +104,9 @@ class FilteredStream(Generic[T]):
 
             # Convert chunk to string for filtering
             if isinstance(chunk, str):
-                content = chunk
+                content: str = chunk
             elif hasattr(chunk, "content"):
-                content = getattr(chunk, "content", "")
+                content = str(getattr(chunk, "content", ""))
             else:
                 content = str(chunk)
 
@@ -117,16 +117,16 @@ class FilteredStream(Generic[T]):
                     raise StopAsyncIteration
 
             # Apply filters
-            result = content
+            result: str | None = content
             for filter_fn in self.filters:
-                result = filter_fn(result)
                 if result is None:
                     break  # Drop this chunk
+                result = filter_fn(result)
 
-            if result is not None:
+            if result is not None and result != "":
                 # Return original chunk type if possible
                 if isinstance(chunk, str):
-                    return result  # type: ignore
+                    return cast(T, result)
                 return chunk
 
     def stop(self) -> None:
@@ -199,9 +199,7 @@ class StreamTransformer:
             self._validators.append(validator_fn)
         return self
 
-    def set_tool_call_authorizer(
-        self, authorizer: ToolCallAuthorizer
-    ) -> StreamTransformer:
+    def set_tool_call_authorizer(self, authorizer: ToolCallAuthorizer) -> StreamTransformer:
         """
         Set the tool call authorizer.
 
@@ -214,9 +212,7 @@ class StreamTransformer:
         self._tool_call_authorizer = authorizer
         return self
 
-    def add_event_callback(
-        self, callback: Callable[[StreamEvent], None]
-    ) -> StreamTransformer:
+    def add_event_callback(self, callback: Callable[[StreamEvent], None]) -> StreamTransformer:
         """
         Add an event callback.
 
@@ -273,7 +269,7 @@ class StreamTransformer:
                     break
                 result = filter_fn(result)
 
-            if result is not None:
+            if result is not None and result != "":
                 yield result
 
     def transform_sync(
@@ -307,7 +303,7 @@ class StreamTransformer:
                     break
                 result = filter_fn(result)
 
-            if result is not None:
+            if result is not None and result != "":
                 yield result
 
     async def transform_events(
@@ -349,7 +345,7 @@ class StreamTransformer:
                         break
                     result = filter_fn(result)
 
-                if result is not None:
+                if result is not None and result != "":
                     yield StreamEvent.text(result, event.raw_chunk)
 
             elif event.type == StreamEventType.TOOL_CALL_END:
@@ -394,9 +390,7 @@ class StreamTransformer:
 
             for event in events:
                 # Apply transformations
-                async for transformed in self.transform_events(
-                    _single_event_iterator(event)
-                ):
+                async for transformed in self.transform_events(_single_event_iterator(event)):
                     yield transformed
 
     def wrap(self, stream: AsyncIterator[str]) -> FilteredStream[str]:
@@ -447,24 +441,25 @@ def create_guarded_stream(
     """
     # Import here to avoid circular imports
     try:
-        from proxilion.guards import GuardAction
+        from proxilion.guards import GuardAction as _GuardAction
     except ImportError:
         # Fallback if guards not available
-        class GuardAction:
+        class _GuardAction:  # type: ignore[no-redef]
             ALLOW = "allow"
             BLOCK = "block"
             SANITIZE = "sanitize"
 
+    guard_action_cls = _GuardAction
     transformer = StreamTransformer()
 
-    def guard_filter(chunk: str) -> str | None:
-        result = output_guard.check(chunk)
+    def guard_filter(content: str) -> str | None:
+        result = output_guard.check(content)
         if hasattr(result, "action"):
-            if result.action == GuardAction.BLOCK:
+            if result.action == guard_action_cls.BLOCK:
                 return None
-            elif result.action == GuardAction.SANITIZE:
-                return output_guard.redact(chunk)
-        return chunk
+            elif result.action == guard_action_cls.SANITIZE:
+                return cast(str | None, output_guard.redact(content))
+        return content
 
     transformer.add_filter(guard_filter)
     return transformer.transform(stream)
@@ -499,7 +494,7 @@ def create_authorization_stream(
         ...         result = execute_tool(event.tool_call)
     """
     transformer = StreamTransformer()
-    transformer.set_tool_call_authorizer(authorizer)
+    transformer.set_tool_call_authorizer(cast(ToolCallAuthorizer, authorizer))
     return transformer.transform_chunks(stream, detector)
 
 
@@ -535,9 +530,7 @@ class BufferedStreamTransformer:
         self._patterns: list[tuple[str, str]] = []
         self._lock = threading.Lock()
 
-    def add_pattern_filter(
-        self, pattern: str, replacement: str
-    ) -> BufferedStreamTransformer:
+    def add_pattern_filter(self, pattern: str, replacement: str) -> BufferedStreamTransformer:
         """
         Add a regex pattern filter.
 

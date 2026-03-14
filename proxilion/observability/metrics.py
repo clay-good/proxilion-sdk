@@ -220,15 +220,17 @@ class MetricsCollector:
         """Record an authorization decision."""
         event_type = EventType.AUTHORIZATION_ALLOWED if allowed else EventType.AUTHORIZATION_DENIED
 
-        self.record_event(SecurityEvent(
-            event_type=event_type,
-            timestamp=time.time(),
-            user_id=user,
-            resource=resource,
-            action=action,
-            details={"latency_ms": latency_ms} if latency_ms else {},
-            severity=0.0 if allowed else 0.5,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=event_type,
+                timestamp=time.time(),
+                user_id=user,
+                resource=resource,
+                action=action,
+                details={"latency_ms": latency_ms} if latency_ms else {},
+                severity=0.0 if allowed else 0.5,
+            )
+        )
 
         if latency_ms:
             self.record_histogram("authorization_latency_ms", latency_ms)
@@ -246,13 +248,15 @@ class MetricsCollector:
         else:
             event_type = EventType.OUTPUT_GUARD_BLOCK
 
-        self.record_event(SecurityEvent(
-            event_type=event_type,
-            timestamp=time.time(),
-            user_id=user,
-            details={"pattern": pattern, "risk_score": risk_score},
-            severity=risk_score,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=event_type,
+                timestamp=time.time(),
+                user_id=user,
+                details={"pattern": pattern, "risk_score": risk_score},
+                severity=risk_score,
+            )
+        )
 
     def record_rate_limit_hit(
         self,
@@ -260,13 +264,15 @@ class MetricsCollector:
         limit_type: str = "requests",
     ) -> None:
         """Record a rate limit hit."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.RATE_LIMIT_HIT,
-            timestamp=time.time(),
-            user_id=user,
-            details={"limit_type": limit_type},
-            severity=0.4,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.RATE_LIMIT_HIT,
+                timestamp=time.time(),
+                user_id=user,
+                details={"limit_type": limit_type},
+                severity=0.4,
+            )
+        )
 
     def record_circuit_open(
         self,
@@ -274,12 +280,14 @@ class MetricsCollector:
         failure_count: int = 0,
     ) -> None:
         """Record a circuit breaker opening."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.CIRCUIT_OPEN,
-            timestamp=time.time(),
-            details={"circuit_name": circuit_name, "failure_count": failure_count},
-            severity=0.6,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.CIRCUIT_OPEN,
+                timestamp=time.time(),
+                details={"circuit_name": circuit_name, "failure_count": failure_count},
+                severity=0.6,
+            )
+        )
 
     def record_idor_violation(
         self,
@@ -288,14 +296,16 @@ class MetricsCollector:
         object_id: str,
     ) -> None:
         """Record an IDOR violation."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.IDOR_VIOLATION,
-            timestamp=time.time(),
-            user_id=user,
-            resource=resource_type,
-            details={"object_id": object_id},
-            severity=0.8,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.IDOR_VIOLATION,
+                timestamp=time.time(),
+                user_id=user,
+                resource=resource_type,
+                details={"object_id": object_id},
+                severity=0.8,
+            )
+        )
 
     def record_sequence_violation(
         self,
@@ -304,13 +314,15 @@ class MetricsCollector:
         tool_name: str,
     ) -> None:
         """Record a sequence violation."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.SEQUENCE_VIOLATION,
-            timestamp=time.time(),
-            user_id=user,
-            details={"rule_name": rule_name, "tool_name": tool_name},
-            severity=0.7,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.SEQUENCE_VIOLATION,
+                timestamp=time.time(),
+                user_id=user,
+                details={"rule_name": rule_name, "tool_name": tool_name},
+                severity=0.7,
+            )
+        )
 
     def record_intent_hijack(
         self,
@@ -321,18 +333,20 @@ class MetricsCollector:
         confidence: float,
     ) -> None:
         """Record an intent hijack detection."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.INTENT_HIJACK,
-            timestamp=time.time(),
-            user_id=user,
-            agent_id=agent,
-            details={
-                "original_intent": original_intent,
-                "detected_intent": detected_intent,
-                "confidence": confidence,
-            },
-            severity=confidence,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.INTENT_HIJACK,
+                timestamp=time.time(),
+                user_id=user,
+                agent_id=agent,
+                details={
+                    "original_intent": original_intent,
+                    "detected_intent": detected_intent,
+                    "confidence": confidence,
+                },
+                severity=confidence,
+            )
+        )
 
     def record_behavioral_drift(
         self,
@@ -341,13 +355,15 @@ class MetricsCollector:
         drifting_metrics: list[str],
     ) -> None:
         """Record behavioral drift detection."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.BEHAVIORAL_DRIFT,
-            timestamp=time.time(),
-            agent_id=agent,
-            details={"drifting_metrics": drifting_metrics},
-            severity=severity,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.BEHAVIORAL_DRIFT,
+                timestamp=time.time(),
+                agent_id=agent,
+                details={"drifting_metrics": drifting_metrics},
+                severity=severity,
+            )
+        )
 
     def record_kill_switch(
         self,
@@ -355,12 +371,14 @@ class MetricsCollector:
         triggered_by: str,
     ) -> None:
         """Record kill switch activation."""
-        self.record_event(SecurityEvent(
-            event_type=EventType.KILL_SWITCH_ACTIVATED,
-            timestamp=time.time(),
-            details={"reason": reason, "triggered_by": triggered_by},
-            severity=1.0,
-        ))
+        self.record_event(
+            SecurityEvent(
+                event_type=EventType.KILL_SWITCH_ACTIVATED,
+                timestamp=time.time(),
+                details={"reason": reason, "triggered_by": triggered_by},
+                severity=1.0,
+            )
+        )
 
     def record_histogram(
         self,
@@ -423,8 +441,7 @@ class MetricsCollector:
 
         with self._lock:
             count = sum(
-                1 for e in self._events
-                if e.event_type == event_type and e.timestamp > cutoff
+                1 for e in self._events if e.event_type == event_type and e.timestamp > cutoff
             )
 
         return count / window
@@ -454,7 +471,7 @@ class MetricsCollector:
             cutoff = now - window
 
             recent_events = [e for e in self._events if e.timestamp > cutoff]
-            event_counts = defaultdict(int)
+            event_counts: defaultdict[str, int] = defaultdict(int)
             for e in recent_events:
                 event_counts[e.event_type.value] += 1
 
@@ -470,9 +487,7 @@ class MetricsCollector:
                 "total_allowed": total_auth_allowed,
                 "total_denied": total_auth_denied,
                 "denial_rate": total_auth_denied / max(1, total_authorizations),
-                "recent_events_per_minute": {
-                    k: v * 60 / window for k, v in event_counts.items()
-                },
+                "recent_events_per_minute": {k: v * 60 / window for k, v in event_counts.items()},
                 "gauges": dict(self._gauges),
                 "counters": dict(self._counters),
             }
@@ -497,10 +512,18 @@ class AlertRule:
             name: Rule name.
             event_type: Event type to monitor (None for custom metric).
             threshold: Threshold for triggering.
-            window_seconds: Window for rate calculation.
+            window_seconds: Window for rate calculation. Must be > 0.
             severity: Alert severity (info, warning, critical).
-            cooldown_seconds: Minimum time between alerts.
+            cooldown_seconds: Minimum time between alerts. Must be >= 0.
+
+        Raises:
+            ValueError: If numeric parameters are out of range.
         """
+        if window_seconds <= 0:
+            raise ValueError("window_seconds must be greater than 0")
+        if cooldown_seconds < 0:
+            raise ValueError("cooldown_seconds must be non-negative")
+
         self.name = name
         self.event_type = event_type
         self.threshold = threshold
@@ -685,6 +708,7 @@ class AlertManager:
         """Send alert to webhook."""
         try:
             payload = json.dumps(alert.to_dict()).encode()
+            assert self._webhook_url is not None
             request = Request(
                 self._webhook_url,
                 data=payload,
@@ -693,7 +717,7 @@ class AlertManager:
             )
 
             with urlopen(request, timeout=10) as response:
-                return response.status == 200
+                return bool(response.status == 200)
 
         except URLError as e:
             logger.error(f"Webhook error: {e}")

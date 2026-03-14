@@ -75,6 +75,7 @@ T = TypeVar("T")
 
 class GoogleIntegrationError(ProxilionError):
     """Error in Google Vertex AI / Gemini integration."""
+
     pass
 
 
@@ -112,6 +113,7 @@ class GeminiFunctionCall:
         ...     raw=gemini_function_call,
         ... )
     """
+
     name: str
     args: dict[str, Any]
     raw: Any = None
@@ -144,6 +146,7 @@ class GeminiToolResult:
         ...     result={"temperature": 72, "condition": "sunny"},
         ... )
     """
+
     name: str
     success: bool
     result: Any | None = None
@@ -185,6 +188,7 @@ class GeminiToolResult:
 @dataclass
 class RegisteredGeminiTool:
     """A registered tool with its declaration and implementation."""
+
     name: str
     declaration: dict[str, Any]
     implementation: Callable[..., Any]
@@ -516,21 +520,22 @@ class ProxilionVertexHandler:
                             try:
                                 # Try to iterate as Struct
                                 args = {
-                                    k: self._convert_protobuf_value(v)
-                                    for k, v in raw_args.items()
+                                    k: self._convert_protobuf_value(v) for k, v in raw_args.items()
                                 }
                             except (TypeError, AttributeError):
                                 args = {}
 
-                    calls.append(GeminiFunctionCall(
-                        name=function_call.name,
-                        args=args,
-                        raw=function_call,
-                    ))
+                    calls.append(
+                        GeminiFunctionCall(
+                            name=function_call.name,
+                            args=args,
+                            raw=function_call,
+                        )
+                    )
 
         return calls
 
-    def _extract_from_dict(self, response: dict) -> list[GeminiFunctionCall]:
+    def _extract_from_dict(self, response: dict[str, Any]) -> list[GeminiFunctionCall]:
         """Extract function calls from dictionary response."""
         calls: list[GeminiFunctionCall] = []
         candidates = response.get("candidates", [])
@@ -543,16 +548,30 @@ class ProxilionVertexHandler:
                 # Handle both camelCase and snake_case
                 fc = part.get("functionCall") or part.get("function_call")
                 if fc:
-                    calls.append(GeminiFunctionCall(
-                        name=fc.get("name", ""),
-                        args=fc.get("args", {}),
-                        raw=fc,
-                    ))
+                    calls.append(
+                        GeminiFunctionCall(
+                            name=fc.get("name", ""),
+                            args=fc.get("args", {}),
+                            raw=fc,
+                        )
+                    )
 
         return calls
 
     def _convert_protobuf_value(self, value: Any) -> Any:
-        """Convert protobuf Value to Python native type."""
+        """Convert protobuf Value to Python native type.
+
+        Handles standard protobuf Value kinds (null, bool, number, string,
+        list, struct) as well as common Python types that may appear when
+        protobuf objects are partially converted.
+
+        Raises:
+            TypeError: If the value type is not supported.
+        """
+        if value is None:
+            return None
+        # Protobuf Value attributes — check in the same order as the original
+        # to preserve compatibility with mock-based tests.
         if hasattr(value, "string_value"):
             return value.string_value
         if hasattr(value, "number_value"):
@@ -561,12 +580,28 @@ class ProxilionVertexHandler:
             return value.bool_value
         if hasattr(value, "struct_value"):
             return {
-                k: self._convert_protobuf_value(v)
-                for k, v in value.struct_value.fields.items()
+                k: self._convert_protobuf_value(v) for k, v in value.struct_value.fields.items()
             }
         if hasattr(value, "list_value"):
             return [self._convert_protobuf_value(v) for v in value.list_value.values]
-        return value
+        # Protobuf NullValue (null_value attribute with no other Value kind)
+        if hasattr(value, "null_value"):
+            return None
+        # Handle native Python types that may appear in partially-converted data
+        if isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {k: self._convert_protobuf_value(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._convert_protobuf_value(v) for v in value]
+        raise TypeError(
+            f"Unsupported protobuf value type: {type(value).__name__}. "
+            f"Cannot convert to a native Python type."
+        )
 
     def execute(
         self,
@@ -615,9 +650,7 @@ class ProxilionVertexHandler:
                 **function_call.args,
             }
 
-            auth_result = self.proxilion.check(
-                user, tool.action, tool.resource, context
-            )
+            auth_result = self.proxilion.check(user, tool.action, tool.resource, context)
 
             if not auth_result.allowed:
                 result = GeminiToolResult(
@@ -636,6 +669,7 @@ class ProxilionVertexHandler:
                     asyncio.get_running_loop()
                     # Already inside an event loop (e.g. Jupyter, async framework)
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                         output = pool.submit(
                             asyncio.run,
@@ -645,9 +679,7 @@ class ProxilionVertexHandler:
                     # No running loop — safe to create one
                     loop = asyncio.new_event_loop()
                     try:
-                        output = loop.run_until_complete(
-                            tool.implementation(**function_call.args)
-                        )
+                        output = loop.run_until_complete(tool.implementation(**function_call.args))
                     finally:
                         loop.close()
             else:
@@ -712,9 +744,7 @@ class ProxilionVertexHandler:
                 **function_call.args,
             }
 
-            auth_result = self.proxilion.check(
-                user, tool.action, tool.resource, context
-            )
+            auth_result = self.proxilion.check(user, tool.action, tool.resource, context)
 
             if not auth_result.allowed:
                 result = GeminiToolResult(
@@ -827,11 +857,13 @@ class ProxilionVertexHandler:
             >>> model = GenerativeModel("gemini-1.5-pro", tools=tools)
         """
         try:
-            from vertexai.generative_models import FunctionDeclaration, Tool
+            from vertexai.generative_models import (  # type: ignore[import-not-found]
+                FunctionDeclaration,
+                Tool,
+            )
 
             declarations = [
-                FunctionDeclaration(**tool.declaration)
-                for tool in self._tools.values()
+                FunctionDeclaration(**tool.declaration) for tool in self._tools.values()
             ]
             return [Tool(function_declarations=declarations)]
         except ImportError:
@@ -902,12 +934,7 @@ class ProxilionVertexHandler:
             >>> # Continue conversation
             >>> next_response = chat.send_message(tool_responses)
         """
-        return [
-            {
-                "function_response": r.to_function_response()
-            }
-            for r in results
-        ]
+        return [{"function_response": r.to_function_response()} for r in results]
 
     def create_response_parts(
         self,
@@ -968,7 +995,7 @@ def extract_function_calls(response: Any) -> list[GeminiFunctionCall]:
         >>> for call in calls:
         ...     print(f"{call.name}: {call.args}")
     """
-    handler = ProxilionVertexHandler(None)  # type: ignore
+    handler = ProxilionVertexHandler(None)
     return handler.extract_function_calls(response)
 
 
@@ -989,12 +1016,7 @@ def format_tool_response(results: list[GeminiToolResult]) -> list[dict[str, Any]
         >>> responses = format_tool_response(results)
         >>> next_response = chat.send_message(responses)
     """
-    return [
-        {
-            "function_response": r.to_function_response()
-        }
-        for r in results
-    ]
+    return [{"function_response": r.to_function_response()} for r in results]
 
 
 def to_gemini_tools(declarations: list[dict[str, Any]]) -> list[Any]:

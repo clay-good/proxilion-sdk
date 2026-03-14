@@ -32,12 +32,14 @@ from proxilion.guards.input_guard import (
     GuardResult,
     InjectionPattern,
     InputGuard,
+    create_input_guard,
 )
 from proxilion.guards.output_guard import (
     LeakageCategory,
     LeakagePattern,
     OutputFilter,
     OutputGuard,
+    create_output_guard,
 )
 
 __all__ = [
@@ -46,9 +48,11 @@ __all__ = [
     "InjectionPattern",
     "GuardResult",
     "GuardAction",
+    "create_input_guard",
     # Output guard
     "OutputGuard",
     "OutputFilter",
     "LeakagePattern",
     "LeakageCategory",
+    "create_output_guard",
 ]

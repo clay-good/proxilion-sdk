@@ -33,8 +33,9 @@ logger = logging.getLogger(__name__)
 
 # Check for azure-storage-blob availability
 try:
-    from azure.identity import DefaultAzureCredential
-    from azure.storage.blob import BlobServiceClient
+    from azure.identity import DefaultAzureCredential  # type: ignore[import-not-found]
+    from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
+
     HAS_AZURE_STORAGE = True
 except ImportError:
     HAS_AZURE_STORAGE = False
@@ -102,9 +103,8 @@ class AzureBlobExporter(BaseCloudExporter):
                 "or use credentials_path or use_instance_credentials."
             )
 
-        self._container_client = self._client.get_container_client(
-            self.config.bucket_name
-        )
+        assert self._client is not None
+        self._container_client = self._client.get_container_client(self.config.bucket_name)
 
     def _init_urllib_client(self) -> None:
         """Initialize urllib-based client."""
@@ -126,7 +126,8 @@ class AzureBlobExporter(BaseCloudExporter):
         """Load credentials from a JSON file."""
         try:
             with open(path) as f:
-                return json.load(f)
+                result: dict[str, str] = json.load(f)
+                return result
         except Exception as e:
             logger.warning(f"Failed to load credentials from {path}: {e}")
             return {}
@@ -188,9 +189,7 @@ class AzureBlobExporter(BaseCloudExporter):
             account_url = self._get_account_url()
             destination = f"{account_url}/{self.config.bucket_name}/{key}"
 
-            logger.info(
-                f"Exported {batch.event_count} events to {destination}"
-            )
+            logger.info(f"Exported {batch.event_count} events to {destination}")
 
             return ExportResult(
                 success=True,
@@ -229,6 +228,7 @@ class AzureBlobExporter(BaseCloudExporter):
 
     def _upload_azure_sdk(self, blob_name: str, data: bytes) -> None:
         """Upload using azure-storage-blob."""
+        assert self._container_client is not None
         blob_client = self._container_client.get_blob_client(blob_name)
         blob_client.upload_blob(
             data,
@@ -265,9 +265,7 @@ class AzureBlobExporter(BaseCloudExporter):
         request = urllib.request.Request(url, data=data, headers=headers, method="PUT")
 
         try:
-            with urllib.request.urlopen(
-                request, timeout=self.config.read_timeout
-            ) as response:
+            with urllib.request.urlopen(request, timeout=self.config.read_timeout) as response:
                 if response.status not in (200, 201):
                     raise ValueError(f"Azure upload failed with status {response.status}")
         except urllib.error.HTTPError as e:
@@ -303,9 +301,7 @@ class AzureBlobExporter(BaseCloudExporter):
         content_type = self.get_content_type()
 
         canonical_headers = (
-            f"x-ms-blob-type:BlockBlob\n"
-            f"x-ms-date:{x_ms_date}\n"
-            f"x-ms-version:{x_ms_version}"
+            f"x-ms-blob-type:BlockBlob\nx-ms-date:{x_ms_date}\nx-ms-version:{x_ms_version}"
         )
 
         # Build canonical resource
@@ -330,6 +326,7 @@ class AzureBlobExporter(BaseCloudExporter):
         )
 
         # Sign with HMAC-SHA256
+        assert self._account_key is not None
         key = b64decode(self._account_key)
         signature = b64encode(
             hmac.new(key, string_to_sign.encode(), hashlib.sha256).digest()
@@ -353,6 +350,7 @@ class AzureBlobExporter(BaseCloudExporter):
         """
         try:
             if HAS_AZURE_STORAGE:
+                assert self._container_client is not None
                 self._container_client.get_container_properties()
             else:
                 # Try to get container properties
@@ -372,7 +370,7 @@ class AzureBlobExporter(BaseCloudExporter):
 
                 request = urllib.request.Request(url, headers=headers)
                 with urllib.request.urlopen(request, timeout=10) as response:
-                    return response.status == 200
+                    return bool(response.status == 200)
 
             return True
         except Exception as e:
@@ -385,25 +383,15 @@ class AzureBlobExporter(BaseCloudExporter):
         x_ms_date = now.strftime("%a, %d %b %Y %H:%M:%S GMT")
         x_ms_version = "2020-10-02"
 
-        canonical_headers = (
-            f"x-ms-date:{x_ms_date}\n"
-            f"x-ms-version:{x_ms_version}"
-        )
+        canonical_headers = f"x-ms-date:{x_ms_date}\nx-ms-version:{x_ms_version}"
 
-        canonical_resource = (
-            f"/{self._account_name}/{self.config.bucket_name}\n"
-            f"restype:container"
-        )
+        canonical_resource = f"/{self._account_name}/{self.config.bucket_name}\nrestype:container"
 
         # Build string to sign (GET + 11 empty headers + canonical headers + resource)
         empty_headers = "\n" * 11
-        string_to_sign = (
-            f"GET\n"
-            f"{empty_headers}"
-            f"{canonical_headers}\n"
-            f"{canonical_resource}"
-        )
+        string_to_sign = f"GET\n{empty_headers}{canonical_headers}\n{canonical_resource}"
 
+        assert self._account_key is not None
         key = b64decode(self._account_key)
         signature = b64encode(
             hmac.new(key, string_to_sign.encode(), hashlib.sha256).digest()
@@ -439,6 +427,7 @@ class AzureBlobExporter(BaseCloudExporter):
         if start_date:
             prefix += f"{start_date.year:04d}/"
 
+        assert self._container_client is not None
         blobs = self._container_client.list_blobs(
             name_starts_with=prefix,
             results_per_page=max_results,

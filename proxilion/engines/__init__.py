@@ -120,8 +120,7 @@ class EngineFactory:
         if engine_type not in cls._engines:
             available = cls.get_available_engines()
             raise EngineNotAvailableError(
-                f"Unknown engine type: '{engine_type}'. "
-                f"Available engines: {', '.join(available)}",
+                f"Unknown engine type: '{engine_type}'. Available engines: {', '.join(available)}",
                 engine_name=engine_type,
             )
 
@@ -136,6 +135,7 @@ class EngineFactory:
         """Create a Casbin engine instance."""
         try:
             from proxilion.engines.casbin_engine import CasbinPolicyEngine
+
             return CasbinPolicyEngine(config)
         except ImportError:
             raise EngineNotAvailableError(
@@ -151,6 +151,7 @@ class EngineFactory:
     ) -> BasePolicyEngine:
         """Create an OPA engine instance."""
         from proxilion.engines.opa_engine import OPAPolicyEngine
+
         return OPAPolicyEngine(config)
 
     @classmethod
@@ -209,7 +210,8 @@ class EngineFactory:
 
         # Check if casbin is available
         try:
-            import casbin  # noqa: F401
+            import casbin  # type: ignore[import-not-found]  # noqa: F401
+
             engines.append("casbin")
         except ImportError:
             pass
@@ -238,6 +240,7 @@ class EngineFactory:
         if engine_type == "casbin":
             try:
                 import casbin  # noqa: F401
+
                 return True
             except ImportError:
                 return False

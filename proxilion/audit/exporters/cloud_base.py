@@ -13,6 +13,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class CompressionType(Enum):
     """Compression types for exported files."""
+
     NONE = "none"
     GZIP = "gzip"
     ZSTD = "zstd"
@@ -32,6 +34,7 @@ class CompressionType(Enum):
 
 class ExportFormat(Enum):
     """Export file formats."""
+
     JSONL = "jsonl"
     PARQUET = "parquet"
 
@@ -57,6 +60,7 @@ class CloudExporterConfig:
         max_retries: Maximum number of retries for failed operations.
         retry_delay: Initial delay between retries in seconds.
     """
+
     provider: Literal["aws", "gcp", "azure"]
     bucket_name: str
     prefix: str = ""
@@ -116,6 +120,7 @@ class ExportResult:
         bytes_written: Number of bytes written.
         checksum: MD5/SHA256 checksum of exported data.
     """
+
     success: bool
     events_exported: int = 0
     batch_id: str = ""
@@ -137,6 +142,7 @@ class ExportBatch:
         created_at: When the batch was created.
         metadata: Additional metadata for the batch.
     """
+
     batch_id: str
     events: list[AuditEventV2]
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -170,9 +176,10 @@ class ExportBatch:
             return gzip.compress(content)
         elif compression == CompressionType.ZSTD:
             try:
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
+
                 cctx = zstd.ZstdCompressor()
-                return cctx.compress(content)
+                return bytes(cctx.compress(content))
             except ImportError:
                 logger.warning("zstandard not installed, falling back to gzip")
                 return gzip.compress(content)
@@ -335,7 +342,7 @@ class BaseCloudExporter(ABC):
 
     def with_retry(
         self,
-        operation: callable,
+        operation: Callable[..., Any],
         *args: Any,
         **kwargs: Any,
     ) -> Any:
@@ -363,8 +370,7 @@ class BaseCloudExporter(ABC):
                 last_error = e
                 if attempt < self.config.max_retries:
                     logger.warning(
-                        f"Export attempt {attempt + 1} failed: {e}. "
-                        f"Retrying in {delay:.1f}s..."
+                        f"Export attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s..."
                     )
                     time.sleep(delay)
                     delay *= 2  # Exponential backoff

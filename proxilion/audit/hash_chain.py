@@ -26,6 +26,7 @@ GENESIS_HASH = "sha256:000000000000000000000000000000000000000000000000000000000
 @dataclass
 class ChainVerificationResult:
     """Result of verifying a hash chain."""
+
     valid: bool
     error_message: str | None = None
     error_index: int | None = None
@@ -423,11 +424,11 @@ class MerkleTree:
                         if index % 2 == 0:
                             # Target is on left, sibling is on right
                             if i + 1 < len(current_level):
-                                proof.append((right, 'R'))
+                                proof.append((right, "R"))
                             # else: no sibling needed (duplicated)
                         else:
                             # Target is on right, sibling is on left
-                            proof.append((left, 'L'))
+                            proof.append((left, "L"))
 
                     next_level.append(self._hash_pair(left, right))
 
@@ -456,7 +457,7 @@ class MerkleTree:
         current = leaf_hash
 
         for sibling_hash, side in proof:
-            if side == 'L':
+            if side == "L":
                 current = self._hash_pair(sibling_hash, current)
             else:
                 current = self._hash_pair(current, sibling_hash)
@@ -505,6 +506,7 @@ class MerkleBatch:
         created_at: When the batch was finalized.
         previous_batch_root: Merkle root of previous batch (for chaining).
     """
+
     batch_id: str
     start_sequence: int
     end_sequence: int

@@ -11,8 +11,11 @@ import asyncio
 import concurrent.futures
 import functools
 import inspect
+import logging
 from collections.abc import Callable, Coroutine
 from typing import Any, ParamSpec, TypeVar
+
+logger = logging.getLogger(__name__)
 
 from proxilion.timeouts.manager import (
     DeadlineContext,
@@ -56,6 +59,7 @@ def with_timeout(
         ... def sync_operation():
         ...     time.sleep(10)  # Will raise TimeoutError
     """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         nonlocal operation_name
         if operation_name is None:
@@ -64,6 +68,7 @@ def with_timeout(
         manager = timeout_manager or get_default_manager()
 
         if inspect.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 effective_timeout = _get_effective_timeout(
@@ -91,6 +96,7 @@ def with_timeout(
 
             return async_wrapper  # type: ignore
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 effective_timeout = _get_effective_timeout(
@@ -104,11 +110,9 @@ def with_timeout(
                         timeout=effective_timeout,
                     )
 
-                return _run_with_timeout_sync(
-                    func, args, kwargs, effective_timeout, operation_name
-                )
+                return _run_with_timeout_sync(func, args, kwargs, effective_timeout, operation_name)
 
-            return sync_wrapper  # type: ignore
+            return sync_wrapper
 
     return decorator
 
@@ -139,12 +143,14 @@ def with_deadline(
         ...     deadline = get_current_deadline()
         ...     await call_api(timeout=deadline.remaining())
     """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         nonlocal operation_name
         if operation_name is None:
             operation_name = func.__name__
 
         if inspect.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 async with DeadlineContext(
@@ -167,6 +173,7 @@ def with_deadline(
 
             return async_wrapper  # type: ignore
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 with DeadlineContext(
@@ -178,7 +185,7 @@ def with_deadline(
                         func, args, kwargs, deadline.remaining(), operation_name
                     )
 
-            return sync_wrapper  # type: ignore
+            return sync_wrapper
 
     return decorator
 
@@ -222,8 +229,8 @@ def _get_effective_timeout(
 
 def _run_with_timeout_sync(
     func: Callable[..., T],
-    args: tuple,
-    kwargs: dict,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
     timeout: float,
     operation_name: str,
 ) -> T:
@@ -231,6 +238,12 @@ def _run_with_timeout_sync(
     Run a synchronous function with a timeout.
 
     Uses ThreadPoolExecutor for cross-platform compatibility.
+
+    Note:
+        Python threads cannot be forcibly killed. If the function exceeds the
+        timeout, the thread will continue running in the background until it
+        completes naturally. Daemon threads are used so leaked threads do not
+        prevent process exit.
 
     Args:
         func: Function to run.
@@ -245,18 +258,33 @@ def _run_with_timeout_sync(
     Raises:
         TimeoutError: If function exceeds timeout.
     """
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(func, *args, **kwargs)
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError as e:
-            # Cancel the future (may not actually stop the thread)
-            future.cancel()
-            raise TimeoutError(
-                message="Operation timed out",
-                operation=operation_name,
-                timeout=timeout,
-            ) from e
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="proxilion-timeout",
+    )
+    # Mark executor threads as daemon so they don't block process exit
+    executor._thread_name_prefix  # noqa: access to trigger lazy init
+    future = executor.submit(func, *args, **kwargs)
+    try:
+        return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError as e:
+        future.cancel()
+        logger.warning(
+            "Sync timeout fired for '%s' after %.1fs. The underlying thread "
+            "cannot be killed and will continue running in the background.",
+            operation_name,
+            timeout,
+        )
+        # Shut down executor without waiting — daemon threads will be
+        # cleaned up on process exit.
+        executor.shutdown(wait=False)
+        raise TimeoutError(
+            message="Operation timed out",
+            operation=operation_name,
+            timeout=timeout,
+        ) from e
+    else:
+        executor.shutdown(wait=False)
 
 
 async def run_with_timeout(
@@ -467,9 +495,7 @@ class TimeoutScope:
 
         self.checkpoint(f"{name}_start")
         try:
-            result = _run_with_timeout_sync(
-                func, args, kwargs, self._deadline.remaining(), name
-            )
+            result = _run_with_timeout_sync(func, args, kwargs, self._deadline.remaining(), name)
             self.checkpoint(f"{name}_end")
             return result
         except TimeoutError:

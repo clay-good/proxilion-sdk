@@ -712,8 +712,7 @@ class ContextIntegrityError(ProxilionError):
         details = {
             "violation_count": len(self.violations),
             "violations": [
-                v.to_dict() if hasattr(v, "to_dict") else str(v)
-                for v in self.violations
+                v.to_dict() if hasattr(v, "to_dict") else str(v) for v in self.violations
             ],
         }
         super().__init__(message, details)
@@ -792,9 +791,7 @@ class AgentTrustError(ProxilionError):
         self.target_agent = target_agent
         self.reason = reason
 
-        message = (
-            f"Agent trust violation: {source_agent} -> {target_agent}: {reason}"
-        )
+        message = f"Agent trust violation: {source_agent} -> {target_agent}: {reason}"
 
         details = {
             "source_agent": source_agent,
@@ -924,6 +921,48 @@ class ApprovalRequiredError(ProxilionError):
             "tool_name": tool_name,
             "user": user,
             "reason": self.reason,
+        }
+        super().__init__(message, details)
+
+
+class FallbackExhaustedError(ProxilionError):
+    """
+    Raised when all options in a fallback chain have failed.
+
+    Unlike raising only the last error, this exception preserves all errors
+    from the chain via ``__cause__`` chaining, making debugging easier.
+
+    Attributes:
+        errors: List of (name, exception) tuples from all failed attempts.
+        attempts: Total number of attempts made.
+
+    Example:
+        >>> result = await chain.execute_async(prompt="Hello")
+        >>> result.raise_on_failure()  # Raises FallbackExhaustedError
+    """
+
+    def __init__(
+        self,
+        errors: list[tuple[str, Exception]],
+        attempts: int = 0,
+    ) -> None:
+        self.errors = errors
+        self.attempts = attempts
+
+        error_summary = ", ".join(
+            f"{name}: {type(e).__name__}({e})" for name, e in errors
+        )
+        message = (
+            f"All {attempts} fallback attempts failed. "
+            f"Errors: [{error_summary}]"
+        )
+
+        details = {
+            "attempts": attempts,
+            "errors": [
+                {"name": name, "type": type(e).__name__, "message": str(e)}
+                for name, e in errors
+            ],
         }
         super().__init__(message, details)
 

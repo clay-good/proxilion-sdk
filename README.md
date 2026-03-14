@@ -121,12 +121,7 @@ class APIToolPolicy(RoleBasedPolicy):
 # Ownership-based policy
 class DocumentPolicy(OwnershipPolicy):
     owner_field = "owner_id"
-
-    def can_read(self, context):
-        # Public docs readable by anyone
-        if context.get("is_public"):
-            return True
-        return super().can_read(context)
+    allow_non_owner_actions = ["read"]  # Anyone can read public docs
 ```
 
 **Deterministic**: Policy evaluation is pure Python logic—no LLM calls, no randomness.
@@ -205,6 +200,7 @@ print(safe_response)
 Prevent Insecure Direct Object Reference attacks where LLMs are tricked into accessing unauthorized resources.
 
 ```python
+from proxilion import AuthorizationError
 from proxilion.security import IDORProtector
 
 protector = IDORProtector()
@@ -264,6 +260,7 @@ limiter = MultiDimensionalRateLimiter(limits={
 Prevent cascading failures when external services fail.
 
 ```python
+from proxilion import CircuitOpenError
 from proxilion.security import CircuitBreaker, CircuitState
 
 breaker = CircuitBreaker(
@@ -292,6 +289,7 @@ if breaker.state == CircuitState.OPEN:
 Enforce valid tool call sequences to prevent attack patterns.
 
 ```python
+from proxilion import SequenceViolationError
 from proxilion.security import SequenceValidator, SequenceRule, SequenceAction
 
 rules = [
@@ -682,7 +680,7 @@ metrics_output = exporter.export()
 from proxilion.contrib.openai import ProxilionFunctionHandler
 
 handler = ProxilionFunctionHandler(auth)
-handler.register_tool(
+handler.register_function(
     name="search",
     schema={"type": "object", "properties": {"query": {"type": "string"}}},
     implementation=search_impl,
@@ -692,7 +690,7 @@ handler.register_tool(
 response = openai.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    tools=handler.get_tools_schema(),
+    tools=handler.function_schemas,
 )
 
 for tool_call in response.choices[0].message.tool_calls or []:
@@ -709,7 +707,7 @@ handler = ProxilionToolHandler(auth)
 response = anthropic.messages.create(
     model="claude-sonnet-4-20250514",
     messages=messages,
-    tools=handler.get_tools_schema(),
+    tools=handler.tool_schemas,
 )
 
 for block in response.content:

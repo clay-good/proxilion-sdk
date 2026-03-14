@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 class RotationPolicy(Enum):
     """Log rotation policies."""
+
     NONE = "none"
     HOURLY = "hourly"
     DAILY = "daily"
@@ -64,6 +65,7 @@ class LoggerConfig:
     Raises:
         ValueError: If batch_size <= 0 or max_size_mb <= 0.
     """
+
     log_path: Path
     rotation: RotationPolicy = RotationPolicy.DAILY
     max_size_mb: float = 100.0
@@ -214,10 +216,7 @@ class AuditLogger:
         Returns:
             The logged event.
         """
-        event_type = (
-            EventType.AUTHORIZATION_GRANTED if allowed
-            else EventType.AUTHORIZATION_DENIED
-        )
+        event_type = EventType.AUTHORIZATION_GRANTED if allowed else EventType.AUTHORIZATION_DENIED
 
         data = AuditEventData(
             event_type=event_type,
@@ -509,10 +508,7 @@ class InMemoryAuditLogger:
         **kwargs: Any,
     ) -> AuditEventV2:
         """Log an authorization decision."""
-        event_type = (
-            EventType.AUTHORIZATION_GRANTED if allowed
-            else EventType.AUTHORIZATION_DENIED
-        )
+        event_type = EventType.AUTHORIZATION_GRANTED if allowed else EventType.AUTHORIZATION_DENIED
 
         data = AuditEventData(
             event_type=event_type,
@@ -548,6 +544,4 @@ class InMemoryAuditLogger:
         """Clear all events."""
         with self._lock:
             self._events.clear()
-            self._chain = BatchedHashChain(
-                batch_size=self._chain._batch_size
-            )
+            self._chain = BatchedHashChain(batch_size=self._chain._batch_size)

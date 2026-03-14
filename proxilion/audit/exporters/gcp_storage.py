@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from proxilion.audit.events import AuditEventV2
 from proxilion.audit.exporters.cloud_base import (
@@ -31,8 +31,9 @@ logger = logging.getLogger(__name__)
 
 # Check for google-cloud-storage availability
 try:
-    from google.cloud import storage as gcs
-    from google.oauth2 import service_account
+    from google.cloud import storage as gcs  # type: ignore[import-not-found]
+    from google.oauth2 import service_account  # type: ignore[import-not-found]
+
     HAS_GCS = True
 except ImportError:
     HAS_GCS = False
@@ -40,6 +41,7 @@ except ImportError:
 # Check for google-cloud-bigquery availability
 try:
     from google.cloud import bigquery
+
     HAS_BIGQUERY = True
 except ImportError:
     HAS_BIGQUERY = False
@@ -95,6 +97,7 @@ class GCSExporter(BaseCloudExporter):
             # Use Application Default Credentials
             self._client = gcs.Client()
 
+        assert self._client is not None
         self._bucket = self._client.bucket(self.config.bucket_name)
 
     def _init_urllib_client(self) -> None:
@@ -106,6 +109,7 @@ class GCSExporter(BaseCloudExporter):
     def _load_service_account(self) -> None:
         """Load service account credentials from file."""
         try:
+            assert self.config.credentials_path is not None
             with open(self.config.credentials_path) as f:
                 self._service_account = json.load(f)
         except Exception as e:
@@ -151,13 +155,23 @@ class GCSExporter(BaseCloudExporter):
 
         # Sign with RSA-SHA256
         try:
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives import (
+                hashes,
+                serialization,
+            )
+            from cryptography.hazmat.primitives.asymmetric import (
+                padding,
+            )
+            from cryptography.hazmat.primitives.asymmetric.rsa import (
+                RSAPrivateKey,
+            )
 
-            private_key = serialization.load_pem_private_key(
+            raw_key = serialization.load_pem_private_key(
                 self._service_account["private_key"].encode(),
                 password=None,
             )
+            assert isinstance(raw_key, RSAPrivateKey)
+            private_key = raw_key
             signature = private_key.sign(
                 signing_input,
                 padding.PKCS1v15(),
@@ -174,10 +188,12 @@ class GCSExporter(BaseCloudExporter):
 
         # Exchange JWT for access token
         token_url = "https://oauth2.googleapis.com/token"
-        data = urllib.parse.urlencode({
-            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-            "assertion": jwt.decode(),
-        }).encode()
+        data = urllib.parse.urlencode(
+            {
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": jwt.decode(),
+            }
+        ).encode()
 
         request = urllib.request.Request(token_url, data=data)
         request.add_header("Content-Type", "application/x-www-form-urlencoded")
@@ -257,6 +273,7 @@ class GCSExporter(BaseCloudExporter):
 
     def _upload_gcs(self, key: str, data: bytes) -> None:
         """Upload using google-cloud-storage."""
+        assert self._bucket is not None
         blob = self._bucket.blob(key)
         blob.upload_from_string(
             data,
@@ -283,9 +300,7 @@ class GCSExporter(BaseCloudExporter):
         request = urllib.request.Request(url, data=data, headers=headers, method="POST")
 
         try:
-            with urllib.request.urlopen(
-                request, timeout=self.config.read_timeout
-            ) as response:
+            with urllib.request.urlopen(request, timeout=self.config.read_timeout) as response:
                 if response.status not in (200, 201):
                     raise ValueError(f"GCS upload failed with status {response.status}")
         except urllib.error.HTTPError as e:
@@ -315,7 +330,7 @@ class GCSExporter(BaseCloudExporter):
                 request = urllib.request.Request(url, headers=headers)
 
                 with urllib.request.urlopen(request, timeout=10) as response:
-                    return response.status == 200
+                    return cast(bool, response.status == 200)
 
             return True
         except Exception as e:
@@ -346,6 +361,7 @@ class GCSExporter(BaseCloudExporter):
         if start_date:
             prefix += f"{start_date.year:04d}/"
 
+        assert self._bucket is not None
         blobs = self._bucket.list_blobs(prefix=prefix, max_results=max_results)
 
         names = []
@@ -434,6 +450,7 @@ class BigQueryExporter(BaseCloudExporter):
         """Initialize BigQuery client."""
         if self.config.credentials_path:
             from google.oauth2 import service_account
+
             credentials = service_account.Credentials.from_service_account_file(
                 self.config.credentials_path,
             )
@@ -448,6 +465,7 @@ class BigQueryExporter(BaseCloudExporter):
         table_ref = f"{self.project_id}.{self.dataset_id}.{self.table_id}"
 
         try:
+            assert self._client is not None
             self._table = self._client.get_table(table_ref)
         except Exception:
             if self.create_table:
@@ -483,6 +501,7 @@ class BigQueryExporter(BaseCloudExporter):
             field="timestamp",
         )
 
+        assert self._client is not None
         self._table = self._client.create_table(table)
         logger.info(f"Created BigQuery table: {table_ref}")
 
@@ -524,6 +543,7 @@ class BigQueryExporter(BaseCloudExporter):
             rows = [self._event_to_row(event) for event in batch.events]
 
             # Insert rows
+            assert self._client is not None
             errors = self._client.insert_rows_json(self._table, rows)
 
             duration_ms = (time.time() - start_time) * 1000
@@ -570,6 +590,7 @@ class BigQueryExporter(BaseCloudExporter):
             True if healthy.
         """
         try:
+            assert self._client is not None
             self._client.get_table(self._table)
             return True
         except Exception as e:

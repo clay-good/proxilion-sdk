@@ -54,6 +54,7 @@ class UserContext:
         ...     attributes={"department": "engineering"}
         ... )
     """
+
     user_id: str
     roles: list[str] = field(default_factory=list)
     session_id: str | None = None
@@ -107,6 +108,7 @@ class AgentContext:
         ...     trust_score=0.8
         ... )
     """
+
     agent_id: str
     capabilities: list[str] = field(default_factory=list)
     trust_score: float = 1.0
@@ -152,6 +154,7 @@ class ToolCallRequest:
         ...     arguments={"query": "SELECT * FROM users", "limit": 100}
         ... )
     """
+
     tool_name: str
     arguments: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=_utc_now)
@@ -191,15 +194,19 @@ class AuthorizationResult:
         ...     policies_evaluated=["DatabaseQueryPolicy"]
         ... )
     """
+
     allowed: bool
     reason: str | None = None
     policies_evaluated: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def allow(cls, reason: str | None = None,
-              policies: list[str] | None = None,
-              metadata: dict[str, Any] | None = None) -> AuthorizationResult:
+    def allow(
+        cls,
+        reason: str | None = None,
+        policies: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> AuthorizationResult:
         """Create an allowed result."""
         return cls(
             allowed=True,
@@ -209,9 +216,9 @@ class AuthorizationResult:
         )
 
     @classmethod
-    def deny(cls, reason: str,
-             policies: list[str] | None = None,
-             metadata: dict[str, Any] | None = None) -> AuthorizationResult:
+    def deny(
+        cls, reason: str, policies: list[str] | None = None, metadata: dict[str, Any] | None = None
+    ) -> AuthorizationResult:
         """Create a denied result."""
         return cls(
             allowed=False,
@@ -261,6 +268,7 @@ class AuditEvent:
         ... )
         >>> event.compute_hash()
     """
+
     user_context: UserContext
     tool_call: ToolCallRequest
     authorization_result: AuthorizationResult

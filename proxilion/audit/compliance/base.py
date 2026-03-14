@@ -22,6 +22,7 @@ class ComplianceFramework(Enum):
 
     Currently implemented: EU_AI_ACT, SOC2, ISO27001
     """
+
     EU_AI_ACT = "eu_ai_act"
     SOC2 = "soc2"
     ISO27001 = "iso27001"
@@ -43,6 +44,7 @@ class ComplianceMetadata:
         period_end: End of the audit period.
         additional_info: Any additional metadata.
     """
+
     framework: ComplianceFramework
     version: str
     organization: str
@@ -83,6 +85,7 @@ class ComplianceEvidence:
         compliant: Whether this control appears compliant.
         notes: Additional notes or observations.
     """
+
     control_id: str
     control_name: str
     evidence_type: str
@@ -118,6 +121,7 @@ class ComplianceReport:
         summary: Overall summary.
         recommendations: Suggested improvements.
     """
+
     metadata: ComplianceMetadata
     evidence: list[ComplianceEvidence] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
@@ -422,16 +426,18 @@ class BaseComplianceExporter(ABC):
         lines.extend(["", "## Evidence", ""])
 
         for evidence in report.evidence:
-            lines.extend([
-                f"### {evidence.control_id}: {evidence.control_name}",
-                "",
-                f"**Type:** {evidence.evidence_type}",
-                "",
-                evidence.description,
-                "",
-                f"**Events:** {len(evidence.events)}",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"### {evidence.control_id}: {evidence.control_name}",
+                    "",
+                    f"**Type:** {evidence.evidence_type}",
+                    "",
+                    evidence.description,
+                    "",
+                    f"**Events:** {len(evidence.events)}",
+                    "",
+                ]
+            )
 
             if evidence.summary:
                 lines.append("**Summary:**")

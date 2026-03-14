@@ -57,6 +57,7 @@ class ParameterSchema:
         ...     sensitive=True,
         ... )
     """
+
     name: str
     type: str = "str"
     description: str = ""
@@ -87,8 +88,7 @@ class ParameterSchema:
         max_val = self.constraints.get("max")
         if min_val is not None and max_val is not None and min_val > max_val:
             raise ValueError(
-                f"Parameter '{self.name}': min ({min_val}) cannot be "
-                f"greater than max ({max_val})"
+                f"Parameter '{self.name}': min ({min_val}) cannot be greater than max ({max_val})"
             )
 
 
@@ -130,6 +130,7 @@ class ToolSchema:
         ...     risk_level="medium",
         ... )
     """
+
     name: str
     description: str = ""
     parameters: dict[str, ParameterSchema] = field(default_factory=dict)
@@ -140,10 +141,7 @@ class ToolSchema:
 
     def get_sensitive_parameters(self) -> list[str]:
         """Get names of parameters marked as sensitive."""
-        return [
-            name for name, param in self.parameters.items()
-            if param.sensitive
-        ]
+        return [name for name, param in self.parameters.items() if param.sensitive]
 
     def get_parameter(self, name: str) -> ParameterSchema | None:
         """Get a parameter schema by name."""
@@ -161,6 +159,7 @@ class ValidationResult:
         warnings: List of validation warnings.
         sanitized_arguments: Arguments after sanitization (if applicable).
     """
+
     valid: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -243,9 +242,7 @@ class SchemaValidator:
         self.strict_mode = strict_mode
 
         # Compile SQL injection patterns
-        self._sql_patterns = [
-            re.compile(pattern) for pattern in self.SQL_INJECTION_PATTERNS
-        ]
+        self._sql_patterns = [re.compile(pattern) for pattern in self.SQL_INJECTION_PATTERNS]
 
     def register_schema(self, tool_name: str, schema: ToolSchema) -> None:
         """
@@ -320,9 +317,7 @@ class SchemaValidator:
 
         if schema is None:
             if self.strict_mode:
-                return ValidationResult.failure(
-                    [f"No schema registered for tool '{tool_name}'"]
-                )
+                return ValidationResult.failure([f"No schema registered for tool '{tool_name}'"])
             # No schema = allow everything (with warning)
             logger.warning(f"No schema for tool '{tool_name}', skipping validation")
             return ValidationResult.success(
@@ -355,9 +350,7 @@ class SchemaValidator:
                 continue
 
             # Validate the parameter
-            param_errors = self._validate_parameter(
-                param_schema, arg_value, arg_name
-            )
+            param_errors = self._validate_parameter(param_schema, arg_value, arg_name)
             errors.extend(param_errors)
 
         if errors:
@@ -391,9 +384,7 @@ class SchemaValidator:
             return errors  # Skip other validations if type is wrong
 
         # Constraint validation
-        constraint_errors = self._validate_constraints(
-            schema.constraints, value, name, schema.type
-        )
+        constraint_errors = self._validate_constraints(schema.constraints, value, name, schema.type)
         errors.extend(constraint_errors)
 
         return errors
@@ -425,10 +416,9 @@ class SchemaValidator:
         if expected is None:
             return None  # Unknown type, skip validation
 
-        if not isinstance(value, expected):
+        if not isinstance(value, expected):  # type: ignore[arg-type]
             return (
-                f"Parameter '{name}' expected type '{expected_type}', "
-                f"got '{type(value).__name__}'"
+                f"Parameter '{name}' expected type '{expected_type}', got '{type(value).__name__}'"
             )
 
         return None
@@ -451,13 +441,11 @@ class SchemaValidator:
         if value_type in ("int", "float") and isinstance(value, (int, float)):
             if "min" in constraints and value < constraints["min"]:
                 errors.append(
-                    f"Parameter '{name}' value {value} is less than "
-                    f"minimum {constraints['min']}"
+                    f"Parameter '{name}' value {value} is less than minimum {constraints['min']}"
                 )
             if "max" in constraints and value > constraints["max"]:
                 errors.append(
-                    f"Parameter '{name}' value {value} is greater than "
-                    f"maximum {constraints['max']}"
+                    f"Parameter '{name}' value {value} is greater than maximum {constraints['max']}"
                 )
 
         # String constraints
@@ -478,29 +466,22 @@ class SchemaValidator:
             if "pattern" in constraints:
                 pattern = constraints["pattern"]
                 if not re.fullmatch(pattern, value):
-                    errors.append(
-                        f"Parameter '{name}' does not match pattern '{pattern}'"
-                    )
+                    errors.append(f"Parameter '{name}' does not match pattern '{pattern}'")
 
             # Path traversal check (default: reject traversal sequences)
             if not constraints.get("allow_path_traversal", False):
                 if self._check_path_traversal(value):
-                    errors.append(
-                        f"Parameter '{name}' contains path traversal sequence"
-                    )
+                    errors.append(f"Parameter '{name}' contains path traversal sequence")
 
             # SQL injection check
             if not constraints.get("allow_sql_keywords", True):
                 if self._check_sql_injection(value):
-                    errors.append(
-                        f"Parameter '{name}' contains potential SQL injection"
-                    )
+                    errors.append(f"Parameter '{name}' contains potential SQL injection")
 
         # Enum constraint
         if "enum" in constraints and value not in constraints["enum"]:
             errors.append(
-                f"Parameter '{name}' value '{value}' not in allowed values: "
-                f"{constraints['enum']}"
+                f"Parameter '{name}' value '{value}' not in allowed values: {constraints['enum']}"
             )
 
         # List constraints
@@ -522,7 +503,8 @@ class SchemaValidator:
         """
         Check for path traversal attempts.
 
-        Detects patterns like "..", "..\\", encoded variants.
+        Detects patterns like "..", "..\\", encoded variants,
+        backslash variants, mixed slashes, and null byte injection.
 
         Args:
             value: The string to check.
@@ -530,20 +512,36 @@ class SchemaValidator:
         Returns:
             True if path traversal detected.
         """
-        # Direct check
+        # Direct forward-slash check
         if ".." in value:
             return True
 
+        # Backslash variants (..\ and mixed separators)
+        if "..\\" in value:
+            return True
+
+        lower = value.lower()
+
         # URL encoded
-        if "%2e%2e" in value.lower():
+        if "%2e%2e" in lower:
             return True
 
         # Double URL encoded
-        if "%252e%252e" in value.lower():
+        if "%252e%252e" in lower:
+            return True
+
+        # URL-encoded backslash variants (%5c = \)
+        if "%2e%2e%5c" in lower or "%2e%2e%2f" in lower:
             return True
 
         # Unicode full-width variants (U+FF0E = ．)
         if "\uff0e\uff0e" in value:
+            return True
+
+        # Null byte injection (can truncate path checks in some runtimes)
+        if "\x00" in value:
+            return True
+        if "%00" in lower:
             return True
 
         return False
@@ -591,10 +589,17 @@ class SchemaValidator:
 
         return True  # Unknown type, allow
 
+    #: Default parameter names excluded from auto-generated schemas.
+    #: These are typically framework-injected and not user-supplied arguments.
+    DEFAULT_EXCLUDED_PARAMS: frozenset[str] = frozenset(
+        {"self", "cls", "user", "context", "agent", "session", "request"}
+    )
+
     def create_schema_from_function(
         self,
         func: Any,
         risk_level: RiskLevel = "low",
+        exclude_params: frozenset[str] | set[str] | None = None,
     ) -> ToolSchema:
         """
         Create a ToolSchema from a function's type hints.
@@ -605,6 +610,8 @@ class SchemaValidator:
         Args:
             func: The function to analyze.
             risk_level: Risk level for the schema.
+            exclude_params: Parameter names to exclude from the schema.
+                Defaults to :attr:`DEFAULT_EXCLUDED_PARAMS`.
 
         Returns:
             A ToolSchema derived from the function.
@@ -616,6 +623,8 @@ class SchemaValidator:
         """
         import inspect
 
+        excluded = exclude_params if exclude_params is not None else self.DEFAULT_EXCLUDED_PARAMS
+
         sig = inspect.signature(func)
         hints = getattr(func, "__annotations__", {})
 
@@ -623,8 +632,8 @@ class SchemaValidator:
         required: list[str] = []
 
         for param_name, param in sig.parameters.items():
-            if param_name in ("self", "cls", "user", "context"):
-                continue  # Skip common non-argument parameters
+            if param_name in excluded:
+                continue  # Skip injected/non-argument parameters
 
             # Determine type
             type_hint = hints.get(param_name, Any)

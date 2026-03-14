@@ -181,9 +181,7 @@ class BasePolicyEngine(ABC):
         """
         # Run sync version in thread pool for non-blocking behavior
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, self.evaluate, user, action, resource, context
-        )
+        return await loop.run_in_executor(None, self.evaluate, user, action, resource, context)
 
     def load_policies(self, source: str | Path) -> None:
         """
@@ -253,14 +251,17 @@ class PolicyEngineError(Exception):
 
 class PolicyLoadError(PolicyEngineError):
     """Raised when policies fail to load."""
+
     pass
 
 
 class PolicyEvaluationError(PolicyEngineError):
     """Raised when policy evaluation fails."""
+
     pass
 
 
 class EngineNotAvailableError(PolicyEngineError):
     """Raised when a required engine is not available."""
+
     pass

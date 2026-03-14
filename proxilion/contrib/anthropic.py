@@ -45,6 +45,7 @@ import asyncio
 import inspect
 import json
 import logging
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -60,6 +61,7 @@ T = TypeVar("T")
 
 class AnthropicIntegrationError(ProxilionError):
     """Error in Anthropic integration."""
+
     pass
 
 
@@ -83,6 +85,7 @@ class ToolExecutionError(AnthropicIntegrationError):
 @dataclass
 class RegisteredTool:
     """A registered tool with its schema and implementation."""
+
     name: str
     schema: dict[str, Any]
     implementation: Callable[..., Any]
@@ -95,6 +98,7 @@ class RegisteredTool:
 @dataclass
 class ToolUseResult:
     """Result of a tool use execution."""
+
     tool_use_id: str
     tool_name: str
     success: bool
@@ -196,7 +200,7 @@ class ProxilionToolHandler:
         self.safe_errors = safe_errors
 
         self._tools: dict[str, RegisteredTool] = {}
-        self._execution_history: list[ToolUseResult] = []
+        self._execution_history: deque[ToolUseResult] = deque(maxlen=10000)
 
     @property
     def tools(self) -> list[RegisteredTool]:
@@ -350,6 +354,7 @@ class ProxilionToolHandler:
                     asyncio.get_running_loop()
                     # Already inside an event loop (e.g. Jupyter, async framework)
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                         output = pool.submit(
                             asyncio.run, tool.implementation(**input_data)
@@ -358,9 +363,7 @@ class ProxilionToolHandler:
                     # No running loop — safe to create one
                     loop = asyncio.new_event_loop()
                     try:
-                        output = loop.run_until_complete(
-                            tool.implementation(**input_data)
-                        )
+                        output = loop.run_until_complete(tool.implementation(**input_data))
                     finally:
                         loop.close()
             else:

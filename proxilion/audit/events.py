@@ -23,6 +23,7 @@ from typing import Any
 
 class EventType(Enum):
     """Types of audit events."""
+
     AUTHORIZATION_REQUEST = "authorization_request"
     AUTHORIZATION_GRANTED = "authorization_granted"
     AUTHORIZATION_DENIED = "authorization_denied"
@@ -51,7 +52,7 @@ def _generate_uuid_v7() -> str:
     timestamp_ms = int(time.time() * 1000)
 
     # Convert to 48-bit value (6 bytes)
-    timestamp_bytes = timestamp_ms.to_bytes(6, byteorder='big')
+    timestamp_bytes = timestamp_ms.to_bytes(6, byteorder="big")
 
     # Generate 10 random bytes
     random_bytes = os.urandom(10)
@@ -108,6 +109,7 @@ class RedactionConfig:
         hash_pii: If True, hash PII instead of replacing with placeholder.
         placeholder: Replacement text for redacted values.
     """
+
     patterns: list[Pattern[str]] = field(default_factory=list)
     field_names: set[str] = field(default_factory=set)
     hash_pii: bool = False
@@ -118,18 +120,27 @@ class RedactionConfig:
         """Create default redaction config with common patterns."""
         return cls(
             patterns=[
-                re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),  # Email
-                re.compile(r'\b\d{3}-\d{2}-\d{4}\b'),  # SSN
-                re.compile(r'\b\d{16}\b'),  # Credit card (simple)
+                re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),  # Email
+                re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN
+                re.compile(r"\b\d{16}\b"),  # Credit card (simple)
                 re.compile(
-                    r'\b(?:password|passwd|pwd|secret|api_key|apikey|token)\s*[:=]\s*\S+',
+                    r"\b(?:password|passwd|pwd|secret|api_key|apikey|token)\s*[:=]\s*\S+",
                     re.IGNORECASE,
                 ),
             ],
             field_names={
-                "password", "passwd", "secret", "api_key", "apikey",
-                "token", "access_token", "refresh_token", "private_key",
-                "credit_card", "ssn", "social_security",
+                "password",
+                "passwd",
+                "secret",
+                "api_key",
+                "apikey",
+                "token",
+                "access_token",
+                "refresh_token",
+                "private_key",
+                "credit_card",
+                "ssn",
+                "social_security",
             },
             hash_pii=True,
         )
@@ -143,6 +154,7 @@ class AuditEventData:
     This separation allows for cleaner event creation before
     the event is added to a hash chain.
     """
+
     event_type: EventType
     user_id: str
     user_roles: list[str]
@@ -175,7 +187,9 @@ class AuditEventData:
                 "agent_id": self.agent_id,
                 "capabilities": self.agent_capabilities,
                 "trust_score": self.agent_trust_score,
-            } if self.agent_id else None,
+            }
+            if self.agent_id
+            else None,
             "tool_call": {
                 "tool_name": self.tool_name,
                 "arguments": self.tool_arguments,
@@ -214,6 +228,7 @@ class AuditEventV2:
         event_hash: SHA-256 hash of this event.
         merkle_index: Index in the current Merkle tree batch.
     """
+
     data: AuditEventData
     previous_hash: str
     event_id: str = field(default_factory=_generate_uuid_v7)
@@ -327,9 +342,7 @@ class AuditEventV2:
             user_roles=data["data"]["user"]["roles"],
             session_id=data["data"]["user"]["session_id"],
             user_attributes=data["data"]["user"]["attributes"],
-            agent_id=(
-                data["data"]["agent"]["agent_id"] if data["data"]["agent"] else None
-            ),
+            agent_id=(data["data"]["agent"]["agent_id"] if data["data"]["agent"] else None),
             agent_capabilities=(
                 data["data"]["agent"]["capabilities"] if data["data"]["agent"] else []
             ),
@@ -374,7 +387,7 @@ def redact_sensitive_data(
     Returns:
         New dictionary with sensitive data redacted.
     """
-    result = {}
+    result: dict[str, Any] = {}
 
     for key, value in data.items():
         # Check if field name should be redacted
@@ -393,8 +406,10 @@ def redact_sensitive_data(
         # Recursively handle lists
         if isinstance(value, list):
             result[key] = [
-                redact_sensitive_data(item, config) if isinstance(item, dict)
-                else _redact_string(item, config) if isinstance(item, str)
+                redact_sensitive_data(item, config)
+                if isinstance(item, dict)
+                else _redact_string(item, config)
+                if isinstance(item, str)
                 else item
                 for item in value
             ]
@@ -418,6 +433,7 @@ def _redact_string(value: str, config: RedactionConfig) -> str:
             # Replace each match with a hash of the matched value
             def hash_replace(match: re.Match[str]) -> str:
                 return f"[HASH:{hashlib.sha256(match.group().encode()).hexdigest()[:16]}]"
+
             result = pattern.sub(hash_replace, result)
         else:
             result = pattern.sub(config.placeholder, result)
@@ -471,10 +487,7 @@ def create_authorization_event(
         if user_attributes:
             user_attributes = redact_sensitive_data(user_attributes, redaction_config)
 
-    event_type = (
-        EventType.AUTHORIZATION_GRANTED if allowed
-        else EventType.AUTHORIZATION_DENIED
-    )
+    event_type = EventType.AUTHORIZATION_GRANTED if allowed else EventType.AUTHORIZATION_DENIED
 
     data = AuditEventData(
         event_type=event_type,

@@ -14,7 +14,7 @@ import functools
 import inspect
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -364,7 +364,7 @@ class Proxilion:
 
     # ==================== Policy Registration ====================
 
-    def policy(self, resource_name: str) -> Callable[[type[Policy]], type[Policy]]:
+    def policy(self, resource_name: str) -> Callable[[type[Policy[Any]]], type[Policy[Any]]]:
         """
         Decorator to register a policy class for a resource.
 
@@ -380,12 +380,12 @@ class Proxilion:
             ...     def can_execute(self, context):
             ...         return "analyst" in self.user.roles
         """
-        return self._registry.policy(resource_name)
+        return self._registry.policy(resource_name)  # type: ignore[no-any-return]
 
     def register_policy(
         self,
         resource_name: str,
-        policy_class: type[Policy],
+        policy_class: type[Policy[Any]],
     ) -> None:
         """
         Register a policy class programmatically.
@@ -723,6 +723,7 @@ class Proxilion:
         """
         if self._scope_enforcer is None:
             from proxilion.exceptions import ProxilionError
+
             raise ProxilionError("Scope enforcer not configured")
 
         if isinstance(scope, str):
@@ -750,9 +751,7 @@ class Proxilion:
         if self._current_scope is None or self._scope_enforcer is None:
             return True, None  # No scope enforcement
 
-        return self._scope_enforcer.validate_in_scope(
-            tool_name, action, self._current_scope
-        )
+        return self._scope_enforcer.validate_in_scope(tool_name, action, self._current_scope)
 
     def set_scope_enforcer(
         self,
@@ -806,6 +805,7 @@ class Proxilion:
         """
         if self._scope_enforcer is None:
             from proxilion.exceptions import ProxilionError
+
             raise ProxilionError("Scope enforcer not configured")
 
         return self._scope_enforcer.create_scope(
@@ -836,6 +836,7 @@ class Proxilion:
         """
         if self._scope_enforcer is None:
             from proxilion.exceptions import ProxilionError
+
             raise ProxilionError("Scope enforcer not configured")
 
         self._scope_enforcer.classify_tool(tool_name, scope, actions)
@@ -1543,6 +1544,7 @@ class Proxilion:
             ... async def search_tool(query: str, user: UserContext = None):
             ...     return await perform_search(query)
         """
+
         def decorator(func: Callable[P, T]) -> Callable[P, T]:
             # Determine resource name
             nonlocal resource
@@ -1553,9 +1555,10 @@ class Proxilion:
             is_async = inspect.iscoroutinefunction(func)
 
             if is_async:
+
                 @functools.wraps(func)
                 async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                    return await self._execute_with_auth(
+                    result: T = await self._execute_with_auth(
                         func=func,
                         args=args,
                         kwargs=kwargs,
@@ -1569,12 +1572,14 @@ class Proxilion:
                         log_audit=log_audit,
                         is_async=True,
                     )
-                return async_wrapper  # type: ignore
+                    return result
+
+                return async_wrapper  # type: ignore[return-value]
             else:
+
                 @functools.wraps(func)
                 def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                    # Run in event loop if one exists, otherwise synchronously
-                    return self._execute_with_auth_sync(
+                    result: T = self._execute_with_auth_sync(
                         func=func,
                         args=args,
                         kwargs=kwargs,
@@ -1587,7 +1592,9 @@ class Proxilion:
                         check_circuit_breaker=check_circuit_breaker,
                         log_audit=log_audit,
                     )
-                return sync_wrapper  # type: ignore
+                    return result
+
+                return sync_wrapper
 
         return decorator
 
@@ -1681,8 +1688,14 @@ class Proxilion:
             execution_result = {"success": True, "result_type": type(result).__name__}
             return result
 
-        except (AuthorizationError, PolicyViolation, SchemaValidationError,
-                RateLimitExceeded, CircuitOpenError, IDORViolationError) as e:
+        except (
+            AuthorizationError,
+            PolicyViolation,
+            SchemaValidationError,
+            RateLimitExceeded,
+            CircuitOpenError,
+            IDORViolationError,
+        ) as e:
             # Re-raise Proxilion exceptions (capture for audit trail)
             error_message = str(e)
             raise
@@ -1798,8 +1811,14 @@ class Proxilion:
             execution_result = {"success": True, "result_type": type(result).__name__}
             return result
 
-        except (AuthorizationError, PolicyViolation, SchemaValidationError,
-                RateLimitExceeded, CircuitOpenError, IDORViolationError) as e:
+        except (
+            AuthorizationError,
+            PolicyViolation,
+            SchemaValidationError,
+            RateLimitExceeded,
+            CircuitOpenError,
+            IDORViolationError,
+        ) as e:
             error_message = str(e)
             raise
 
@@ -1867,7 +1886,9 @@ class Proxilion:
             tool_name=tool_request.tool_name,
             tool_arguments=filtered_args,
             allowed=auth_result.allowed if auth_result else False,
-            reason=auth_result.reason if auth_result else error_message or "pre-authorization failure",
+            reason=(
+                auth_result.reason if auth_result else error_message or "pre-authorization failure"
+            ),
             policies_evaluated=auth_result.policies_evaluated if auth_result else [],
             session_id=user.session_id,
             user_attributes=dict(user.attributes),
@@ -1880,7 +1901,7 @@ class Proxilion:
     # ==================== Context Managers ====================
 
     @contextmanager
-    def user_context(self, user: UserContext):
+    def user_context(self, user: UserContext) -> Generator[UserContext, None, None]:
         """
         Context manager to set the current user for authorization.
 
@@ -1904,7 +1925,7 @@ class Proxilion:
             _current_user.reset(token)
 
     @contextmanager
-    def agent_context(self, agent: AgentContext):
+    def agent_context(self, agent: AgentContext) -> Generator[AgentContext, None, None]:
         """
         Context manager to set the current agent.
 
@@ -1921,7 +1942,11 @@ class Proxilion:
             _current_agent.reset(token)
 
     @contextmanager
-    def session(self, user: UserContext, agent: AgentContext | None = None):
+    def session(
+        self,
+        user: UserContext,
+        agent: AgentContext | None = None,
+    ) -> Generator[tuple[UserContext, AgentContext | None], None, None]:
         """
         Context manager to set both user and agent context.
 
@@ -1964,9 +1989,7 @@ class Proxilion:
         """Get the graceful degradation instance."""
         return self._graceful_degradation
 
-    def set_graceful_degradation(
-        self, degradation: GracefulDegradation | None
-    ) -> None:
+    def set_graceful_degradation(self, degradation: GracefulDegradation | None) -> None:
         """
         Set the graceful degradation instance.
 
@@ -2185,13 +2208,15 @@ class Proxilion:
         transformer = StreamTransformer()
 
         # If output guard is configured, add it as a filter
-        if self._output_guard:
+        output_guard = self._output_guard
+        if output_guard:
+
             def guard_filter(content: str) -> str | None:
-                result = self._output_guard.check(content)
+                result = output_guard.check(content)
                 if result.action == GuardAction.BLOCK:
                     return None
                 elif result.action == GuardAction.SANITIZE:
-                    return self._output_guard.redact(content)
+                    return output_guard.redact(content)
                 return content
 
             transformer.add_filter(guard_filter)
@@ -2818,7 +2843,7 @@ class Proxilion:
         user: UserContext,
         tool_calls: list[UnifiedToolCall],
         context: dict[str, Any] | None = None,
-    ) -> list[tuple[UnifiedToolCall, AuthorizationResult]]:
+    ) -> list[tuple[UnifiedToolCall, ToolExecutionResult | AuthorizationResult]]:
         """
         Authorize a list of tool calls.
 
@@ -2837,7 +2862,7 @@ class Proxilion:
             ...     if result.allowed:
             ...         execute_tool(call)
         """
-        results = []
+        results: list[tuple[UnifiedToolCall, ToolExecutionResult | AuthorizationResult]] = []
         for call in tool_calls:
             merged_context = dict(context or {})
             merged_context.update(call.arguments)
@@ -2881,7 +2906,7 @@ class Proxilion:
             ...     else:
             ...         print(f"{call.name}: DENIED - {result.reason}")
         """
-        results = []
+        results: list[tuple[UnifiedToolCall, ToolExecutionResult | AuthorizationResult]] = []
         for call in tool_calls:
             merged_context = dict(context or {})
             merged_context.update(call.arguments)
@@ -2900,6 +2925,7 @@ class Proxilion:
                 # Check if tool requires approval before execution
                 if tool_def.requires_approval:
                     from proxilion.exceptions import ApprovalRequiredError
+
                     raise ApprovalRequiredError(
                         tool_name=call.name,
                         user=user.user_id,
@@ -2939,8 +2965,7 @@ class Proxilion:
         """
         adapter = get_adapter(provider=provider)
         return [
-            adapter.format_tool_result(call, result, is_error)
-            for call, result, is_error in results
+            adapter.format_tool_result(call, result, is_error) for call, result, is_error in results
         ]
 
     def export_tools_for_provider(
@@ -3029,8 +3054,7 @@ class Proxilion:
         for call in unified_response.tool_calls:
             # Check authorization
             auth_result = self.check(
-                user, "execute", call.name,
-                {**call.arguments, "tool_call_id": call.id}
+                user, "execute", call.name, {**call.arguments, "tool_call_id": call.id}
             )
 
             if not auth_result.allowed:
@@ -3046,6 +3070,7 @@ class Proxilion:
                     # Check if tool requires approval before execution
                     if tool_def.requires_approval:
                         from proxilion.exceptions import ApprovalRequiredError
+
                         raise ApprovalRequiredError(
                             tool_name=call.name,
                             user=user.user_id,

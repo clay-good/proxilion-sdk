@@ -97,15 +97,13 @@ auth = Proxilion()
 class SensitiveDataPolicy(Policy):
     """Multi-factor authorization for sensitive operations."""
 
-    def evaluate(self, context) -> bool:
-        user = context.user
-
+    def can_read(self, context) -> bool:
         # Require explicit permission
-        if "data:sensitive:read" not in user.permissions:
+        if "data:sensitive:read" not in self.user.attributes.get("permissions", []):
             return False
 
         # Require specific role
-        if "security_analyst" not in user.roles:
+        if "security_analyst" not in self.user.roles:
             return False
 
         # Time-based restriction (business hours only)
@@ -127,23 +125,16 @@ class SensitiveDataPolicy(Policy):
 **Threat Mitigated:** Compromised or untrusted agents
 
 ```python
-from proxilion.guardrails import AgentTrustManager, TrustLevel
+from proxilion.security import AgentTrustManager, AgentTrustLevel
 
-trust_manager = AgentTrustManager()
+trust_manager = AgentTrustManager(secret_key="your-secret-key")
 
 # Register agent with capabilities
 trust_manager.register_agent(
     agent_id="research-agent",
-    trust_level=TrustLevel.LIMITED,
+    trust_level=AgentTrustLevel.LIMITED,
     capabilities=["web:search", "file:read"],
     # Cannot: file:write, db:execute, api:call
-)
-
-# Verify before allowing action
-can_act = trust_manager.can_perform(
-    agent_id="research-agent",
-    action="file:read",
-    resource="/docs/public/report.pdf"
 )
 ```
 
@@ -160,27 +151,18 @@ can_act = trust_manager.can_perform(
 **Threat Mitigated:** Insecure Direct Object Reference attacks
 
 ```python
-from proxilion.guardrails import IDORProtection
+from proxilion import AuthorizationError
+from proxilion.security import IDORProtector
 
-idor = IDORProtection()
+protector = IDORProtector()
 
-# Define ownership rules
-idor.add_ownership_rule(
-    resource_type="document",
-    owner_field="owner_id",
-    allowed_roles=["admin"]  # Admins can access any
-)
+# Register what each user can access
+protector.register_scope("user_123", "document", {"doc_1", "doc_2"})
+protector.register_scope("admin_456", "document", {"doc_1", "doc_2", "doc_3"})
 
-# Check access
-result = idor.check_access(
-    user=user_context,
-    resource_type="document",
-    resource_id="doc_456",
-    resource_owner="user_123"  # Different user
-)
-
-if not result.allowed:
-    raise IDORViolationError(result.reason)
+# Validate before tool execution
+if not protector.validate_access("user_123", "document", "doc_3"):
+    raise AuthorizationError("Access denied")
 ```
 
 **Security Properties:**
@@ -193,22 +175,20 @@ if not result.allowed:
 **Threat Mitigated:** Context manipulation, replay attacks
 
 ```python
-from proxilion.guardrails import ContextIntegrity
+from proxilion import ContextIntegrityError
+from proxilion.security import MemoryIntegrityGuard
 
-integrity = ContextIntegrity(
-    secret_key="your-256-bit-secret-key",
-    algorithm="HMAC-SHA256"
-)
+guard = MemoryIntegrityGuard(secret_key="your-256-bit-secret-key")
 
-# Sign context when created
-user_context = UserContext(user_id="alice", roles=["analyst"])
-signed_context = integrity.sign(user_context.model_dump())
+# Sign each message in conversation
+msg1 = guard.sign_message("user", "Help me with Python")
+msg2 = guard.sign_message("assistant", "Sure! What do you need?")
 
-# Verify context hasn't been tampered
-verification = integrity.verify(signed_context)
-if not verification.valid:
+# Verify entire context is intact
+result = guard.verify_context([msg1, msg2])
+if not result.valid:
     raise ContextIntegrityError(
-        f"Context tampering detected: {verification.reason}"
+        f"Context tampering detected: {result.violations}"
     )
 ```
 
@@ -222,23 +202,24 @@ if not verification.valid:
 **Threat Mitigated:** Intent hijacking, goal drift
 
 ```python
-from proxilion.guardrails import IntentCapsule
+from proxilion.security import IntentCapsule, IntentGuard
 
-# Declare intent at session start
-capsule = IntentCapsule(
+# Create capsule with original intent
+capsule = IntentCapsule.create(
+    user_id="alice",
     intent="Summarize Q3 sales data",
+    secret_key="your-secret-key",
     allowed_tools=["database_query", "chart_generator"],
-    allowed_resources=["sales_db"],
-    constraints={
-        "query_types": ["SELECT"],
-        "date_range": "2024-Q3"
-    },
-    expires_at=datetime.now() + timedelta(hours=1)
 )
 
-# Verify tool calls match intent
-if not capsule.verify_tool_call(tool_name="database_query", args={"table": "users"}):
-    raise IntentHijackError("Tool call outside declared intent scope")
+# Guard validates tool calls against original intent
+guard = IntentGuard(capsule, "your-secret-key")
+
+# Valid - matches allowed tools
+assert guard.validate_tool_call("database_query", {"table": "sales"})
+
+# Blocked - not in allowed tools
+assert not guard.validate_tool_call("delete_table", {"table": "users"})
 ```
 
 **Security Properties:**
@@ -251,25 +232,26 @@ if not capsule.verify_tool_call(tool_name="database_query", args={"table": "user
 **Threat Mitigated:** Gradual compromise, anomaly detection
 
 ```python
-from proxilion.guardrails import BehavioralMonitor
+from proxilion.security.behavioral_drift import BehavioralMonitor
 
 monitor = BehavioralMonitor(
     agent_id="customer-service-agent",
-    baseline_window=100,  # Learn from first 100 calls
-    z_score_threshold=3.0  # 3 standard deviations = anomaly
+    drift_threshold=3.0,  # 3 standard deviations = anomaly
 )
 
 # Record each action
-monitor.record_action(
+monitor.record_tool_call(
     tool_name="send_email",
-    parameters={"to": "customer@example.com"},
-    timestamp=datetime.now()
+    latency_ms=50.0,
 )
+
+# Lock baseline after sufficient samples
+monitor.lock_baseline()
 
 # Check for drift
 drift_result = monitor.check_drift()
 if drift_result.is_drifting:
-    alert(f"Behavioral anomaly: {drift_result.anomalies}")
+    print(f"Behavioral anomaly: {drift_result.reason}")
 ```
 
 **Detection Methods:**
@@ -283,20 +265,16 @@ if drift_result.is_drifting:
 **Threat Mitigated:** Runaway agents, emergency situations
 
 ```python
+from proxilion import EmergencyHaltError
 from proxilion.security.behavioral_drift import KillSwitch
 
 kill_switch = KillSwitch()
 
-# Configure kill conditions
-kill_switch.add_condition("cost_exceeded", lambda: total_cost > 1000)
-kill_switch.add_condition("error_rate", lambda: error_rate > 0.5)
-kill_switch.add_condition("manual", lambda: manual_halt_requested)
-
-# Check before each operation
-if kill_switch.is_triggered():
-    raise EmergencyHaltError(
-        f"Kill switch triggered: {kill_switch.triggered_conditions}"
-    )
+# Activate kill switch when needed
+kill_switch.activate(
+    reason="Severe behavioral drift detected",
+    raise_exception=True,  # Halts all operations
+)
 ```
 
 **Kill Switch Properties:**
@@ -356,14 +334,10 @@ async def external_api_call():
 **Threat Mitigated:** Repudiation, forensic gaps
 
 ```python
-from proxilion.audit import AuditLogger
+from proxilion.audit import AuditLogger, LoggerConfig
 
-logger = AuditLogger(
-    log_path="./logs/audit.jsonl",
-    enable_hash_chain=True,  # Tamper-evident chain
-    rotation_size_mb=100,
-    retention_days=90
-)
+config = LoggerConfig.default("./logs/audit.jsonl")
+logger = AuditLogger(config)
 
 # Automatic logging of all authorization decisions
 # Each entry contains:
@@ -377,11 +351,12 @@ logger = AuditLogger(
 
 **Tamper Detection:**
 ```python
-from proxilion.audit import verify_audit_chain
-
-result = verify_audit_chain("./logs/audit.jsonl")
-if not result.valid:
-    alert(f"Audit log tampering at entry {result.break_point}")
+# Verify integrity of audit log
+result = logger.verify()
+if result.valid:
+    print("Audit log integrity verified")
+else:
+    print(f"Audit log tampering detected: {result.error}")
 ```
 
 ## Cryptographic Primitives
@@ -419,7 +394,7 @@ Proxilion uses standard, well-vetted cryptographic primitives:
    # Deny by default, allow explicitly
    @auth.policy("default")
    class DefaultPolicy(Policy):
-       def evaluate(self, context):
+       def can_read(self, context):
            return False  # Deny unless specific policy allows
    ```
 

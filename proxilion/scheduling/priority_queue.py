@@ -69,9 +69,7 @@ class QueuedRequest:
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()), compare=False)
     priority: PriorityLevel = field(default=PriorityLevel.NORMAL, compare=False)
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc), compare=False
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc), compare=False)
     timeout: float | None = field(default=None, compare=False)
     payload: Any = field(default=None, compare=False)
     callback: Callable[[Any], None] | None = field(default=None, compare=False)
@@ -414,8 +412,7 @@ class PriorityQueue:
                 "total_expired": self._total_expired,
                 "total_aged": self._total_aged,
                 "size_by_priority": {
-                    level.name: count
-                    for level, count in self.size_by_priority().items()
+                    level.name: count for level, count in self.size_by_priority().items()
                 },
             }
 

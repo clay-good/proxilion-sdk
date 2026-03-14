@@ -34,8 +34,9 @@ logger = logging.getLogger(__name__)
 
 # Check for boto3 availability
 try:
-    import boto3
-    from botocore.config import Config as BotoConfig
+    import boto3  # type: ignore[import-not-found]
+    from botocore.config import Config as BotoConfig  # type: ignore[import-not-found]
+
     HAS_BOTO3 = True
 except ImportError:
     HAS_BOTO3 = False
@@ -122,7 +123,8 @@ class S3Exporter(BaseCloudExporter):
         """Load credentials from a JSON file."""
         try:
             with open(path) as f:
-                return json.load(f)
+                result: dict[str, str] = json.load(f)
+                return result
         except Exception as e:
             logger.warning(f"Failed to load credentials from {path}: {e}")
             return {}
@@ -199,6 +201,7 @@ class S3Exporter(BaseCloudExporter):
         if encoding:
             extra_args["ContentEncoding"] = encoding
 
+        assert self._client is not None
         self._client.put_object(
             Bucket=self.config.bucket_name,
             Key=key,
@@ -246,9 +249,7 @@ class S3Exporter(BaseCloudExporter):
         request = urllib.request.Request(url, data=data, headers=headers, method="PUT")
 
         try:
-            with urllib.request.urlopen(
-                request, timeout=self.config.read_timeout
-            ) as response:
+            with urllib.request.urlopen(request, timeout=self.config.read_timeout) as response:
                 if response.status not in (200, 201, 204):
                     raise ValueError(f"S3 upload failed with status {response.status}")
         except urllib.error.HTTPError as e:
@@ -367,6 +368,7 @@ class S3Exporter(BaseCloudExporter):
         """
         try:
             if HAS_BOTO3:
+                assert self._client is not None
                 self._client.head_bucket(Bucket=self.config.bucket_name)
             else:
                 # Try to list bucket (HEAD not easily done with urllib)
@@ -387,7 +389,7 @@ class S3Exporter(BaseCloudExporter):
 
                 request = urllib.request.Request(url, headers=headers)
                 with urllib.request.urlopen(request, timeout=10) as response:
-                    return response.status == 200
+                    return bool(response.status == 200)
 
             return True
         except Exception as e:
@@ -420,6 +422,7 @@ class S3Exporter(BaseCloudExporter):
         if start_date:
             prefix += f"{start_date.year:04d}/"
 
+        assert self._client is not None
         paginator = self._client.get_paginator("list_objects_v2")
         pages = paginator.paginate(
             Bucket=self.config.bucket_name,

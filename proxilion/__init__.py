@@ -35,7 +35,7 @@ https://proxilion.com
 Source code: https://github.com/clay-good/proxilion-sdk
 """
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 # Core types - always available
 # Main Proxilion class
@@ -73,6 +73,7 @@ from proxilion.exceptions import (
     ConfigurationError,
     ContextIntegrityError,
     EmergencyHaltError,
+    FallbackExhaustedError,
     GuardViolation,
     IDORViolationError,
     InputGuardViolation,
@@ -138,6 +139,7 @@ __all__ = [
     "AgentTrustError",
     "BehavioralDriftError",
     "EmergencyHaltError",
+    "FallbackExhaustedError",
     # Decorators
     "authorize_tool_call",
     "authorize",

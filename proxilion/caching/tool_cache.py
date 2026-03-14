@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -211,25 +211,31 @@ class CachePolicy:
         ... )
     """
 
-    never_cache: set[str] = field(default_factory=lambda: {
-        "send_email",
-        "create_file",
-        "delete_*",
-        "execute_*",
-        "write_*",
-        "update_*",
-        "insert_*",
-    })
-    short_ttl: dict[str, int] = field(default_factory=lambda: {
-        "get_stock_price": 60,
-        "get_weather": 300,
-        "get_current_time": 1,
-    })
-    long_ttl: dict[str, int] = field(default_factory=lambda: {
-        "get_user_profile": 3600,
-        "get_config": 86400,
-        "get_schema": 86400,
-    })
+    never_cache: set[str] = field(
+        default_factory=lambda: {
+            "send_email",
+            "create_file",
+            "delete_*",
+            "execute_*",
+            "write_*",
+            "update_*",
+            "insert_*",
+        }
+    )
+    short_ttl: dict[str, int] = field(
+        default_factory=lambda: {
+            "get_stock_price": 60,
+            "get_weather": 300,
+            "get_current_time": 1,
+        }
+    )
+    long_ttl: dict[str, int] = field(
+        default_factory=lambda: {
+            "get_user_profile": 3600,
+            "get_config": 86400,
+            "get_schema": 86400,
+        }
+    )
     default_ttl: int | None = 300
 
     def should_cache(self, tool_name: str) -> bool:
@@ -408,6 +414,7 @@ class ToolCache:
         expires_at = None
         if ttl is not None:
             from datetime import timedelta
+
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
         entry = CacheEntry(
@@ -494,9 +501,9 @@ class ToolCache:
 
             # Invalidate all entries for this tool
             keys_to_remove = [
-                k for k, v in self._cache.items()
-                if v.tool_name == tool_name
-                and (user_id is None or v.user_id == user_id)
+                k
+                for k, v in self._cache.items()
+                if v.tool_name == tool_name and (user_id is None or v.user_id == user_id)
             ]
 
             for key in keys_to_remove:
@@ -562,10 +569,7 @@ class ToolCache:
             Number of entries removed.
         """
         with self._lock:
-            expired_keys = [
-                k for k, v in self._cache.items()
-                if v.is_expired()
-            ]
+            expired_keys = [k for k, v in self._cache.items() if v.is_expired()]
 
             for key in expired_keys:
                 entry = self._cache.pop(key)
@@ -623,6 +627,7 @@ def cached_tool(
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Build args dict for cache key
             import inspect
+
             sig = inspect.signature(func)
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
@@ -638,7 +643,7 @@ def cached_tool(
             cached_result = cache.get(tool_name, cache_args, default=_CACHE_MISS)
             if cached_result is not _CACHE_MISS:
                 logger.debug(f"Cache hit for {tool_name}")
-                return cached_result
+                return cast(T, cached_result)
 
             # Execute function
             result = func(*args, **kwargs)

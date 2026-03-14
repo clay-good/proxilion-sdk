@@ -59,6 +59,7 @@ class MultiExportResult:
         failed_destinations: Number of failed destinations.
         duration_ms: Total export duration in milliseconds.
     """
+
     success: bool
     results: list[ExportResult] = field(default_factory=list)
     total_events: int = 0
@@ -218,7 +219,7 @@ class MultiCloudExporter:
 
         with self._lock:
             self._batch_counter += 1
-            ts = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
             batch_id = f"multi_{ts}_{self._batch_counter:06d}"
 
         return ExportBatch(
@@ -250,11 +251,13 @@ class MultiCloudExporter:
 
             except Exception as e:
                 logger.error(f"Export to destination {i} failed with exception: {e}")
-                results.append(ExportResult(
-                    success=False,
-                    batch_id=batch.batch_id,
-                    error=str(e),
-                ))
+                results.append(
+                    ExportResult(
+                        success=False,
+                        batch_id=batch.batch_id,
+                        error=str(e),
+                    )
+                )
 
                 if self.strategy == FailureStrategy.FAIL_FAST:
                     break
@@ -313,7 +316,9 @@ class MultiCloudExporter:
 
         # Replace any remaining None values
         return [
-            r if r is not None else ExportResult(
+            r
+            if r is not None
+            else ExportResult(
                 success=False,
                 batch_id=batch.batch_id,
                 error="Export did not complete",
@@ -331,10 +336,7 @@ class MultiCloudExporter:
 
         for retry in range(self.max_retries):
             # Find failed exports
-            failed_indices = [
-                i for i, r in enumerate(final_results)
-                if not r.success
-            ]
+            failed_indices = [i for i, r in enumerate(final_results) if not r.success]
 
             if not failed_indices:
                 break
@@ -470,10 +472,14 @@ class MultiCloudExporter:
             self._pending_events.append(event)
 
             # Get minimum batch size from all exporters
-            min_batch_size = min(
-                getattr(exp, "config", CloudExporterConfig("aws", "")).batch_size
-                for exp in self.exporters
-            ) if self.exporters else 100
+            min_batch_size = (
+                min(
+                    getattr(exp, "config", CloudExporterConfig("aws", "")).batch_size
+                    for exp in self.exporters
+                )
+                if self.exporters
+                else 100
+            )
 
             if len(self._pending_events) >= min_batch_size:
                 events = self._pending_events

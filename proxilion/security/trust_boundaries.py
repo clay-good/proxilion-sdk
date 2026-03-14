@@ -100,7 +100,7 @@ class TrustBoundaryViolation(ProxilionError):
         self.from_level = from_level
         self.to_level = to_level
 
-        details = {"reason": reason}
+        details: dict[str, str | int] = {"reason": reason}
         if chain_depth is not None:
             details["chain_depth"] = chain_depth
         if from_level is not None:
@@ -271,13 +271,11 @@ DEFAULT_BOUNDARIES = [
     TrustBoundary(
         TrustLevel.INTERNAL, TrustLevel.UNTRUSTED, allowed=False, requires_approval=False
     ),
-
     # Partner can communicate with internal (with approval) and other partners
     TrustBoundary(TrustLevel.PARTNER, TrustLevel.INTERNAL, allowed=True, requires_approval=True),
     TrustBoundary(TrustLevel.PARTNER, TrustLevel.PARTNER, allowed=True, requires_approval=False),
     TrustBoundary(TrustLevel.PARTNER, TrustLevel.EXTERNAL, allowed=False, requires_approval=False),
     TrustBoundary(TrustLevel.PARTNER, TrustLevel.UNTRUSTED, allowed=False, requires_approval=False),
-
     # External can only communicate with each other
     TrustBoundary(TrustLevel.EXTERNAL, TrustLevel.INTERNAL, allowed=False, requires_approval=False),
     TrustBoundary(TrustLevel.EXTERNAL, TrustLevel.PARTNER, allowed=False, requires_approval=False),
@@ -285,7 +283,6 @@ DEFAULT_BOUNDARIES = [
     TrustBoundary(
         TrustLevel.EXTERNAL, TrustLevel.UNTRUSTED, allowed=False, requires_approval=False
     ),
-
     # Untrusted cannot communicate with anyone
     TrustBoundary(TrustLevel.UNTRUSTED, "*", allowed=False, requires_approval=False),
 ]
@@ -659,8 +656,7 @@ class TrustEnforcer:
         # Trust can only decrease
         if prev_level is not None and subject.trust_level < prev_level:
             return False, (
-                f"Trust escalation in final hop: "
-                f"{prev_level.name} -> {subject.trust_level.name}"
+                f"Trust escalation in final hop: {prev_level.name} -> {subject.trust_level.name}"
             )
 
         return True, None
@@ -777,8 +773,4 @@ class TrustEnforcer:
     def get_agents_by_trust_level(self, trust_level: TrustLevel) -> list[AgentIdentity]:
         """Get all agents at a specific trust level."""
         with self._lock:
-            return [
-                agent
-                for agent in self._agents.values()
-                if agent.trust_level == trust_level
-            ]
+            return [agent for agent in self._agents.values() if agent.trust_level == trust_level]

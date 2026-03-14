@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextvars
 import threading
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -190,7 +191,7 @@ class DeadlineContext:
         self._started_at: float | None = None
         self._deadline: float | None = None
         self._parent: DeadlineContext | None = None
-        self._token: contextvars.Token | None = None
+        self._token: contextvars.Token[DeadlineContext | None] | None = None
         self._lock = threading.Lock()
 
     @property
@@ -459,7 +460,7 @@ class TimeoutManager:
         self,
         timeout: float | None = None,
         operation: str | None = None,
-    ):
+    ) -> Generator[DeadlineContext, None, None]:
         """
         Context manager for deadline tracking.
 

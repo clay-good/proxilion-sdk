@@ -144,9 +144,7 @@ class Session:
         """
         with self._lock:
             if self.state not in (SessionState.ACTIVE, SessionState.IDLE):
-                raise ValueError(
-                    f"Cannot add message to session in state {self.state.value}"
-                )
+                raise ValueError(f"Cannot add message to session in state {self.state.value}")
 
             message = Message(
                 role=role,
@@ -612,10 +610,12 @@ class SessionManager:
                     to_remove.append(session_id)
 
             for session_id in to_remove:
-                session = self._sessions.pop(session_id, None)
-                if session is not None:
+                removed_session: Session | None = (
+                    self._sessions.pop(session_id) if session_id in self._sessions else None
+                )
+                if removed_session is not None:
                     # Remove from user sessions list
-                    user_id = session.user.user_id
+                    user_id = removed_session.user.user_id
                     if user_id in self._user_sessions:
                         if session_id in self._user_sessions[user_id]:
                             self._user_sessions[user_id].remove(session_id)
@@ -709,10 +709,7 @@ class SessionManager:
             return {
                 "config": self.config.to_dict(),
                 "cleanup_interval": self.cleanup_interval,
-                "sessions": {
-                    sid: session.to_dict()
-                    for sid, session in self._sessions.items()
-                },
+                "sessions": {sid: session.to_dict() for sid, session in self._sessions.items()},
                 "user_sessions": dict(self._user_sessions),
                 "last_cleanup": self._last_cleanup.isoformat(),
             }
@@ -734,9 +731,7 @@ class SessionManager:
             cleanup_interval=data.get("cleanup_interval", 300),
         )
         default_cleanup = datetime.now(timezone.utc).isoformat()
-        manager._last_cleanup = datetime.fromisoformat(
-            data.get("last_cleanup", default_cleanup)
-        )
+        manager._last_cleanup = datetime.fromisoformat(data.get("last_cleanup", default_cleanup))
 
         # Restore sessions
         for session_data in data.get("sessions", {}).values():

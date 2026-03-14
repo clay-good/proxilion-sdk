@@ -409,10 +409,7 @@ class GracefulDegradation:
             self._success_counts[component] = self._success_counts.get(component, 0) + 1
             self._failure_counts[component] = 0  # Reset failure count
 
-            if (
-                self._auto_recover
-                and self._success_counts[component] >= self._recovery_threshold
-            ):
+            if self._auto_recover and self._success_counts[component] >= self._recovery_threshold:
                 self.recover(
                     reason=f"{self._recovery_threshold} consecutive successes",
                     triggered_by=component,
@@ -505,9 +502,7 @@ class GracefulDegradation:
         """Get timeout multiplier for the current tier."""
         return self.current_config.timeout_multiplier
 
-    def add_tier_change_callback(
-        self, callback: Callable[[DegradationEvent], None]
-    ) -> None:
+    def add_tier_change_callback(self, callback: Callable[[DegradationEvent], None]) -> None:
         """
         Add a callback for tier changes.
 
@@ -517,9 +512,7 @@ class GracefulDegradation:
         with self._lock:
             self._callbacks.append(callback)
 
-    def remove_tier_change_callback(
-        self, callback: Callable[[DegradationEvent], None]
-    ) -> bool:
+    def remove_tier_change_callback(self, callback: Callable[[DegradationEvent], None]) -> bool:
         """
         Remove a tier change callback.
 

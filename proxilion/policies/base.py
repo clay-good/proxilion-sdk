@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 if TYPE_CHECKING:
     from proxilion.types import UserContext
@@ -100,7 +100,7 @@ class Policy(ABC, Generic[T]):
             # Default deny if action method doesn't exist
             return False
 
-        return method(context or {})
+        return cast(bool, method(context or {}))
 
     def can(self, action: str, context: dict[str, Any] | None = None) -> bool:
         """
@@ -242,8 +242,9 @@ class PolicyWithScope(Policy[T]):
     """
 
     # Nested Scope class - subclasses should override
-    class Scope(Scope[T]):
+    class Scope(Scope[Any]):
         """Default scope that returns empty list."""
+
         pass
 
 

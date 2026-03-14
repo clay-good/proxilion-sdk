@@ -86,7 +86,7 @@ class AnthropicAdapter(BaseAdapter):
 
         return tool_calls
 
-    def _extract_from_dict(self, response: dict) -> list[UnifiedToolCall]:
+    def _extract_from_dict(self, response: dict[str, Any]) -> list[UnifiedToolCall]:
         """Extract tool calls from dictionary response."""
         content = response.get("content", [])
         tool_calls = []
@@ -152,24 +152,28 @@ class AnthropicAdapter(BaseAdapter):
             raw=response,
         )
 
-    def _extract_text_content(self, content: list) -> str | None:
-        """Extract text content from content blocks (dict form)."""
+    def _extract_text_content(self, content: list[Any]) -> str | None:
+        """Extract text content from content blocks.
+
+        Handles both dictionary and object forms automatically.
+        """
         text_parts = []
         for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                text_parts.append(block.get("text", ""))
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    text_parts.append(block.get("text", ""))
+            else:
+                if getattr(block, "type", None) == "text":
+                    text_parts.append(getattr(block, "text", ""))
 
         return "".join(text_parts) if text_parts else None
 
-    def _extract_text_content_from_objects(self, content: list) -> str | None:
-        """Extract text content from content blocks (object form)."""
-        text_parts = []
-        for block in content:
-            block_type = getattr(block, "type", None)
-            if block_type == "text":
-                text_parts.append(getattr(block, "text", ""))
+    def _extract_text_content_from_objects(self, content: list[Any]) -> str | None:
+        """Extract text content from content blocks (object form).
 
-        return "".join(text_parts) if text_parts else None
+        Delegates to ``_extract_text_content`` which handles both forms.
+        """
+        return self._extract_text_content(content)
 
     def format_tool_result(
         self,
@@ -239,24 +243,32 @@ class AnthropicAdapter(BaseAdapter):
                 formatted.append(tool.to_anthropic_format())
             elif hasattr(tool, "name") and hasattr(tool, "description"):
                 # Manual conversion
-                formatted.append({
-                    "name": tool.name,
-                    "description": tool.description,
-                    "input_schema": getattr(tool, "parameters", {
-                        "type": "object",
-                        "properties": {},
-                    }),
-                })
+                formatted.append(
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": getattr(
+                            tool,
+                            "parameters",
+                            {
+                                "type": "object",
+                                "properties": {},
+                            },
+                        ),
+                    }
+                )
             elif isinstance(tool, dict):
                 # Already in correct format or needs conversion
                 if "input_schema" in tool:
                     formatted.append(tool)
                 elif "parameters" in tool:
-                    formatted.append({
-                        "name": tool.get("name"),
-                        "description": tool.get("description", ""),
-                        "input_schema": tool.get("parameters"),
-                    })
+                    formatted.append(
+                        {
+                            "name": tool.get("name"),
+                            "description": tool.get("description", ""),
+                            "input_schema": tool.get("parameters"),
+                        }
+                    )
 
         return formatted
 
@@ -282,8 +294,7 @@ class AnthropicAdapter(BaseAdapter):
             >>> messages.append(user_msg)
         """
         content = [
-            self.format_tool_result(tc, result, is_error)
-            for tc, result, is_error in results
+            self.format_tool_result(tc, result, is_error) for tc, result, is_error in results
         ]
 
         return {
@@ -311,18 +322,22 @@ class AnthropicAdapter(BaseAdapter):
         content = []
 
         if text_content:
-            content.append({
-                "type": "text",
-                "text": text_content,
-            })
+            content.append(
+                {
+                    "type": "text",
+                    "text": text_content,
+                }
+            )
 
         for tc in tool_calls:
-            content.append({
-                "type": "tool_use",
-                "id": tc.id,
-                "name": tc.name,
-                "input": tc.arguments,
-            })
+            content.append(
+                {
+                    "type": "tool_use",
+                    "id": tc.id,
+                    "name": tc.name,
+                    "input": tc.arguments,  # type: ignore[dict-item]
+                }
+            )
 
         return {
             "role": "assistant",

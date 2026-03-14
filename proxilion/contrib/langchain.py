@@ -85,12 +85,14 @@ def get_langchain_agent() -> AgentContext | None:
 
 class LangChainIntegrationError(ProxilionError):
     """Error in LangChain integration."""
+
     pass
 
 
 @dataclass
 class ToolInvocation:
     """Record of a tool invocation for audit purposes."""
+
     tool_name: str
     input_str: str
     user_id: str | None
@@ -125,6 +127,7 @@ class ProxilionToolMixin:
 
         # Try Proxilion's context
         from proxilion.core import get_current_user
+
         return get_current_user()
 
     def _authorize(self, tool_input: str) -> None:
@@ -218,7 +221,7 @@ class ProxilionTool:
         """
         self.original_tool = original_tool
         self.proxilion = proxilion
-        self.resource = resource or getattr(original_tool, "name", "unknown_tool")
+        self.resource: str = resource or str(getattr(original_tool, "name", "unknown_tool"))
         self.action = action
         self.require_user = require_user
 
@@ -240,6 +243,7 @@ class ProxilionTool:
             return user
 
         from proxilion.core import get_current_user
+
         return get_current_user()
 
     def _authorize(self, tool_input: str | dict[str, Any]) -> None:
@@ -286,7 +290,8 @@ class ProxilionTool:
             Tool output as string.
         """
         self._authorize(tool_input)
-        return self.original_tool.run(tool_input, **kwargs)
+        result: str = self.original_tool.run(tool_input, **kwargs)
+        return result
 
     async def arun(self, tool_input: str | dict[str, Any], **kwargs: Any) -> str:
         """
@@ -302,14 +307,16 @@ class ProxilionTool:
         self._authorize(tool_input)
 
         if hasattr(self.original_tool, "arun"):
-            return await self.original_tool.arun(tool_input, **kwargs)
+            result: str = await self.original_tool.arun(tool_input, **kwargs)
+            return result
         else:
             # Fall back to sync run in executor
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 None,
                 lambda: self.original_tool.run(tool_input, **kwargs),
             )
+            return str(result)
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         """Internal run method for LangChain compatibility."""
@@ -317,8 +324,10 @@ class ProxilionTool:
         self._authorize(tool_input)
 
         if hasattr(self.original_tool, "_run"):
-            return self.original_tool._run(*args, **kwargs)
-        return self.original_tool.run(tool_input, **kwargs)
+            result: str = self.original_tool._run(*args, **kwargs)
+            return result
+        result = self.original_tool.run(tool_input, **kwargs)
+        return str(result)
 
     async def _arun(self, *args: Any, **kwargs: Any) -> str:
         """Internal async run method for LangChain compatibility."""
@@ -326,17 +335,22 @@ class ProxilionTool:
         self._authorize(tool_input)
 
         if hasattr(self.original_tool, "_arun"):
-            return await self.original_tool._arun(*args, **kwargs)
+            result: str = await self.original_tool._arun(*args, **kwargs)
+            return result
         elif hasattr(self.original_tool, "arun"):
-            return await self.original_tool.arun(tool_input, **kwargs)
+            result = await self.original_tool.arun(tool_input, **kwargs)
+            return str(result)
         else:
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
+            executor_result = await loop.run_in_executor(
                 None,
-                lambda: self.original_tool._run(*args, **kwargs)
-                if hasattr(self.original_tool, "_run")
-                else self.original_tool.run(tool_input, **kwargs),
+                lambda: (
+                    self.original_tool._run(*args, **kwargs)
+                    if hasattr(self.original_tool, "_run")
+                    else self.original_tool.run(tool_input, **kwargs)
+                ),
             )
+            return str(executor_result)
 
     def __call__(self, tool_input: str | dict[str, Any], **kwargs: Any) -> str:
         """Call the tool directly."""
@@ -468,13 +482,9 @@ class ProxilionCallbackHandler:
 
         if self._current_invocation is not None:
             if self._start_time is not None:
-                self._current_invocation.duration_ms = (
-                    time.time() - self._start_time
-                ) * 1000
+                self._current_invocation.duration_ms = (time.time() - self._start_time) * 1000
 
-            self._current_invocation.output = (
-                output if self.log_outputs else "[REDACTED]"
-            )
+            self._current_invocation.output = output if self.log_outputs else "[REDACTED]"
             self._invocations.append(self._current_invocation)
 
             logger.debug(
@@ -497,16 +507,12 @@ class ProxilionCallbackHandler:
 
         if self._current_invocation is not None:
             if self._start_time is not None:
-                self._current_invocation.duration_ms = (
-                    time.time() - self._start_time
-                ) * 1000
+                self._current_invocation.duration_ms = (time.time() - self._start_time) * 1000
 
             self._current_invocation.error = str(error)
             self._invocations.append(self._current_invocation)
 
-            logger.warning(
-                f"Tool error: {self._current_invocation.tool_name} - {error}"
-            )
+            logger.warning(f"Tool error: {self._current_invocation.tool_name} - {error}")
 
         self._current_invocation = None
         self._start_time = None
@@ -575,7 +581,7 @@ def wrap_langchain_tools(
         ...     resource_prefix="agent_",
         ... )
     """
-    wrapped = []
+    wrapped: list[ProxilionTool] = []
 
     for tool in tools:
         tool_name = getattr(tool, "name", f"tool_{len(wrapped)}")
@@ -626,7 +632,10 @@ class LangChainUserContextManager:
             _langchain_agent_context.reset(self._agent_token)
 
 
-def langchain_user_context(user: UserContext, agent: AgentContext | None = None):
+def langchain_user_context(
+    user: UserContext,
+    agent: AgentContext | None = None,
+) -> LangChainUserContextManager:
     """
     Decorator/context manager for setting user context.
 

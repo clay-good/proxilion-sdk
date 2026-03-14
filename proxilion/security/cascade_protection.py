@@ -53,7 +53,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -145,7 +145,7 @@ class DependencyGraph:
         {'auth_service', 'api_gateway'}
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the dependency graph."""
         self._dependencies: dict[str, dict[str, DependencyInfo]] = defaultdict(dict)
         self._dependents: dict[str, set[str]] = defaultdict(set)
@@ -177,9 +177,7 @@ class DependencyGraph:
         with self._lock:
             # Check if adding this would create a cycle
             if self._would_create_cycle(tool, depends_on):
-                raise ValueError(
-                    f"Adding dependency {tool} -> {depends_on} would create a cycle"
-                )
+                raise ValueError(f"Adding dependency {tool} -> {depends_on} would create a cycle")
 
             self._dependencies[tool][depends_on] = DependencyInfo(
                 name=depends_on,
@@ -355,9 +353,7 @@ class DependencyGraph:
         """
         with self._lock:
             return {
-                name
-                for name, info in self._dependencies.get(tool, {}).items()
-                if info.critical
+                name for name, info in self._dependencies.get(tool, {}).items() if info.critical
             }
 
     def to_dict(self) -> dict[str, list[dict[str, Any]]]:
@@ -407,6 +403,7 @@ class CascadeProtector:
         circuit_registry: CircuitBreakerRegistry | None = None,
         degraded_threshold: int = 1,
         failing_threshold: int = 2,
+        max_events: int = 10_000,
     ):
         """
         Initialize the cascade protector.
@@ -416,7 +413,19 @@ class CascadeProtector:
             circuit_registry: Optional circuit breaker registry for integration.
             degraded_threshold: Number of failing dependencies to mark as DEGRADED.
             failing_threshold: Number of critical failing deps to mark as FAILING.
+            max_events: Maximum number of cascade events to retain. Oldest
+                events are automatically evicted when this limit is reached.
+
+        Raises:
+            ValueError: If any numeric parameter is out of range.
         """
+        if degraded_threshold < 1:
+            raise ValueError("degraded_threshold must be at least 1")
+        if failing_threshold < 1:
+            raise ValueError("failing_threshold must be at least 1")
+        if max_events < 1:
+            raise ValueError("max_events must be at least 1")
+
         self.graph = graph
         self.circuit_registry = circuit_registry
         self.degraded_threshold = degraded_threshold
@@ -424,7 +433,7 @@ class CascadeProtector:
 
         self._tool_states: dict[str, CascadeState] = {}
         self._isolated_tools: set[str] = set()
-        self._events: list[CascadeEvent] = []
+        self._events: deque[CascadeEvent] = deque(maxlen=max_events)
         self._lock = threading.RLock()
         self._state_listeners: list[Callable[[str, CascadeState, CascadeState], None]] = []
 
@@ -469,7 +478,7 @@ class CascadeProtector:
             return CascadeState.HEALTHY
 
         failing_critical = 0
-        failing_total = 0
+        failing_total: float = 0
 
         for dep in dependencies:
             dep_state = self._get_tool_state(dep)
@@ -548,8 +557,7 @@ class CascadeProtector:
             )
 
             logger.warning(
-                f"Cascade failure propagated from {tool}: "
-                f"{len(affected)} tools affected"
+                f"Cascade failure propagated from {tool}: {len(affected)} tools affected"
             )
 
             return affected
@@ -763,7 +771,8 @@ class CascadeProtector:
             List of recent cascade events, newest first.
         """
         with self._lock:
-            return list(reversed(self._events[-limit:]))
+            events = list(self._events)
+            return list(reversed(events[-limit:]))
 
     def get_all_states(self) -> dict[str, CascadeState]:
         """Get the current state of all tracked tools."""
@@ -785,9 +794,7 @@ class CascadeProtector:
         """Get all tools currently in DEGRADED state."""
         with self._lock:
             return {
-                tool
-                for tool, state in self._tool_states.items()
-                if state == CascadeState.DEGRADED
+                tool for tool, state in self._tool_states.items() if state == CascadeState.DEGRADED
             }
 
     def reset(self) -> None:
@@ -847,9 +854,7 @@ class CascadeAwareCircuitBreakerRegistry(CircuitBreakerRegistry):
             Set of affected tools from cascade propagation.
         """
         affected = self._cascade_protector.propagate_failure(name)
-        logger.warning(
-            f"Cascade from {name}: {len(affected)} tools affected"
-        )
+        logger.warning(f"Cascade from {name}: {len(affected)} tools affected")
         return affected
 
     def on_circuit_close(self, name: str) -> set[str]:
@@ -863,7 +868,5 @@ class CascadeAwareCircuitBreakerRegistry(CircuitBreakerRegistry):
             Set of tools that may have recovered.
         """
         recovered = self._cascade_protector.recover_tool(name)
-        logger.info(
-            f"Recovery from {name}: {len(recovered)} tools may recover"
-        )
+        logger.info(f"Recovery from {name}: {len(recovered)} tools may recover")
         return recovered

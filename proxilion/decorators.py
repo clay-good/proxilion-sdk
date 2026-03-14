@@ -11,9 +11,10 @@ import asyncio
 import functools
 import inspect
 import logging
+import threading
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Any, ParamSpec, TypeVar, cast
 
 from proxilion.exceptions import AuthorizationError, SequenceViolationError
 from proxilion.types import UserContext
@@ -105,9 +106,7 @@ class AlwaysDenyStrategy(ApprovalStrategy):
         resource: str,
         context: dict[str, Any],
     ) -> bool:
-        logger.info(
-            f"AlwaysDenyStrategy: Denying {action} on {resource} for {user.user_id}"
-        )
+        logger.info(f"AlwaysDenyStrategy: Denying {action} on {resource} for {user.user_id}")
         return False
 
     async def request_approval_async(
@@ -164,7 +163,8 @@ class CallbackApprovalStrategy(ApprovalStrategy):
         context: dict[str, Any],
     ) -> bool:
         if self._async_callback:
-            return await self._async_callback(user, action, resource, context)
+            result = await self._async_callback(user, action, resource, context)
+            return cast(bool, result)
         return self._callback(user, action, resource, context)
 
 
@@ -201,6 +201,8 @@ class QueueApprovalStrategy(ApprovalStrategy):
         self._approved: set[str] = set()
         self._denied: set[str] = set()
         self._request_counter = 0
+        self._events: dict[str, threading.Event] = {}
+        self._async_events: dict[str, asyncio.Event] = {}
 
     @property
     def pending_requests(self) -> list[dict[str, Any]]:
@@ -212,12 +214,22 @@ class QueueApprovalStrategy(ApprovalStrategy):
         if request_id in self._pending:
             self._approved.add(request_id)
             del self._pending[request_id]
+            # Wake up the waiting thread/task
+            if request_id in self._events:
+                self._events[request_id].set()
+            if request_id in self._async_events:
+                self._async_events[request_id].set()
 
     def deny(self, request_id: str) -> None:
         """Deny a pending request."""
         if request_id in self._pending:
             self._denied.add(request_id)
             del self._pending[request_id]
+            # Wake up the waiting thread/task
+            if request_id in self._events:
+                self._events[request_id].set()
+            if request_id in self._async_events:
+                self._async_events[request_id].set()
 
     def request_approval(
         self,
@@ -227,8 +239,6 @@ class QueueApprovalStrategy(ApprovalStrategy):
         context: dict[str, Any],
     ) -> bool:
         """Queue request and wait for approval (blocking)."""
-        import time
-
         self._request_counter += 1
         request_id = f"req_{self._request_counter}"
 
@@ -240,18 +250,21 @@ class QueueApprovalStrategy(ApprovalStrategy):
             "context": context,
         }
 
+        event = threading.Event()
+        self._events[request_id] = event
+
         logger.info(f"Approval request queued: {request_id}")
 
-        # Poll for approval
-        start_time = time.time()
-        while time.time() - start_time < self.timeout:
-            if request_id in self._approved:
-                self._approved.discard(request_id)
-                return True
-            if request_id in self._denied:
-                self._denied.discard(request_id)
-                return False
-            time.sleep(0.1)
+        # Block until approved/denied or timeout
+        event.wait(timeout=self.timeout)
+        self._events.pop(request_id, None)
+
+        if request_id in self._approved:
+            self._approved.discard(request_id)
+            return True
+        if request_id in self._denied:
+            self._denied.discard(request_id)
+            return False
 
         # Timeout - clean up and deny
         self._pending.pop(request_id, None)
@@ -266,8 +279,6 @@ class QueueApprovalStrategy(ApprovalStrategy):
         context: dict[str, Any],
     ) -> bool:
         """Queue request and wait for approval (async)."""
-        import time
-
         self._request_counter += 1
         request_id = f"req_{self._request_counter}"
 
@@ -279,18 +290,25 @@ class QueueApprovalStrategy(ApprovalStrategy):
             "context": context,
         }
 
+        event = asyncio.Event()
+        self._async_events[request_id] = event
+
         logger.info(f"Approval request queued: {request_id}")
 
-        # Poll for approval using monotonic time for accurate timeout
-        start_time = time.monotonic()
-        while time.monotonic() - start_time < self.timeout:
-            if request_id in self._approved:
-                self._approved.discard(request_id)
-                return True
-            if request_id in self._denied:
-                self._denied.discard(request_id)
-                return False
-            await asyncio.sleep(0.1)
+        # Wait until approved/denied or timeout
+        try:
+            await asyncio.wait_for(event.wait(), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            self._async_events.pop(request_id, None)
+
+        if request_id in self._approved:
+            self._approved.discard(request_id)
+            return True
+        if request_id in self._denied:
+            self._denied.discard(request_id)
+            return False
 
         # Timeout
         self._pending.pop(request_id, None)
@@ -330,10 +348,11 @@ def require_approval(
         resource = func.__name__
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                user = kwargs.get(user_param)
-                if user is None:
+                user_obj = kwargs.get(user_param)
+                if not isinstance(user_obj, UserContext):
                     raise AuthorizationError(
                         user="unknown",
                         action="execute",
@@ -344,25 +363,26 @@ def require_approval(
                 context = dict(kwargs)
 
                 approved = await strategy.request_approval_async(
-                    user, "execute", resource, context
+                    user_obj, "execute", resource, context
                 )
 
                 if not approved:
                     raise AuthorizationError(
-                        user=user.user_id,
+                        user=user_obj.user_id,
                         action="execute",
                         resource=resource,
                         reason="Approval denied or timed out",
                     )
 
-                return await func(*args, **kwargs)
+                return await cast(Awaitable[T], func(*args, **kwargs))
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                user = kwargs.get(user_param)
-                if user is None:
+                user_obj = kwargs.get(user_param)
+                if not isinstance(user_obj, UserContext):
                     raise AuthorizationError(
                         user="unknown",
                         action="execute",
@@ -372,13 +392,11 @@ def require_approval(
 
                 context = dict(kwargs)
 
-                approved = strategy.request_approval(
-                    user, "execute", resource, context
-                )
+                approved = strategy.request_approval(user_obj, "execute", resource, context)
 
                 if not approved:
                     raise AuthorizationError(
-                        user=user.user_id,
+                        user=user_obj.user_id,
                         action="execute",
                         resource=resource,
                         reason="Approval denied or timed out",
@@ -386,7 +404,7 @@ def require_approval(
 
                 return func(*args, **kwargs)
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -423,10 +441,13 @@ def authorize_tool_call(
         ... async def search(query: str, user: UserContext = None):
         ...     return await perform_search(query)
     """
-    return proxilion.authorize(
-        action=action,
-        resource=resource,
-        user_param=user_param,
+    return cast(
+        Callable[[Callable[P, T]], Callable[P, T]],
+        proxilion.authorize(
+            action=action,
+            resource=resource,
+            user_param=user_param,
+        ),
     )
 
 
@@ -465,13 +486,17 @@ def rate_limited(
         is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 if key_func:
                     key = key_func(dict(kwargs))
                 else:
                     user = kwargs.get(user_param)
-                    key = user.user_id if user else "anonymous"
+                    if isinstance(user, UserContext):
+                        key = user.user_id
+                    else:
+                        key = "anonymous"
 
                 if not limiter.allow_request(key):
                     retry_after = limiter.get_retry_after(key)
@@ -482,17 +507,21 @@ def rate_limited(
                         retry_after=retry_after,
                     )
 
-                return await func(*args, **kwargs)
+                return await cast(Awaitable[T], func(*args, **kwargs))
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 if key_func:
                     key = key_func(dict(kwargs))
                 else:
                     user = kwargs.get(user_param)
-                    key = user.user_id if user else "anonymous"
+                    if isinstance(user, UserContext):
+                        key = user.user_id
+                    else:
+                        key = "anonymous"
 
                 if not limiter.allow_request(key):
                     retry_after = limiter.get_retry_after(key)
@@ -505,7 +534,7 @@ def rate_limited(
 
                 return func(*args, **kwargs)
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -543,17 +572,21 @@ def circuit_protected(
         is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                return await breaker.call_async(func, *args, **kwargs)
+                result: T = await breaker.call_async(func, *args, **kwargs)
+                return result
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                return breaker.call(func, *args, **kwargs)
+                result: T = breaker.call(func, *args, **kwargs)
+                return result
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -592,11 +625,13 @@ def sequence_validated(
         >>> # Will fail if confirm_* wasn't called first
         >>> delete_file("/path/to/file", user=user)
     """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         name = tool_name or func.__name__
         is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user = kwargs.get(user_param)
@@ -625,7 +660,7 @@ def sequence_validated(
                     )
 
                 # Execute function
-                result = await func(*args, **kwargs)
+                result = await cast(Awaitable[T], func(*args, **kwargs))
 
                 # Record successful call
                 if record_on_success:
@@ -633,8 +668,9 @@ def sequence_validated(
 
                 return result
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user = kwargs.get(user_param)
@@ -671,7 +707,7 @@ def sequence_validated(
 
                 return result
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -716,6 +752,7 @@ def enforce_scope(
         is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user = kwargs.get(user_param)
@@ -732,13 +769,14 @@ def enforce_scope(
                 try:
                     # Store scope context in kwargs so nested calls can validate
                     kwargs["_scope_context"] = ctx
-                    result = await func(*args, **kwargs)
+                    result = await cast(Awaitable[T], func(*args, **kwargs))
                     return result
                 finally:
                     ctx.close()
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user = kwargs.get(user_param)
@@ -760,7 +798,7 @@ def enforce_scope(
                 finally:
                     ctx.close()
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -800,35 +838,29 @@ def scoped_tool(
         is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                # Get scope context if available
-                scope_ctx = kwargs.get(scope_context_param)
+                scope_ctx = kwargs.pop(scope_context_param, None)
 
-                if scope_ctx is not None:
-                    # Validate against scope
+                if scope_ctx is not None and hasattr(scope_ctx, "validate_tool"):
                     scope_ctx.validate_tool(name, action)
 
-                # Remove internal param before calling function
-                clean_kwargs = {k: v for k, v in kwargs.items() if k != scope_context_param}
-                return await func(*args, **clean_kwargs)
+                return await cast(Awaitable[T], func(*args, **kwargs))
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                # Get scope context if available
-                scope_ctx = kwargs.get(scope_context_param)
+                scope_ctx = kwargs.pop(scope_context_param, None)
 
-                if scope_ctx is not None:
-                    # Validate against scope
+                if scope_ctx is not None and hasattr(scope_ctx, "validate_tool"):
                     scope_ctx.validate_tool(name, action)
 
-                # Remove internal param before calling function
-                clean_kwargs = {k: v for k, v in kwargs.items() if k != scope_context_param}
-                return func(*args, **clean_kwargs)
+                return func(*args, **kwargs)
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator
 
@@ -883,11 +915,12 @@ def cost_limited(
             user = kwargs.get(user_param)
             if user is None:
                 return "anonymous"
-            if hasattr(user, "user_id"):
+            if isinstance(user, UserContext):
                 return user.user_id
             return str(user)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user_id = get_user_id(kwargs)
@@ -913,7 +946,7 @@ def cost_limited(
                     )
 
                 # Execute function
-                result = await func(*args, **kwargs)
+                result = await cast(Awaitable[T], func(*args, **kwargs))
 
                 # Record actual cost
                 if record_actual:
@@ -924,8 +957,9 @@ def cost_limited(
 
                 return result
 
-            return async_wrapper  # type: ignore
+            return cast(Callable[P, T], async_wrapper)
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 user_id = get_user_id(kwargs)
@@ -962,6 +996,6 @@ def cost_limited(
 
                 return result
 
-            return sync_wrapper  # type: ignore
+            return cast(Callable[P, T], sync_wrapper)
 
     return decorator

@@ -137,11 +137,13 @@ class RequestScheduler:
 
         self._state = SchedulerState.RUNNING
         self._state_lock = threading.Lock()
+        self._resume_event = threading.Event()
+        self._resume_event.set()  # Start in running (non-blocked) state
         self._stats = SchedulerStats()
         self._stats_lock = threading.Lock()
 
         # Track pending futures
-        self._pending_futures: dict[str, Future] = {}
+        self._pending_futures: dict[str, Future[Any]] = {}
         self._futures_lock = threading.Lock()
 
         # Start worker threads
@@ -168,14 +170,11 @@ class RequestScheduler:
                 if self._state == SchedulerState.SHUTTING_DOWN and self._queue.is_empty():
                     return
 
-            # Wait for state to allow processing
-            with self._state_lock:
-                while self._state == SchedulerState.PAUSED:
-                    # Check periodically while paused
-                    pass
+            # Block until resumed (releases CPU while paused)
+            self._resume_event.wait()
 
             if self._state != SchedulerState.RUNNING:
-                if self._state == SchedulerState.STOPPED:
+                if self._state == SchedulerState.STOPPED:  # type: ignore[comparison-overlap]
                     return
                 continue
 
@@ -207,9 +206,7 @@ class RequestScheduler:
                 # Run async handler in event loop
                 loop = asyncio.new_event_loop()
                 try:
-                    result = loop.run_until_complete(
-                        self._async_handler(request.payload)
-                    )
+                    result = loop.run_until_complete(self._async_handler(request.payload))
                 finally:
                     loop.close()
             else:
@@ -234,9 +231,7 @@ class RequestScheduler:
 
         finally:
             # Update stats
-            processing_time = (
-                datetime.now(timezone.utc) - start_time
-            ).total_seconds()
+            processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             with self._stats_lock:
                 self._stats.active_workers -= 1
@@ -277,7 +272,7 @@ class RequestScheduler:
         payload: Any = None,
         timeout: float | None = None,
         callback: Callable[[Any], None] | None = None,
-    ) -> Future:
+    ) -> Future[Any]:
         """
         Submit a request for processing.
 
@@ -310,7 +305,7 @@ class RequestScheduler:
             request.timeout = self.config.default_timeout
 
         # Create future for result
-        future: Future = Future()
+        future: Future[Any] = Future()
 
         with self._futures_lock:
             self._pending_futures[request.id] = future
@@ -364,6 +359,7 @@ class RequestScheduler:
         with self._state_lock:
             if self._state == SchedulerState.RUNNING:
                 self._state = SchedulerState.PAUSED
+                self._resume_event.clear()
                 logger.info("Scheduler paused")
 
     def resume(self) -> None:
@@ -371,6 +367,7 @@ class RequestScheduler:
         with self._state_lock:
             if self._state == SchedulerState.PAUSED:
                 self._state = SchedulerState.RUNNING
+                self._resume_event.set()
                 logger.info("Scheduler resumed")
 
     def shutdown(self, wait: bool = True, timeout: float | None = None) -> None:
@@ -385,6 +382,7 @@ class RequestScheduler:
             if self._state in (SchedulerState.SHUTTING_DOWN, SchedulerState.STOPPED):
                 return
             self._state = SchedulerState.SHUTTING_DOWN
+            self._resume_event.set()  # Unblock workers waiting on pause
 
         logger.info("Scheduler shutting down...")
 

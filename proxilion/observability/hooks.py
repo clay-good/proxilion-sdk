@@ -276,7 +276,7 @@ class InMemoryMetricHook:
         150.0
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the in-memory hook."""
         self.counters: dict[str, float] = defaultdict(float)
         self.gauges: dict[str, float] = {}
@@ -430,7 +430,7 @@ class ObservabilityHooks:
 
     _instance: ObservabilityHooks | None = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the observability hooks registry."""
         self._metric_hooks: list[MetricHook] = []
 

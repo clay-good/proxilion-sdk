@@ -91,12 +91,12 @@ class AlertSeverity(str, Enum):
 class AlertType(str, Enum):
     """Types of cost alerts."""
 
-    BUDGET_WARNING = "budget_warning"       # Approaching budget limit
-    BUDGET_EXCEEDED = "budget_exceeded"     # Budget limit hit
-    RATE_WARNING = "rate_warning"           # High spend rate
-    ANOMALY = "anomaly"                     # Unusual spending pattern
-    SESSION_EXPIRED = "session_expired"     # Session timeout
-    FORECAST_WARNING = "forecast_warning"   # Projected to exceed budget
+    BUDGET_WARNING = "budget_warning"  # Approaching budget limit
+    BUDGET_EXCEEDED = "budget_exceeded"  # Budget limit hit
+    RATE_WARNING = "rate_warning"  # High spend rate
+    ANOMALY = "anomaly"  # Unusual spending pattern
+    SESSION_EXPIRED = "session_expired"  # Session timeout
+    FORECAST_WARNING = "forecast_warning"  # Projected to exceed budget
 
 
 @dataclass
@@ -482,10 +482,7 @@ class SessionCostTracker:
             self._sessions_created += 1
 
         budget_str = f"${budget_limit:.2f}" if budget_limit else "unlimited"
-        logger.info(
-            f"Started session {session_id} for user {user_id} "
-            f"(budget: {budget_str})"
-        )
+        logger.info(f"Started session {session_id} for user {user_id} (budget: {budget_str})")
 
         return session
 
@@ -693,9 +690,8 @@ class SessionCostTracker:
         if session.duration_seconds > 60:  # At least 1 minute
             rate_per_minute = session.total_cost / (session.duration_seconds / 60)
 
-            if (
-                rate_per_minute > self._rate_warning_threshold
-                and not any(a.alert_type == AlertType.RATE_WARNING for a in session.alerts)
+            if rate_per_minute > self._rate_warning_threshold and not any(
+                a.alert_type == AlertType.RATE_WARNING for a in session.alerts
             ):
                 alert = CostAlert(
                     alert_id=f"alert_{uuid.uuid4().hex[:8]}",
@@ -833,8 +829,7 @@ class SessionCostTracker:
                 tool_breakdown=dict(session.by_tool),
                 model_breakdown=dict(session.by_model),
                 agent_breakdown={
-                    agent_id: profile.total_cost
-                    for agent_id, profile in session.agents.items()
+                    agent_id: profile.total_cost for agent_id, profile in session.agents.items()
                 },
                 peak_spend_rate=peak_rate,
                 alerts_triggered=len(session.alerts),
@@ -1027,10 +1022,13 @@ class SessionCostTracker:
                 return "\n".join(lines)
 
             else:
-                return json.dumps({
-                    "session": session.to_dict(),
-                    "records": [r.to_dict() for r in records],
-                }, indent=2)
+                return json.dumps(
+                    {
+                        "session": session.to_dict(),
+                        "records": [r.to_dict() for r in records],
+                    },
+                    indent=2,
+                )
 
     @property
     def base_tracker(self) -> CostTracker:

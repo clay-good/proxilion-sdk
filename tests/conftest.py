@@ -6,10 +6,8 @@ Provides common fixtures used across all test modules.
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -17,7 +15,6 @@ from proxilion import AgentContext, Proxilion, UserContext
 from proxilion.audit.events import AuditEventData, AuditEventV2, EventType
 from proxilion.audit.hash_chain import GENESIS_HASH, HashChain
 from proxilion.audit.logger import AuditLogger, LoggerConfig, RotationPolicy
-from proxilion.policies.base import Policy as BasePolicy
 from proxilion.policies.registry import PolicyRegistry
 from proxilion.security.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
 from proxilion.security.idor_protection import IDORProtector
@@ -89,26 +86,6 @@ def basic_agent() -> AgentContext:
     )
 
 
-@pytest.fixture
-def high_trust_agent() -> AgentContext:
-    """Create a high-trust agent context."""
-    return AgentContext(
-        agent_id="agent_002",
-        capabilities=["search", "read", "write", "execute"],
-        trust_score=1.0,
-    )
-
-
-@pytest.fixture
-def low_trust_agent() -> AgentContext:
-    """Create a low-trust agent context."""
-    return AgentContext(
-        agent_id="agent_003",
-        capabilities=["read"],
-        trust_score=0.3,
-    )
-
-
 # ============================================================================
 # Tool Call Request Fixtures
 # ============================================================================
@@ -124,36 +101,6 @@ def search_tool_request() -> ToolCallRequest:
     )
 
 
-@pytest.fixture
-def database_query_request() -> ToolCallRequest:
-    """Create a database query tool call request."""
-    return ToolCallRequest(
-        tool_name="database_query",
-        arguments={"query": "SELECT * FROM users WHERE id = 1", "database": "main"},
-        timestamp=datetime.now(timezone.utc),
-    )
-
-
-@pytest.fixture
-def file_read_request() -> ToolCallRequest:
-    """Create a file read tool call request."""
-    return ToolCallRequest(
-        tool_name="file_read",
-        arguments={"path": "/safe/path/file.txt"},
-        timestamp=datetime.now(timezone.utc),
-    )
-
-
-@pytest.fixture
-def dangerous_file_request() -> ToolCallRequest:
-    """Create a dangerous file read request with path traversal."""
-    return ToolCallRequest(
-        tool_name="file_read",
-        arguments={"path": "../../../etc/passwd"},
-        timestamp=datetime.now(timezone.utc),
-    )
-
-
 # ============================================================================
 # Policy Fixtures
 # ============================================================================
@@ -163,62 +110,6 @@ def dangerous_file_request() -> ToolCallRequest:
 def policy_registry() -> PolicyRegistry:
     """Create a fresh policy registry."""
     return PolicyRegistry()
-
-
-@pytest.fixture
-def search_policy_class():
-    """Create a search policy class."""
-    class SearchPolicy(BasePolicy):
-        def can_execute(self, context: dict) -> bool:
-            return True  # All authenticated users can search
-
-        def can_search_private(self, context: dict) -> bool:
-            return "admin" in self.user.roles
-
-    return SearchPolicy
-
-
-@pytest.fixture
-def database_policy_class():
-    """Create a database query policy class."""
-    class DatabaseQueryPolicy(BasePolicy):
-        def can_execute(self, context: dict) -> bool:
-            return self.user.roles and any(
-                role in ["analyst", "admin"] for role in self.user.roles
-            )
-
-        def can_write(self, context: dict) -> bool:
-            return "admin" in self.user.roles
-
-        def can_delete(self, context: dict) -> bool:
-            return "admin" in self.user.roles and context.get("confirmed", False)
-
-    return DatabaseQueryPolicy
-
-
-@pytest.fixture
-def file_policy_class():
-    """Create a file access policy class."""
-    class FilePolicy(BasePolicy):
-        FORBIDDEN_PATHS = ["/etc/", "/root/", "/var/log/"]
-
-        def can_read(self, context: dict) -> bool:
-            path = context.get("path", "")
-            # Block path traversal
-            if ".." in path:
-                return False
-            # Block forbidden paths
-            return all(
-                not path.startswith(forbidden)
-                for forbidden in self.FORBIDDEN_PATHS
-            )
-
-        def can_write(self, context: dict) -> bool:
-            if not self.can_read(context):
-                return False
-            return "admin" in self.user.roles or "writer" in self.user.roles
-
-    return FilePolicy
 
 
 # ============================================================================
@@ -243,20 +134,6 @@ def proxilion_with_audit(tmp_path: Path) -> Proxilion:
         policy_engine="simple",
         audit_log_path=str(audit_path),
         enable_circuit_breaker=False,
-    )
-
-
-@pytest.fixture
-def proxilion_full(tmp_path: Path) -> Proxilion:
-    """Create a fully configured Proxilion instance."""
-    audit_path = tmp_path / "audit.jsonl"
-    return Proxilion(
-        policy_engine="simple",
-        audit_log_path=str(audit_path),
-        rate_limit_config={
-            "default": {"capacity": 100, "refill_rate": 10},
-        },
-        enable_circuit_breaker=True,
     )
 
 
@@ -456,38 +333,3 @@ def sample_audit_event(
     )
     event.compute_hash()
     return event
-
-
-# ============================================================================
-# Helper Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def temp_file(tmp_path: Path) -> Generator[Path, None, None]:
-    """Create a temporary file for testing."""
-    file_path = tmp_path / "test_file.txt"
-    file_path.write_text("Test content")
-    yield file_path
-
-
-@pytest.fixture
-def mock_tool_implementation():
-    """Create a mock tool implementation that tracks calls."""
-    class MockTool:
-        def __init__(self):
-            self.calls: list[dict[str, Any]] = []
-            self.should_fail = False
-            self.fail_count = 0
-
-        def __call__(self, **kwargs) -> dict[str, Any]:
-            self.calls.append(kwargs)
-            if self.should_fail:
-                self.fail_count += 1
-                raise RuntimeError("Mock tool failure")
-            return {"status": "success", "args": kwargs}
-
-        async def async_call(self, **kwargs) -> dict[str, Any]:
-            return self(**kwargs)
-
-    return MockTool()

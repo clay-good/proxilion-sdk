@@ -11,7 +11,7 @@ import asyncio
 import inspect
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
@@ -98,11 +98,13 @@ class ToolDefinition:
 
     name: str
     description: str
-    parameters: dict[str, Any] = field(default_factory=lambda: {
-        "type": "object",
-        "properties": {},
-        "required": [],
-    })
+    parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+    )
     category: ToolCategory = ToolCategory.CUSTOM
     risk_level: RiskLevel = RiskLevel.LOW
     requires_approval: bool = False
@@ -464,9 +466,7 @@ class ToolRegistry:
             ValueError: If format is not supported.
         """
         if format not in self.SUPPORTED_FORMATS:
-            raise ValueError(
-                f"Unsupported format: {format}. Supported: {self.SUPPORTED_FORMATS}"
-            )
+            raise ValueError(f"Unsupported format: {format}. Supported: {self.SUPPORTED_FORMATS}")
 
         with self._lock:
             tools = self.list_enabled() if enabled_only else self.list_all()
@@ -603,6 +603,8 @@ class ToolRegistry:
         if tool.handler is None:
             raise ValueError(f"Tool '{name}' has no handler")
 
+        handler = tool.handler
+
         # Invoke execution hooks
         for hook in self._execution_hooks:
             try:
@@ -614,14 +616,12 @@ class ToolRegistry:
 
         try:
             # Check if handler is async
-            if inspect.iscoroutinefunction(tool.handler):
-                result = await tool.handler(**kwargs)
+            if inspect.iscoroutinefunction(handler):
+                result = await handler(**kwargs)
             else:
                 # Run sync handler in thread pool
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None, lambda: tool.handler(**kwargs)
-                )
+                result = await loop.run_in_executor(None, lambda: handler(**kwargs))
 
             execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
@@ -643,9 +643,7 @@ class ToolRegistry:
                 execution_time=execution_time,
             )
 
-    def add_execution_hook(
-        self, hook: Callable[[str, dict[str, Any]], None]
-    ) -> ToolRegistry:
+    def add_execution_hook(self, hook: Callable[[str, dict[str, Any]], None]) -> ToolRegistry:
         """
         Add a hook to be called before tool execution.
 
@@ -658,9 +656,7 @@ class ToolRegistry:
         self._execution_hooks.append(hook)
         return self
 
-    def remove_execution_hook(
-        self, hook: Callable[[str, dict[str, Any]], None]
-    ) -> bool:
+    def remove_execution_hook(self, hook: Callable[[str, dict[str, Any]], None]) -> bool:
         """
         Remove an execution hook.
 
@@ -689,7 +685,7 @@ class ToolRegistry:
         """Check if tool is registered."""
         return name in self._tools
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ToolDefinition]:
         """Iterate over tool definitions."""
         return iter(self._tools.values())
 

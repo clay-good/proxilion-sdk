@@ -24,14 +24,16 @@ T = TypeVar("T")
 
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation, requests pass through
-    OPEN = "open"          # Failing, requests rejected
+
+    CLOSED = "closed"  # Normal operation, requests pass through
+    OPEN = "open"  # Failing, requests rejected
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
 @dataclass
 class CircuitStats:
     """Statistics for a circuit breaker."""
+
     failures: int = 0
     successes: int = 0
     consecutive_failures: int = 0
@@ -154,10 +156,7 @@ class CircuitBreaker:
         elapsed = time.monotonic() - self._stats.state_change_time
 
         if elapsed >= current_timeout:
-            logger.info(
-                f"Circuit transitioning from OPEN to HALF_OPEN "
-                f"after {elapsed:.1f}s"
-            )
+            logger.info(f"Circuit transitioning from OPEN to HALF_OPEN after {elapsed:.1f}s")
             self._state = CircuitState.HALF_OPEN
             self._stats.state_change_time = time.monotonic()
             self._half_open_count = 0

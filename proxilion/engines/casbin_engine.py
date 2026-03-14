@@ -30,10 +30,11 @@ logger = logging.getLogger(__name__)
 
 # Check if casbin is available
 try:
-    import casbin
+    import casbin  # type: ignore[import-not-found]
+
     HAS_CASBIN = True
 except ImportError:
-    casbin = None  # type: ignore
+    casbin = None
     HAS_CASBIN = False
 
 
@@ -345,7 +346,7 @@ class CasbinPolicyEngine(BasePolicyEngine):
         Returns:
             True if the policy was added, False if it already exists.
         """
-        return self.enforcer.add_policy(subject, resource, action)
+        return bool(self.enforcer.add_policy(subject, resource, action))
 
     def remove_policy(self, subject: str, resource: str, action: str) -> bool:
         """
@@ -359,7 +360,7 @@ class CasbinPolicyEngine(BasePolicyEngine):
         Returns:
             True if the policy was removed, False if it didn't exist.
         """
-        return self.enforcer.remove_policy(subject, resource, action)
+        return bool(self.enforcer.remove_policy(subject, resource, action))
 
     def add_role_for_user(self, user: str, role: str) -> bool:
         """
@@ -372,7 +373,7 @@ class CasbinPolicyEngine(BasePolicyEngine):
         Returns:
             True if the role was added.
         """
-        return self.enforcer.add_role_for_user(user, role)
+        return bool(self.enforcer.add_role_for_user(user, role))
 
     def remove_role_for_user(self, user: str, role: str) -> bool:
         """
@@ -385,7 +386,7 @@ class CasbinPolicyEngine(BasePolicyEngine):
         Returns:
             True if the role was removed.
         """
-        return self.enforcer.delete_role_for_user(user, role)
+        return bool(self.enforcer.delete_role_for_user(user, role))
 
     def get_roles_for_user(self, user: str) -> list[str]:
         """
@@ -397,7 +398,7 @@ class CasbinPolicyEngine(BasePolicyEngine):
         Returns:
             List of role names.
         """
-        return self.enforcer.get_roles_for_user(user)
+        return list(self.enforcer.get_roles_for_user(user))
 
     def reload_policies(self) -> None:
         """Reload policies from the policy file."""

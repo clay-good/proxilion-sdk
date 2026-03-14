@@ -202,35 +202,42 @@ class RAGScanResult:
     @property
     def safe_documents(self) -> list[RAGDocument]:
         """Get only the safe documents."""
-        return [
-            doc for i, doc in enumerate(self.documents)
-            if i not in self.poisoned_indices
-        ]
+        return [doc for i, doc in enumerate(self.documents) if i not in self.poisoned_indices]
 
 
 # RAG poisoning detection patterns
 RAG_POISON_PATTERNS: list[tuple[str, str, float]] = [
     # (pattern, description, severity)
-    (r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)",
-     "Instruction override attempt", 0.95),
-    (r"(?i)you\s+are\s+now\s+(\w+\s+)?(mode|persona|character)",
-     "Role/persona injection", 0.9),
-    (r"(?i)system\s*:\s*you\s+(are|must|should|will)",
-     "Fake system message", 0.95),
-    (r"(?i)\[/?INST\]|\[/?SYS\]|<\|im_start\|>|<\|im_end\|>",
-     "Model delimiter injection", 0.9),
-    (r"(?i)admin\s+(mode|access|override)\s*(enabled|activated|on)",
-     "Privilege escalation attempt", 0.85),
-    (r"(?i)(reveal|show|display|print)\s+(your\s+)?(system\s+)?(prompt|instructions)",
-     "System prompt extraction", 0.8),
-    (r"(?i)forget\s+(everything|all|what)\s+(you\s+)?(know|learned|were\s+told)",
-     "Memory wipe attempt", 0.85),
-    (r"(?i)from\s+now\s+on\s*,?\s*(you\s+)?(will|must|should|are)",
-     "Behavioral override", 0.8),
-    (r"(?i)disregard\s+(all\s+)?(safety|security|ethical)\s+(guidelines?|rules?|constraints?)",
-     "Safety bypass attempt", 0.95),
-    (r"(?i)execute\s+(this\s+)?(code|script|command)\s*:",
-     "Code execution injection", 0.9),
+    (
+        r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)",
+        "Instruction override attempt",
+        0.95,
+    ),
+    (r"(?i)you\s+are\s+now\s+(\w+\s+)?(mode|persona|character)", "Role/persona injection", 0.9),
+    (r"(?i)system\s*:\s*you\s+(are|must|should|will)", "Fake system message", 0.95),
+    (r"(?i)\[/?INST\]|\[/?SYS\]|<\|im_start\|>|<\|im_end\|>", "Model delimiter injection", 0.9),
+    (
+        r"(?i)admin\s+(mode|access|override)\s*(enabled|activated|on)",
+        "Privilege escalation attempt",
+        0.85,
+    ),
+    (
+        r"(?i)(reveal|show|display|print)\s+(your\s+)?(system\s+)?(prompt|instructions)",
+        "System prompt extraction",
+        0.8,
+    ),
+    (
+        r"(?i)forget\s+(everything|all|what)\s+(you\s+)?(know|learned|were\s+told)",
+        "Memory wipe attempt",
+        0.85,
+    ),
+    (r"(?i)from\s+now\s+on\s*,?\s*(you\s+)?(will|must|should|are)", "Behavioral override", 0.8),
+    (
+        r"(?i)disregard\s+(all\s+)?(safety|security|ethical)\s+(guidelines?|rules?|constraints?)",
+        "Safety bypass attempt",
+        0.95,
+    ),
+    (r"(?i)execute\s+(this\s+)?(code|script|command)\s*:", "Code execution injection", 0.9),
 ]
 
 
@@ -341,9 +348,7 @@ class MemoryIntegrityGuard:
             sequence = self._sequence_counter
             self._sequence_counter += 1
 
-            signature = self._compute_signature(
-                role, content, sequence, timestamp, self._last_hash
-            )
+            signature = self._compute_signature(role, content, sequence, timestamp, self._last_hash)
 
             msg = SignedMessage(
                 role=role,
@@ -430,11 +435,13 @@ class MemoryIntegrityGuard:
 
         # Check context size
         if len(context) > self._max_context_size:
-            violations.append(IntegrityViolation(
-                violation_type=IntegrityViolationType.CONTEXT_OVERFLOW,
-                message=f"Context size {len(context)} exceeds max {self._max_context_size}",
-                severity=0.7,
-            ))
+            violations.append(
+                IntegrityViolation(
+                    violation_type=IntegrityViolationType.CONTEXT_OVERFLOW,
+                    message=f"Context size {len(context)} exceeds max {self._max_context_size}",
+                    severity=0.7,
+                )
+            )
 
         if not context:
             return VerificationResult(
@@ -462,50 +469,61 @@ class MemoryIntegrityGuard:
                 if msg.sequence != prev_sequence + 1:
                     if msg.sequence <= prev_sequence:
                         expected_seq = prev_sequence + 1
-                        violations.append(IntegrityViolation(
-                            violation_type=IntegrityViolationType.SEQUENCE_REORDER,
-                            message=f"Message {i} sequence {msg.sequence}, expected {expected_seq}",
-                            severity=0.9,
-                            index=i,
-                            expected=str(expected_seq),
-                            actual=str(msg.sequence),
-                        ))
+                        violations.append(
+                            IntegrityViolation(
+                                violation_type=IntegrityViolationType.SEQUENCE_REORDER,
+                                message=f"Message {i} sequence {msg.sequence}, "
+                                f"expected {expected_seq}",
+                                severity=0.9,
+                                index=i,
+                                expected=str(expected_seq),
+                                actual=str(msg.sequence),
+                            )
+                        )
                     else:
-                        violations.append(IntegrityViolation(
-                            violation_type=IntegrityViolationType.SEQUENCE_GAP,
-                            message=f"Gap in sequence: {prev_sequence} -> {msg.sequence}",
-                            severity=0.8,
-                            index=i,
-                        ))
+                        violations.append(
+                            IntegrityViolation(
+                                violation_type=IntegrityViolationType.SEQUENCE_GAP,
+                                message=f"Gap in sequence: {prev_sequence} -> {msg.sequence}",
+                                severity=0.8,
+                                index=i,
+                            )
+                        )
 
             # Check timestamp ordering
             if check_timestamps and prev_timestamp > 0:
                 if msg.timestamp < prev_timestamp:
-                    violations.append(IntegrityViolation(
-                        violation_type=IntegrityViolationType.TIMESTAMP_ANOMALY,
-                        message=f"Timestamp goes backwards at message {i}",
-                        severity=0.7,
-                        index=i,
-                    ))
+                    violations.append(
+                        IntegrityViolation(
+                            violation_type=IntegrityViolationType.TIMESTAMP_ANOMALY,
+                            message=f"Timestamp goes backwards at message {i}",
+                            severity=0.7,
+                            index=i,
+                        )
+                    )
                 elif msg.timestamp - prev_timestamp > self._max_timestamp_drift:
                     # Large gap might indicate injection
                     gap = msg.timestamp - prev_timestamp
-                    violations.append(IntegrityViolation(
-                        violation_type=IntegrityViolationType.TIMESTAMP_ANOMALY,
-                        message=f"Large timestamp gap at message {i}: {gap:.1f}s",
-                        severity=0.5,
-                        index=i,
-                    ))
+                    violations.append(
+                        IntegrityViolation(
+                            violation_type=IntegrityViolationType.TIMESTAMP_ANOMALY,
+                            message=f"Large timestamp gap at message {i}: {gap:.1f}s",
+                            severity=0.5,
+                            index=i,
+                        )
+                    )
 
             # Check for role injection in content
             role_injection = self._detect_role_injection(msg.content)
             if role_injection:
-                violations.append(IntegrityViolation(
-                    violation_type=IntegrityViolationType.ROLE_INJECTION,
-                    message=f"Role injection detected in message {i}: {role_injection}",
-                    severity=0.85,
-                    index=i,
-                ))
+                violations.append(
+                    IntegrityViolation(
+                        violation_type=IntegrityViolationType.ROLE_INJECTION,
+                        message=f"Role injection detected in message {i}: {role_injection}",
+                        severity=0.85,
+                        index=i,
+                    )
+                )
 
             # Update state for next iteration
             expected_hash = msg.content_hash()
@@ -558,12 +576,14 @@ class MemoryIntegrityGuard:
             elif isinstance(doc, str):
                 normalized.append(RAGDocument(content=doc))
             elif isinstance(doc, dict):
-                normalized.append(RAGDocument(
-                    content=doc.get("content", doc.get("text", str(doc))),
-                    source=doc.get("source"),
-                    score=doc.get("score", 0.0),
-                    metadata=doc.get("metadata", {}),
-                ))
+                normalized.append(
+                    RAGDocument(
+                        content=str(doc.get("content", doc.get("text", str(doc)))),
+                        source=doc.get("source"),
+                        score=doc.get("score", 0.0),
+                        metadata=doc.get("metadata", {}),
+                    )
+                )
             else:
                 normalized.append(RAGDocument(content=str(doc)))
 
@@ -593,12 +613,14 @@ class MemoryIntegrityGuard:
 
         for pattern, description, severity in self._rag_patterns:
             if pattern.search(content):
-                violations.append(IntegrityViolation(
-                    violation_type=IntegrityViolationType.RAG_POISONING,
-                    message=f"RAG poisoning detected in document {index}: {description}",
-                    severity=severity,
-                    index=index,
-                ))
+                violations.append(
+                    IntegrityViolation(
+                        violation_type=IntegrityViolationType.RAG_POISONING,
+                        message=f"RAG poisoning detected in document {index}: {description}",
+                        severity=severity,
+                        index=index,
+                    )
+                )
 
         return violations
 
@@ -715,23 +737,18 @@ class ContextWindowGuard:
             result = self._guard.verify_context(self._messages)
             if not result.valid:
                 from proxilion.exceptions import ContextIntegrityError
+
                 raise ContextIntegrityError(
                     f"Context integrity violated: {result.violations[0].message}",
                     violations=result.violations,
                 )
 
-            return [
-                {"role": msg.role, "content": msg.content}
-                for msg in self._messages
-            ]
+            return [{"role": msg.role, "content": msg.content} for msg in self._messages]
 
     def get_messages_for_api(self) -> list[dict[str, str]]:
         """Get messages in API format (role, content only)."""
         with self._lock:
-            return [
-                {"role": msg.role, "content": msg.content}
-                for msg in self._messages
-            ]
+            return [{"role": msg.role, "content": msg.content} for msg in self._messages]
 
     def clear(self) -> None:
         """Clear all messages and reset state."""

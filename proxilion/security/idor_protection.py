@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ResourceScope:
     """Defines the scope of resources a user can access."""
+
     allowed_ids: set[str] = field(default_factory=set)
     allowed_patterns: list[str] = field(default_factory=list)
     scope_loader: Callable[[str], set[str]] | None = None
@@ -30,6 +31,7 @@ class ResourceScope:
 @dataclass
 class IDPattern:
     """Pattern for identifying object IDs in parameters."""
+
     parameter_name: str
     resource_type: str
     pattern: str = r".*"  # Regex to validate ID format
@@ -196,9 +198,7 @@ class IDORProtector:
                 self._resource_patterns[resource_type] = []
             self._resource_patterns[resource_type].append(id_pattern)
 
-            logger.debug(
-                f"Registered ID pattern: {parameter_name} -> {resource_type}"
-            )
+            logger.debug(f"Registered ID pattern: {parameter_name} -> {resource_type}")
 
     def validate_access(
         self,
@@ -238,9 +238,7 @@ class IDORProtector:
 
             if scope is None:
                 # No scope defined - default deny
-                logger.debug(
-                    f"No scope for user={user_id}, resource_type={resource_type}"
-                )
+                logger.debug(f"No scope for user={user_id}, resource_type={resource_type}")
                 return False
 
             # Check allowed IDs
@@ -299,12 +297,8 @@ class IDORProtector:
 
                 # Validate each ID
                 for object_id in ids:
-                    if not self.validate_access(
-                        user_id, pattern.resource_type, object_id
-                    ):
-                        violations.append(
-                            (param_name, pattern.resource_type, object_id)
-                        )
+                    if not self.validate_access(user_id, pattern.resource_type, object_id):
+                        violations.append((param_name, pattern.resource_type, object_id))
 
         return violations
 
@@ -392,9 +386,9 @@ class IDORProtector:
             elif self.NUMERIC_PATTERN.match(value) and len(value) <= 20:
                 detected[param_name] = "numeric"
             elif (
-                self.ALPHANUMERIC_PATTERN.match(value) and
-                len(value) <= 50 and
-                any(c.isdigit() for c in value)
+                self.ALPHANUMERIC_PATTERN.match(value)
+                and len(value) <= 50
+                and any(c.isdigit() for c in value)
             ):
                 detected[param_name] = "alphanumeric"
 

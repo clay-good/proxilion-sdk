@@ -43,6 +43,7 @@ share/python/
 .tox/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .venv
 venv/
@@ -69,7 +70,9 @@ node_modules/
 /.wrangler/
 /worker/
 logs/
+logs_*/
 *.log
+*.zip
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

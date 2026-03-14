@@ -7,11 +7,14 @@ LLM token limits while preserving important context.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol
 
 from proxilion.context.message_history import Message, MessageRole
+
+logger = logging.getLogger(__name__)
 
 
 class ContextStrategy(Enum):
@@ -316,8 +319,16 @@ class SummarizeOldStrategy:
         recent = messages[-self.keep_recent :]
         old = messages[: -self.keep_recent]
 
-        # Summarize old messages
-        summary_text = self.summarize_callback(old)
+        # Summarize old messages — fall back to sliding window on failure
+        try:
+            summary_text = self.summarize_callback(old)
+        except Exception as e:
+            logger.warning(
+                "Summarize callback failed (%s: %s); falling back to sliding window",
+                type(e).__name__,
+                e,
+            )
+            return SlidingWindowStrategy().fit(messages, max_tokens)
         summary_content = f"{self.summary_prefix}\n{summary_text}"
 
         summary_msg = Message(
@@ -388,9 +399,7 @@ class ContextWindow:
         self._strategy = strategy
         self._fit_strategy = self._get_strategy(strategy)
 
-    def _get_strategy(
-        self, strategy: ContextStrategy | FitStrategy
-    ) -> FitStrategy:
+    def _get_strategy(self, strategy: ContextStrategy | FitStrategy) -> FitStrategy:
         """Get the fit strategy implementation."""
         if isinstance(strategy, ContextStrategy):
             if strategy == ContextStrategy.SLIDING_WINDOW:

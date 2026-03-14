@@ -69,8 +69,13 @@ class ModelPricing:
     def __post_init__(self) -> None:
         """Validate pricing values are non-negative and finite."""
         import math
-        for name in ("input_price_per_1k", "output_price_per_1k",
-                     "cache_read_price_per_1k", "cache_write_price_per_1k"):
+
+        for name in (
+            "input_price_per_1k",
+            "output_price_per_1k",
+            "cache_read_price_per_1k",
+            "cache_write_price_per_1k",
+        ):
             value = getattr(self, name)
             if math.isnan(value) or math.isinf(value):
                 raise ValueError(f"{name} must be finite, got {value}")
@@ -461,7 +466,7 @@ class CostTracker:
 
             # Trim old records if needed
             if len(self._records) > self._max_records:
-                self._records = self._records[-self._max_records:]
+                self._records = self._records[-self._max_records :]
 
             # Update spend tracking
             if user_id:
@@ -819,10 +824,11 @@ class CostTracker:
                 return original_count
 
             self._records = [
-                r for r in self._records
+                r
+                for r in self._records
                 if not (
-                    (before is None or r.timestamp >= before) and
-                    (user_id is None or r.user_id == user_id)
+                    (before is None or r.timestamp >= before)
+                    and (user_id is None or r.user_id == user_id)
                 )
             ]
 

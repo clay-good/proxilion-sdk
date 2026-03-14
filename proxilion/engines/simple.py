@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from proxilion.engines.base import BasePolicyEngine, EngineCapabilities
+from proxilion.exceptions import PolicyNotFoundError
 from proxilion.policies.base import Policy
 from proxilion.policies.builtin import DenyAllPolicy
 from proxilion.policies.registry import PolicyRegistry
@@ -130,10 +131,7 @@ class SimplePolicyEngine(BasePolicyEngine):
         ctx = context or {}
         policies_evaluated: list[str] = []
 
-        logger.debug(
-            f"Evaluating: user={user.user_id}, action={action}, "
-            f"resource={resource}"
-        )
+        logger.debug(f"Evaluating: user={user.user_id}, action={action}, resource={resource}")
 
         # Check dictionary rules first
         if resource in self._dict_rules:
@@ -150,7 +148,7 @@ class SimplePolicyEngine(BasePolicyEngine):
         try:
             policy_class = self.registry.get_policy(resource)
             policies_evaluated.append(policy_class.__name__)
-        except Exception as e:
+        except PolicyNotFoundError as e:
             if self.allow_missing_policies:
                 logger.debug(f"No policy for '{resource}', denying: {e}")
                 return AuthorizationResult(
@@ -239,9 +237,7 @@ class SimplePolicyEngine(BasePolicyEngine):
             self._dict_rules[resource] = {}
 
         self._dict_rules[resource][action] = allowed_roles
-        logger.debug(
-            f"Added rule: {resource}:{action} -> {allowed_roles}"
-        )
+        logger.debug(f"Added rule: {resource}:{action} -> {allowed_roles}")
 
     def add_rules(self, rules: dict[str, dict[str, list[str]]]) -> None:
         """
@@ -410,7 +406,7 @@ class SimplePolicyEngine(BasePolicyEngine):
         """
         result = self.evaluate(user, action, resource, context)
 
-        explanation = {
+        explanation: dict[str, Any] = {
             "decision": "ALLOW" if result.allowed else "DENY",
             "reason": result.reason,
             "policies_evaluated": result.policies_evaluated,

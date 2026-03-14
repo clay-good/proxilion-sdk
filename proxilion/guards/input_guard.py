@@ -348,14 +348,16 @@ class InputGuard:
                 severities.append(pattern.severity)
 
                 for match in matches:
-                    all_matches.append({
-                        "pattern": pattern.name,
-                        "category": pattern.category,
-                        "severity": pattern.severity,
-                        "matched_text": match.group(),
-                        "start": match.start(),
-                        "end": match.end(),
-                    })
+                    all_matches.append(
+                        {
+                            "pattern": pattern.name,
+                            "category": pattern.category,
+                            "severity": pattern.severity,
+                            "matched_text": match.group(),
+                            "start": match.start(),
+                            "end": match.end(),
+                        }
+                    )
 
         # Calculate risk score
         risk_score = self._calculate_risk_score(severities)
@@ -374,13 +376,11 @@ class InputGuard:
         # Log based on action
         if action == GuardAction.WARN and not passed:
             logger.warning(
-                f"Input guard warning: risk_score={risk_score:.2f}, "
-                f"patterns={matched_patterns}"
+                f"Input guard warning: risk_score={risk_score:.2f}, patterns={matched_patterns}"
             )
         elif action == GuardAction.BLOCK and not passed:
             logger.info(
-                f"Input guard blocked: risk_score={risk_score:.2f}, "
-                f"patterns={matched_patterns}"
+                f"Input guard blocked: risk_score={risk_score:.2f}, patterns={matched_patterns}"
             )
 
         return GuardResult(

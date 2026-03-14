@@ -85,7 +85,10 @@ class RetryPolicy:
             Delay in seconds with jitter applied.
         """
         # Exponential backoff: base_delay * (exponential_base ^ (attempt - 1))
-        delay = self.base_delay * (self.exponential_base ** (attempt - 1))
+        try:
+            delay = self.base_delay * (self.exponential_base ** (attempt - 1))
+        except OverflowError:
+            delay = self.max_delay
 
         # Cap at max_delay
         delay = min(delay, self.max_delay)
@@ -94,7 +97,7 @@ class RetryPolicy:
         if self.jitter > 0:
             jitter_range = delay * self.jitter
             delay = delay + random.uniform(-jitter_range, jitter_range)
-            delay = max(0, delay)  # Ensure non-negative
+            delay = max(0, min(delay, self.max_delay))  # Clamp to [0, max_delay]
 
         return delay
 
@@ -276,7 +279,7 @@ def retry_with_backoff(
                     **kwargs,
                 )
 
-            return sync_wrapper  # type: ignore
+            return sync_wrapper
 
     return decorator
 
@@ -329,9 +332,7 @@ async def retry_async(
             if on_success:
                 on_success(result, stats)
 
-            logger.debug(
-                f"Retry succeeded on attempt {attempt}/{effective_policy.max_attempts}"
-            )
+            logger.debug(f"Retry succeeded on attempt {attempt}/{effective_policy.max_attempts}")
             return result
 
         except Exception as e:
@@ -370,8 +371,7 @@ async def retry_async(
         on_failure(last_exception, stats)
 
     logger.error(
-        f"All {effective_policy.max_attempts} attempts failed. "
-        f"Last error: {last_exception}"
+        f"All {effective_policy.max_attempts} attempts failed. Last error: {last_exception}"
     )
 
     if last_exception:
@@ -427,9 +427,7 @@ def retry_sync(
             if on_success:
                 on_success(result, stats)
 
-            logger.debug(
-                f"Retry succeeded on attempt {attempt}/{effective_policy.max_attempts}"
-            )
+            logger.debug(f"Retry succeeded on attempt {attempt}/{effective_policy.max_attempts}")
             return result
 
         except Exception as e:
@@ -468,8 +466,7 @@ def retry_sync(
         on_failure(last_exception, stats)
 
     logger.error(
-        f"All {effective_policy.max_attempts} attempts failed. "
-        f"Last error: {last_exception}"
+        f"All {effective_policy.max_attempts} attempts failed. Last error: {last_exception}"
     )
 
     if last_exception:

@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class ValidationResult(Enum):
     """Result of intent validation."""
+
     VALID = "valid"
     SUSPICIOUS = "suspicious"
     BLOCKED = "blocked"
@@ -30,6 +31,7 @@ class ValidationResult(Enum):
 @dataclass
 class ValidationOutcome:
     """Outcome of intent validation."""
+
     result: ValidationResult
     reason: str | None = None
     risk_score: float = 0.0
@@ -49,6 +51,7 @@ class ValidationOutcome:
 @dataclass
 class WorkflowState:
     """State of a user's workflow."""
+
     current_state: str = "initial"
     allowed_transitions: set[str] = field(default_factory=set)
     history: list[str] = field(default_factory=list)
@@ -58,12 +61,13 @@ class WorkflowState:
 @dataclass
 class AnomalyThresholds:
     """Thresholds for anomaly detection."""
+
     max_calls_per_minute: int = 60
     max_unique_resources_per_minute: int = 20
     max_consecutive_failures: int = 5
     max_data_volume_mb: float = 10.0
     suspicious_hour_start: int = 2  # 2 AM
-    suspicious_hour_end: int = 5    # 5 AM
+    suspicious_hour_end: int = 5  # 5 AM
 
 
 class IntentValidator:
@@ -157,8 +161,7 @@ class IntentValidator:
         """
         with self._lock:
             self._workflows[workflow_name] = {
-                state: set(next_states)
-                for state, next_states in transitions.items()
+                state: set(next_states) for state, next_states in transitions.items()
             }
             logger.debug(f"Registered workflow: {workflow_name}")
 
@@ -218,9 +221,7 @@ class IntentValidator:
             # Workflow validation
             if workflow_name:
                 state_name = tool_to_state(tool_name) if tool_to_state else tool_name
-                workflow_outcome = self._validate_workflow(
-                    user_id, workflow_name, state_name
-                )
+                workflow_outcome = self._validate_workflow(user_id, workflow_name, state_name)
                 outcomes.append(workflow_outcome)
 
             # Anomaly detection
@@ -228,9 +229,7 @@ class IntentValidator:
             outcomes.append(anomaly_outcome)
 
             # Parameter consistency
-            consistency_outcome = self._check_parameter_consistency(
-                tool_name, arguments
-            )
+            consistency_outcome = self._check_parameter_consistency(tool_name, arguments)
             outcomes.append(consistency_outcome)
 
             # Combine outcomes
@@ -249,8 +248,7 @@ class IntentValidator:
         # Cleanup old entries (keep last hour)
         cutoff = now - 3600
         self._call_history[user_id] = [
-            entry for entry in self._call_history[user_id]
-            if entry[0] > cutoff
+            entry for entry in self._call_history[user_id] if entry[0] > cutoff
         ]
 
         # Remove empty user history immediately
@@ -294,8 +292,7 @@ class IntentValidator:
             return ValidationOutcome(
                 result=ValidationResult.SUSPICIOUS,
                 reason=(
-                    f"Unexpected workflow transition: "
-                    f"{user_state.current_state} -> {state_name}"
+                    f"Unexpected workflow transition: {user_state.current_state} -> {state_name}"
                 ),
                 risk_score=0.5,
                 details={
@@ -326,10 +323,7 @@ class IntentValidator:
         minute_ago = now - 60
 
         # Get recent calls
-        recent_calls = [
-            entry for entry in self._call_history[user_id]
-            if entry[0] > minute_ago
-        ]
+        recent_calls = [entry for entry in self._call_history[user_id] if entry[0] > minute_ago]
 
         # Check call rate
         if len(recent_calls) > self.thresholds.max_calls_per_minute:
@@ -369,10 +363,12 @@ class IntentValidator:
         # Check for mass operations (same tool, different IDs)
         same_tool_calls = [c for c in recent_calls if c[1] == tool_name]
         if len(same_tool_calls) > 10:
-            different_ids = len({
-                str(c[2].get("id") or c[2].get("document_id") or c[2].get("user_id"))
-                for c in same_tool_calls
-            })
+            different_ids = len(
+                {
+                    str(c[2].get("id") or c[2].get("document_id") or c[2].get("user_id"))
+                    for c in same_tool_calls
+                }
+            )
             if different_ids > 5:
                 return ValidationOutcome(
                     result=ValidationResult.SUSPICIOUS,
@@ -517,10 +513,7 @@ class IntentValidator:
         cutoff = now - 3600  # 1 hour
 
         # Clean up empty call histories
-        empty_history_users = [
-            uid for uid, history in self._call_history.items()
-            if not history
-        ]
+        empty_history_users = [uid for uid, history in self._call_history.items() if not history]
         for uid in empty_history_users:
             del self._call_history[uid]
 

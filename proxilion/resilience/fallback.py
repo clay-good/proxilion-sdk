@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Generic, TypeVar
 
+from proxilion.exceptions import FallbackExhaustedError
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
@@ -56,9 +58,7 @@ class FallbackOption:
     name: str
     handler: Callable[..., Any]
     priority: int = 0
-    conditions: set[FallbackCondition] = field(
-        default_factory=lambda: {FallbackCondition.ALWAYS}
-    )
+    conditions: set[FallbackCondition] = field(default_factory=lambda: {FallbackCondition.ALWAYS})
     enabled: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -128,6 +128,38 @@ class FallbackResult(Generic[T]):
     exceptions: list[tuple[str, Exception]] = field(default_factory=list)
     execution_time: float = 0.0
 
+    def raise_on_failure(self) -> None:
+        """
+        Raise a ``FallbackExhaustedError`` if the chain failed.
+
+        The raised exception chains all collected errors via ``__cause__``
+        so that every failure is visible in the traceback.
+
+        Raises:
+            FallbackExhaustedError: If ``success`` is False and there are errors.
+        """
+        if self.success:
+            return
+
+        if not self.exceptions:
+            return
+
+        error = FallbackExhaustedError(
+            errors=self.exceptions,
+            attempts=self.attempts,
+        )
+
+        # Build __cause__ chain so all errors appear in traceback
+        cause: BaseException | None = None
+        for _name, exc in reversed(self.exceptions):
+            if cause is None:
+                cause = exc
+            else:
+                exc.__cause__ = cause
+                cause = exc
+
+        raise error from cause
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -136,9 +168,7 @@ class FallbackResult(Generic[T]):
             "fallback_name": self.fallback_name,
             "attempts": self.attempts,
             "execution_time": self.execution_time,
-            "exception_types": [
-                (name, type(e).__name__) for name, e in self.exceptions
-            ],
+            "exception_types": [(name, type(e).__name__) for name, e in self.exceptions],
         }
 
 
@@ -271,10 +301,10 @@ class FallbackChain(Generic[T]):
 
         last_exception: Exception | None = None
 
-        for name, handler, is_fallback, option in handlers:
+        for name, handler, is_fallback, fb_option in handlers:
             # Check if this fallback's conditions match the last exception
-            if is_fallback and option is not None and last_exception is not None:
-                if not option.matches_condition(last_exception):
+            if is_fallback and fb_option is not None and last_exception is not None:
+                if not fb_option.matches_condition(last_exception):
                     continue
 
             result.attempts += 1
@@ -304,9 +334,7 @@ class FallbackChain(Generic[T]):
                 result.exceptions.append((name, e))
                 logger.warning(f"Fallback chain: '{name}' failed: {e}")
 
-        result.execution_time = (
-            datetime.now(timezone.utc) - start_time
-        ).total_seconds()
+        result.execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
         return result
 
     async def execute_async(
@@ -341,10 +369,10 @@ class FallbackChain(Generic[T]):
 
         last_exception: Exception | None = None
 
-        for name, handler, is_fallback, option in handlers:
+        for name, handler, is_fallback, fb_option in handlers:
             # Check if this fallback's conditions match the last exception
-            if is_fallback and option is not None and last_exception is not None:
-                if not option.matches_condition(last_exception):
+            if is_fallback and fb_option is not None and last_exception is not None:
+                if not fb_option.matches_condition(last_exception):
                     continue
 
             result.attempts += 1
@@ -357,7 +385,8 @@ class FallbackChain(Generic[T]):
                     # Run sync handler in thread pool
                     loop = asyncio.get_event_loop()
                     value = await loop.run_in_executor(
-                        None, lambda h=handler: h(*args, **kwargs)
+                        None,
+                        lambda h=handler: h(*args, **kwargs),  # type: ignore[misc]
                     )
 
                 result.success = True
@@ -373,9 +402,7 @@ class FallbackChain(Generic[T]):
                 result.exceptions.append((name, e))
                 logger.warning(f"Fallback chain: '{name}' failed: {e}")
 
-        result.execution_time = (
-            datetime.now(timezone.utc) - start_time
-        ).total_seconds()
+        result.execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
         return result
 
     def __len__(self) -> int:

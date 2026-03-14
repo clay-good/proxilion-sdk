@@ -138,8 +138,7 @@ class DriftResult:
             "is_drifting": self.is_drifting,
             "severity": self.severity,
             "drifting_metrics": [
-                {"metric": m.value, "value": v, "z_score": z}
-                for m, v, z in self.drifting_metrics
+                {"metric": m.value, "value": v, "z_score": z} for m, v, z in self.drifting_metrics
             ],
             "reason": self.reason,
             "timestamp": self.timestamp.isoformat(),
@@ -278,7 +277,8 @@ class BehavioralMonitor:
             # Track repetition
             if len(self._tool_history) >= 2:
                 repetition = sum(
-                    1 for i in range(1, len(self._tool_history))
+                    1
+                    for i in range(1, len(self._tool_history))
                     if self._tool_history[i] == self._tool_history[i - 1]
                 )
                 self._record_metric(DriftMetric.TOOL_REPETITION, repetition, now)
@@ -313,8 +313,7 @@ class BehavioralMonitor:
             self._error_count += 1
             # Error rate (errors per minute)
             recent_errors = sum(
-                1 for mv in self._metrics[DriftMetric.ERROR_RATE]
-                if now - mv.timestamp < 60
+                1 for mv in self._metrics[DriftMetric.ERROR_RATE] if now - mv.timestamp < 60
             )
             self._record_metric(DriftMetric.ERROR_RATE, recent_errors + 1, now)
 
@@ -344,8 +343,7 @@ class BehavioralMonitor:
         """Internal error recording."""
         self._error_count += 1
         recent_errors = sum(
-            1 for mv in self._metrics[DriftMetric.ERROR_RATE]
-            if timestamp - mv.timestamp < 60
+            1 for mv in self._metrics[DriftMetric.ERROR_RATE] if timestamp - mv.timestamp < 60
         )
         self._record_metric(DriftMetric.ERROR_RATE, recent_errors + 1, timestamp)
 
@@ -356,11 +354,13 @@ class BehavioralMonitor:
         timestamp: float,
     ) -> None:
         """Record a metric value."""
-        self._metrics[metric].append(MetricValue(
-            metric=metric,
-            value=value,
-            timestamp=timestamp,
-        ))
+        self._metrics[metric].append(
+            MetricValue(
+                metric=metric,
+                value=value,
+                timestamp=timestamp,
+            )
+        )
 
     def lock_baseline(self) -> dict[DriftMetric, BaselineStats]:
         """
@@ -419,8 +419,7 @@ class BehavioralMonitor:
             if not self._baseline_locked:
                 # Auto-lock baseline if we have enough samples
                 has_enough = any(
-                    len(values) >= self._min_baseline_samples
-                    for values in self._metrics.values()
+                    len(values) >= self._min_baseline_samples for values in self._metrics.values()
                 )
                 if has_enough:
                     self.lock_baseline()
@@ -437,7 +436,7 @@ class BehavioralMonitor:
 
             for metric, baseline in self._baseline.items():
                 # Get recent values
-                recent = list(self._metrics[metric])[-self._detection_window:]
+                recent = list(self._metrics[metric])[-self._detection_window :]
                 if not recent:
                     continue
 
@@ -456,10 +455,7 @@ class BehavioralMonitor:
                     max_severity = max(max_severity, severity)
 
             if drifting_metrics:
-                reasons = [
-                    f"{m.value}: {v:.2f} (z={z:.1f})"
-                    for m, v, z in drifting_metrics
-                ]
+                reasons = [f"{m.value}: {v:.2f} (z={z:.1f})" for m, v, z in drifting_metrics]
                 result = DriftResult(
                     is_drifting=True,
                     severity=max_severity,
@@ -493,7 +489,7 @@ class BehavioralMonitor:
             result = {}
             for metric, values in self._metrics.items():
                 if values:
-                    recent = list(values)[-self._detection_window:]
+                    recent = list(values)[-self._detection_window :]
                     result[metric.value] = statistics.mean([v.value for v in recent])
             return result
 
@@ -596,9 +592,7 @@ class KillSwitch:
             self._activation_time = datetime.now(timezone.utc)
             self._activation_reason = reason
 
-            logger.critical(
-                f"KILL SWITCH ACTIVATED: {reason} (triggered by: {triggered_by})"
-            )
+            logger.critical(f"KILL SWITCH ACTIVATED: {reason} (triggered by: {triggered_by})")
 
             # Notify handlers
             for callback in self._halt_callbacks:
@@ -698,10 +692,18 @@ class DriftDetector:
 
         Args:
             agent_id: Unique identifier for the agent.
-            auto_halt_threshold: Severity threshold for automatic halt.
-            warning_threshold: Severity threshold for warnings.
+            auto_halt_threshold: Severity threshold for automatic halt (0.0-1.0).
+            warning_threshold: Severity threshold for warnings (0.0-1.0).
             monitor_kwargs: Additional kwargs for BehavioralMonitor.
+
+        Raises:
+            ValueError: If thresholds are out of range.
         """
+        if not 0.0 <= auto_halt_threshold <= 1.0:
+            raise ValueError("auto_halt_threshold must be between 0.0 and 1.0")
+        if not 0.0 <= warning_threshold <= 1.0:
+            raise ValueError("warning_threshold must be between 0.0 and 1.0")
+
         self.agent_id = agent_id
         self._auto_halt_threshold = auto_halt_threshold
         self._warning_threshold = warning_threshold
@@ -772,9 +774,7 @@ class DriftDetector:
                 triggered_by="drift_detector",
             )
         elif result.severity >= self._warning_threshold:
-            logger.warning(
-                f"Behavioral drift warning for {self.agent_id}: {result.reason}"
-            )
+            logger.warning(f"Behavioral drift warning for {self.agent_id}: {result.reason}")
 
     def lock_baseline(self) -> dict[DriftMetric, BaselineStats]:
         """Lock the baseline."""

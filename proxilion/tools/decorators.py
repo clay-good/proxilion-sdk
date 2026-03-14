@@ -148,7 +148,7 @@ def _type_to_schema(type_hint: Any) -> dict[str, Any]:
 
     # Handle list/List
     if origin is list:
-        schema: dict[str, Any] = {"type": "array"}
+        schema = {"type": "array"}
         if args:
             schema["items"] = _type_to_schema(args[0])
         return schema
@@ -239,9 +239,7 @@ def _extract_param_description(func: Callable[..., Any], param_name: str) -> str
     for i, line in enumerate(lines):
         stripped = line.strip()
         # Google style
-        if stripped.startswith(f"{param_name}:") or stripped.startswith(
-            f"{param_name} ("
-        ):
+        if stripped.startswith(f"{param_name}:") or stripped.startswith(f"{param_name} ("):
             # Extract description after colon
             if ":" in stripped:
                 desc = stripped.split(":", 1)[1].strip()

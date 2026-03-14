@@ -8,7 +8,7 @@ and Proxilion's unified format.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from proxilion.providers.adapter import (
     BaseAdapter,
@@ -92,7 +92,7 @@ class GeminiAdapter(BaseAdapter):
 
         return tool_calls
 
-    def _extract_from_dict(self, response: dict) -> list[UnifiedToolCall]:
+    def _extract_from_dict(self, response: dict[str, Any]) -> list[UnifiedToolCall]:
         """Extract tool calls from dictionary response."""
         candidates = response.get("candidates", [])
         tool_calls = []
@@ -105,10 +105,14 @@ class GeminiAdapter(BaseAdapter):
                 if "functionCall" in part:
                     # Gemini API returns camelCase
                     fc = part["functionCall"]
-                    tool_calls.append(UnifiedToolCall.from_gemini({
-                        "name": fc.get("name"),
-                        "args": fc.get("args", {}),
-                    }))
+                    tool_calls.append(
+                        UnifiedToolCall.from_gemini(
+                            {
+                                "name": fc.get("name"),
+                                "args": fc.get("args", {}),
+                            }
+                        )
+                    )
                 elif "function_call" in part:
                     # Handle snake_case variant
                     tool_calls.append(UnifiedToolCall.from_gemini(part["function_call"]))
@@ -170,7 +174,7 @@ class GeminiAdapter(BaseAdapter):
             raw=response,
         )
 
-    def _extract_text_from_dict(self, response: dict) -> str | None:
+    def _extract_text_from_dict(self, response: dict[str, Any]) -> str | None:
         """Extract text content from dictionary response."""
         candidates = response.get("candidates", [])
         text_parts = []
@@ -203,11 +207,11 @@ class GeminiAdapter(BaseAdapter):
 
         return "".join(text_parts) if text_parts else None
 
-    def _extract_finish_reason_from_dict(self, response: dict) -> str | None:
+    def _extract_finish_reason_from_dict(self, response: dict[str, Any]) -> str | None:
         """Extract finish reason from dictionary response."""
         candidates = response.get("candidates", [])
         if candidates:
-            return candidates[0].get("finishReason")
+            return cast(str | None, candidates[0].get("finishReason"))
         return None
 
     def _extract_finish_reason_from_object(self, response: Any) -> str | None:
@@ -290,14 +294,20 @@ class GeminiAdapter(BaseAdapter):
                 formatted.append(tool.to_gemini_format())
             elif hasattr(tool, "name") and hasattr(tool, "description"):
                 # Manual conversion
-                formatted.append({
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": getattr(tool, "parameters", {
-                        "type": "object",
-                        "properties": {},
-                    }),
-                })
+                formatted.append(
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": getattr(
+                            tool,
+                            "parameters",
+                            {
+                                "type": "object",
+                                "properties": {},
+                            },
+                        ),
+                    }
+                )
             elif isinstance(tool, dict):
                 # Already in correct format
                 formatted.append(tool)
@@ -324,10 +334,7 @@ class GeminiAdapter(BaseAdapter):
             ... ]
             >>> response_parts = adapter.format_content_with_results(results)
         """
-        return [
-            self.format_tool_result(tc, result, is_error)
-            for tc, result, is_error in results
-        ]
+        return [self.format_tool_result(tc, result, is_error) for tc, result, is_error in results]
 
     def create_vertex_tool(self, tools: list[Any]) -> Any:
         """
@@ -345,7 +352,10 @@ class GeminiAdapter(BaseAdapter):
             ImportError: If vertexai is not installed.
         """
         try:
-            from vertexai.generative_models import FunctionDeclaration, Tool
+            from vertexai.generative_models import (  # type: ignore[import-not-found]
+                FunctionDeclaration,
+                Tool,
+            )
         except ImportError:
             raise ImportError(
                 "vertexai library required. Install with: pip install google-cloud-aiplatform"

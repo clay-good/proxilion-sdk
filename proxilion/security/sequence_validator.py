@@ -259,8 +259,7 @@ class SequenceValidator:
                     # Remove from index
                     if rule.target_pattern in self._rule_index:
                         self._rule_index[rule.target_pattern] = [
-                            r for r in self._rule_index[rule.target_pattern]
-                            if r.name != name
+                            r for r in self._rule_index[rule.target_pattern] if r.name != name
                         ]
                     return True
             return False

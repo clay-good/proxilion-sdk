@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from proxilion.engines.base import (
     BasePolicyEngine,
@@ -178,7 +178,7 @@ class OPAPolicyEngine(BasePolicyEngine):
 
                 with urllib.request.urlopen(req, timeout=self.timeout) as response:
                     response_data = response.read().decode("utf-8")
-                    return json.loads(response_data)
+                    return cast(dict[str, Any], json.loads(response_data))
 
             except urllib.error.HTTPError as e:
                 last_error = e
@@ -189,14 +189,11 @@ class OPAPolicyEngine(BasePolicyEngine):
             except urllib.error.URLError as e:
                 last_error = e
                 logger.warning(
-                    f"OPA query failed (attempt {attempt + 1}/{self.retry_count}): "
-                    f"{e.reason}"
+                    f"OPA query failed (attempt {attempt + 1}/{self.retry_count}): {e.reason}"
                 )
             except TimeoutError as e:
                 last_error = e
-                logger.warning(
-                    f"OPA query timeout (attempt {attempt + 1}/{self.retry_count})"
-                )
+                logger.warning(f"OPA query timeout (attempt {attempt + 1}/{self.retry_count})")
             except json.JSONDecodeError as e:
                 last_error = e
                 logger.warning(
@@ -317,9 +314,7 @@ class OPAPolicyEngine(BasePolicyEngine):
 
         except PolicyEvaluationError:
             if self.fallback_allow:
-                logger.warning(
-                    "OPA unavailable, using fallback_allow=True"
-                )
+                logger.warning("OPA unavailable, using fallback_allow=True")
                 return AuthorizationResult(
                     allowed=True,
                     reason="OPA unavailable, fallback to allow",
@@ -350,9 +345,7 @@ class OPAPolicyEngine(BasePolicyEngine):
         """
         # Run sync version in thread pool
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, self.evaluate, user, action, resource, context
-        )
+        return await loop.run_in_executor(None, self.evaluate, user, action, resource, context)
 
     def load_policies(self, source: str | Path) -> None:
         """
@@ -400,9 +393,7 @@ class OPAPolicyEngine(BasePolicyEngine):
                 if response.status == 200:
                     logger.info(f"Uploaded policy: {policy_name}")
                 else:
-                    logger.warning(
-                        f"Policy upload returned status {response.status}"
-                    )
+                    logger.warning(f"Policy upload returned status {response.status}")
 
         except urllib.error.HTTPError as e:
             raise PolicyLoadError(
@@ -427,7 +418,7 @@ class OPAPolicyEngine(BasePolicyEngine):
         try:
             req = urllib.request.Request(health_url, method="GET")
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                return response.status == 200
+                return bool(response.status == 200)
         except Exception:
             return False
 
@@ -470,7 +461,7 @@ class OPAPolicyEngine(BasePolicyEngine):
             )
 
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                return cast(dict[str, Any], json.loads(response.read().decode("utf-8")))
 
         except Exception as e:
             return {

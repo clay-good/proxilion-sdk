@@ -79,11 +79,11 @@ class DecisionType(str, Enum):
 class ExplanationFormat(str, Enum):
     """Output formats for explanations."""
 
-    TEXT = "text"           # Plain text, human-readable
-    MARKDOWN = "markdown"   # Markdown formatted
-    HTML = "html"           # HTML formatted
-    JSON = "json"           # Structured JSON
-    LEGAL = "legal"         # Legal/compliance format
+    TEXT = "text"  # Plain text, human-readable
+    MARKDOWN = "markdown"  # Markdown formatted
+    HTML = "html"  # HTML formatted
+    JSON = "json"  # Structured JSON
+    LEGAL = "legal"  # Legal/compliance format
 
 
 class Outcome(str, Enum):
@@ -158,7 +158,7 @@ class ExplainableDecision:
     policy_version: str = "1.0"
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.decision_id:
             # Generate deterministic ID from decision content
             content = f"{self.decision_type}:{self.outcome}:{self.timestamp.isoformat()}"
@@ -269,38 +269,30 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         "auth_denied": "Access DENIED: {reason}",
         "auth_factor_pass": "✓ {name}: {reason}",
         "auth_factor_fail": "✗ {name}: {reason}",
-
         # Rate limiting
         "rate_allowed": "Request ALLOWED: Within rate limits ({current}/{limit} requests)",
         "rate_denied": "Request DENIED: Rate limit exceeded ({current}/{limit} requests)",
         "rate_counterfactual": "Request would be allowed after {wait_seconds} seconds",
-
         # Guards
         "guard_pass": "Content ALLOWED: No policy violations detected",
         "guard_block": "Content BLOCKED: {violation_type} detected - {reason}",
         "guard_redact": "Content MODIFIED: Sensitive information redacted",
-
         # Circuit breaker
         "circuit_closed": "Service AVAILABLE: Circuit breaker closed",
         "circuit_open": "Service UNAVAILABLE: Circuit breaker open after {failures} failures",
         "circuit_half_open": "Service TESTING: Circuit breaker allowing test request",
-
         # Trust boundary
         "trust_allowed": "Inter-agent communication ALLOWED: {from_agent} → {to_agent}",
         "trust_denied": "Inter-agent communication DENIED: Trust level insufficient",
-
         # Intent validation
         "intent_valid": "Tool call ALLOWED: Consistent with original intent",
         "intent_hijack": "Tool call BLOCKED: Potential intent hijack detected",
-
         # Budget
         "budget_ok": "Budget OK: {spent:.2f}/{limit:.2f} USD ({percentage:.0%})",
         "budget_exceeded": "Budget EXCEEDED: {spent:.2f}/{limit:.2f} USD",
-
         # Behavioral drift
         "drift_normal": "Behavior NORMAL: Within baseline parameters",
         "drift_detected": "Behavior ANOMALOUS: {metric} deviated by {deviation:.1f} std devs",
-
         # Generic
         "counterfactual_prefix": "Decision would change if: ",
         "no_counterfactual": "No simple change would alter this decision",
@@ -471,8 +463,12 @@ class DecisionExplainer:
                 template = templates.get("rate_denied", "Rate limit exceeded")
             return template.format(**context)
 
-        elif dt in (DecisionType.INPUT_GUARD, DecisionType.OUTPUT_GUARD,
-                    "input_guard", "output_guard"):
+        elif dt in (
+            DecisionType.INPUT_GUARD,
+            DecisionType.OUTPUT_GUARD,
+            "input_guard",
+            "output_guard",
+        ):
             if outcome in (Outcome.ALLOWED, "ALLOWED"):
                 return templates.get("guard_pass", "Content allowed")
             elif outcome in (Outcome.MODIFIED, "MODIFIED"):
@@ -688,13 +684,9 @@ class DecisionExplainer:
                         "Ensure proper agent authentication and delegation chains"
                     )
                 elif "intent" in name:
-                    recommendations.append(
-                        "Verify the tool call matches the original user request"
-                    )
+                    recommendations.append("Verify the tool call matches the original user request")
                 elif "circuit" in name:
-                    recommendations.append(
-                        "The service may be experiencing issues; retry later"
-                    )
+                    recommendations.append("The service may be experiencing issues; retry later")
 
         # Remove duplicates while preserving order
         seen = set()
@@ -762,15 +754,17 @@ class DecisionExplainer:
                 lines.append(f"   Evidence: {'; '.join(factor.evidence)}")
             lines.append("")
 
-        lines.extend([
-            "-" * 40,
-            f"Confidence Level: {decision.confidence:.0%}",
-            f"Policy Version: {decision.policy_version}",
-            "",
-            "This decision was made by an automated system. For questions",
-            "or to request human review, contact your administrator.",
-            "=" * 60,
-        ])
+        lines.extend(
+            [
+                "-" * 40,
+                f"Confidence Level: {decision.confidence:.0%}",
+                f"Policy Version: {decision.policy_version}",
+                "",
+                "This decision was made by an automated system. For questions",
+                "or to request human review, contact your administrator.",
+                "=" * 60,
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -846,7 +840,7 @@ class ExplainabilityLogger:
             # Store decision
             self._decisions.append(decision)
             if len(self._decisions) > self._max_stored:
-                self._decisions = self._decisions[-self._max_stored:]
+                self._decisions = self._decisions[-self._max_stored :]
 
             # Store explanation
             if explanation and self._store_explanations:
@@ -960,11 +954,7 @@ class ExplainabilityLogger:
                 if outcome is not None:
                     oc = decision.outcome
                     oc_str = oc.value if isinstance(oc, Outcome) else str(oc)
-                    filter_str = (
-                        outcome.value
-                        if isinstance(outcome, Outcome)
-                        else str(outcome)
-                    )
+                    filter_str = outcome.value if isinstance(outcome, Outcome) else str(outcome)
                     if oc_str != filter_str:
                         continue
 
@@ -1020,6 +1010,7 @@ class ExplainabilityLogger:
 
 
 # Convenience functions
+
 
 def create_authorization_decision(
     user_id: str,
@@ -1080,10 +1071,7 @@ def create_guard_decision(
     else:
         outcome = Outcome.DENIED
 
-    decision_type = (
-        DecisionType.INPUT_GUARD if guard_type == "input"
-        else DecisionType.OUTPUT_GUARD
-    )
+    decision_type = DecisionType.INPUT_GUARD if guard_type == "input" else DecisionType.OUTPUT_GUARD
 
     context = {"guard_type": guard_type}
     if content_sample:

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RateLimitState:
     """State for a rate limit bucket."""
+
     tokens: float
     last_update: float
     request_count: int = 0
@@ -97,9 +98,11 @@ class TokenBucketRateLimiter:
         """Refill tokens based on elapsed time."""
         now = time.monotonic()
         elapsed = now - bucket.last_update
-        tokens_to_add = elapsed * self.refill_rate
 
-        bucket.tokens = min(self.capacity, bucket.tokens + tokens_to_add)
+        if elapsed > 0:
+            tokens_to_add = elapsed * self.refill_rate
+            bucket.tokens = min(self.capacity, bucket.tokens + tokens_to_add)
+
         bucket.last_update = now
 
     def allow_request(self, key: str, cost: int = 1) -> bool:
@@ -108,16 +111,22 @@ class TokenBucketRateLimiter:
 
         Args:
             key: The rate limit key (e.g., user ID, IP address).
-            cost: Number of tokens to consume (default 1).
+            cost: Number of tokens to consume (default 1). Must be positive.
 
         Returns:
             True if the request is allowed, False if rate limited.
+
+        Raises:
+            ValueError: If cost is not positive.
 
         Example:
             >>> if limiter.allow_request("user_123", cost=5):
             ...     # Expensive operation
             ...     pass
         """
+        if cost <= 0:
+            raise ValueError("cost must be greater than 0")
+
         with self._lock:
             # Periodically cleanup stale buckets to prevent memory growth
             self._maybe_cleanup()
@@ -128,15 +137,10 @@ class TokenBucketRateLimiter:
             if bucket.tokens >= cost:
                 bucket.tokens -= cost
                 bucket.request_count += 1
-                logger.debug(
-                    f"Rate limit: key={key}, tokens_remaining={bucket.tokens:.1f}"
-                )
+                logger.debug(f"Rate limit: key={key}, tokens_remaining={bucket.tokens:.1f}")
                 return True
 
-            logger.debug(
-                f"Rate limit exceeded: key={key}, "
-                f"tokens={bucket.tokens:.1f}, cost={cost}"
-            )
+            logger.debug(f"Rate limit exceeded: key={key}, tokens={bucket.tokens:.1f}, cost={cost}")
             return False
 
     def get_remaining(self, key: str) -> int:
@@ -268,9 +272,7 @@ class SlidingWindowRateLimiter:
     def _cleanup_old_requests(self, key: str) -> None:
         """Remove requests outside the window."""
         cutoff = time.monotonic() - self.window_seconds
-        self._requests[key] = [
-            t for t in self._requests[key] if t > cutoff
-        ]
+        self._requests[key] = [t for t in self._requests[key] if t > cutoff]
 
     def allow_request(self, key: str, cost: int = 1) -> bool:
         """
@@ -343,9 +345,7 @@ class SlidingWindowRateLimiter:
 
             for key in list(self._requests.keys()):
                 # Clean old requests
-                self._requests[key] = [
-                    t for t in self._requests[key] if t > cutoff
-                ]
+                self._requests[key] = [t for t in self._requests[key] if t > cutoff]
                 # Mark empty keys for removal
                 if not self._requests[key]:
                     to_remove.append(key)
@@ -369,6 +369,7 @@ class SlidingWindowRateLimiter:
 @dataclass
 class RateLimitConfig:
     """Configuration for a rate limit dimension."""
+
     capacity: int
     refill_rate: float
     window_seconds: float | None = None  # For sliding window
@@ -454,9 +455,7 @@ class MultiDimensionalRateLimiter:
                 cost = costs.get(dimension, 1)
 
                 if limiter.get_remaining(key) < cost:
-                    logger.debug(
-                        f"Rate limit failed: dimension={dimension}, key={key}"
-                    )
+                    logger.debug(f"Rate limit failed: dimension={dimension}, key={key}")
                     return False
 
             # All checks passed, now consume tokens

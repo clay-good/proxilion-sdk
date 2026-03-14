@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, cast
+
+logger = logging.getLogger(__name__)
 
 
 class StreamEventType(Enum):
@@ -66,7 +69,7 @@ class PartialToolCall:
         if not self.arguments_buffer:
             return {}
         try:
-            return json.loads(self.arguments_buffer)
+            return cast(dict[str, Any], json.loads(self.arguments_buffer))
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid tool call arguments: {e}") from e
 
@@ -135,9 +138,7 @@ class StreamEvent:
         return cls(type=StreamEventType.TEXT, content=content, raw_chunk=raw_chunk)
 
     @classmethod
-    def tool_call_start(
-        cls, partial: PartialToolCall, raw_chunk: Any = None
-    ) -> StreamEvent:
+    def tool_call_start(cls, partial: PartialToolCall, raw_chunk: Any = None) -> StreamEvent:
         """Create a TOOL_CALL_START event."""
         return cls(
             type=StreamEventType.TOOL_CALL_START,
@@ -146,9 +147,7 @@ class StreamEvent:
         )
 
     @classmethod
-    def tool_call_delta(
-        cls, partial: PartialToolCall, raw_chunk: Any = None
-    ) -> StreamEvent:
+    def tool_call_delta(cls, partial: PartialToolCall, raw_chunk: Any = None) -> StreamEvent:
         """Create a TOOL_CALL_DELTA event."""
         return cls(
             type=StreamEventType.TOOL_CALL_DELTA,
@@ -157,9 +156,7 @@ class StreamEvent:
         )
 
     @classmethod
-    def tool_call_end(
-        cls, tool_call: DetectedToolCall, raw_chunk: Any = None
-    ) -> StreamEvent:
+    def tool_call_end(cls, tool_call: DetectedToolCall, raw_chunk: Any = None) -> StreamEvent:
         """Create a TOOL_CALL_END event."""
         return cls(
             type=StreamEventType.TOOL_CALL_END,
@@ -215,14 +212,14 @@ class StreamingToolCallDetector:
         """
         if provider not in self.SUPPORTED_PROVIDERS:
             raise ValueError(
-                f"Unsupported provider: {provider}. "
-                f"Supported: {self.SUPPORTED_PROVIDERS}"
+                f"Unsupported provider: {provider}. Supported: {self.SUPPORTED_PROVIDERS}"
             )
         self.provider = provider
         self._partial_calls: dict[str, PartialToolCall] = {}
         self._text_buffer: str = ""
         self._detected: bool = False
         self._max_partial_calls = 1000  # Prevent unbounded memory growth
+        self._stale_timeout_seconds = 300.0  # Reap incomplete calls older than 5 minutes
 
     def process_chunk(self, chunk: Any) -> list[StreamEvent]:
         """
@@ -230,6 +227,8 @@ class StreamingToolCallDetector:
 
         Args:
             chunk: A streaming chunk from an LLM provider.
+                Accepted types: dict, str, or objects with provider-specific
+                attributes (e.g. ``choices``, ``type``, ``candidates``).
 
         Returns:
             List of StreamEvent objects detected in this chunk.
@@ -237,6 +236,24 @@ class StreamingToolCallDetector:
         Raises:
             ValueError: If the provider cannot be determined.
         """
+        # Reject None and unsupported primitive types early
+        if chunk is None:
+            logger.debug("process_chunk received None chunk, skipping")
+            return []
+
+        if isinstance(chunk, (int, float, bool, bytes, bytearray)):
+            logger.warning(
+                "process_chunk received unsupported chunk type %s, skipping",
+                type(chunk).__name__,
+            )
+            return [
+                StreamEvent.error_event(
+                    f"Unsupported chunk type: {type(chunk).__name__}. "
+                    "Expected dict, str, or provider SDK object.",
+                    chunk,
+                )
+            ]
+
         # Cleanup completed calls if too many accumulated
         self._cleanup_completed_calls()
 
@@ -313,9 +330,7 @@ class StreamingToolCallDetector:
 
         # Handle dict or object format
         choices = (
-            chunk.get("choices", [])
-            if isinstance(chunk, dict)
-            else getattr(chunk, "choices", [])
+            chunk.get("choices", []) if isinstance(chunk, dict) else getattr(chunk, "choices", [])
         )
 
         if not choices:
@@ -336,9 +351,7 @@ class StreamingToolCallDetector:
 
             # Check for content (text)
             content = (
-                delta.get("content")
-                if isinstance(delta, dict)
-                else getattr(delta, "content", None)
+                delta.get("content") if isinstance(delta, dict) else getattr(delta, "content", None)
             )
             if content:
                 self._text_buffer += content
@@ -380,11 +393,7 @@ class StreamingToolCallDetector:
             tc_id = tc.get("id")
             tc_function = tc.get("function", {})
             tc_name = tc_function.get("name") if isinstance(tc_function, dict) else None
-            tc_args = (
-                tc_function.get("arguments")
-                if isinstance(tc_function, dict)
-                else None
-            )
+            tc_args = tc_function.get("arguments") if isinstance(tc_function, dict) else None
         else:
             tc_index = getattr(tc, "index", 0)
             tc_id = getattr(tc, "id", None)
@@ -430,11 +439,7 @@ class StreamingToolCallDetector:
         events: list[StreamEvent] = []
 
         # Get chunk type
-        chunk_type = (
-            chunk.get("type")
-            if isinstance(chunk, dict)
-            else getattr(chunk, "type", None)
-        )
+        chunk_type = chunk.get("type") if isinstance(chunk, dict) else getattr(chunk, "type", None)
 
         if chunk_type == "content_block_start":
             events.extend(self._handle_anthropic_block_start(chunk))
@@ -457,11 +462,7 @@ class StreamingToolCallDetector:
             if isinstance(chunk, dict)
             else getattr(chunk, "content_block", None)
         )
-        index = (
-            chunk.get("index", 0)
-            if isinstance(chunk, dict)
-            else getattr(chunk, "index", 0)
-        )
+        index = chunk.get("index", 0) if isinstance(chunk, dict) else getattr(chunk, "index", 0)
 
         if not content_block:
             return events
@@ -501,33 +502,17 @@ class StreamingToolCallDetector:
         events: list[StreamEvent] = []
 
         # Get the delta
-        delta = (
-            chunk.get("delta")
-            if isinstance(chunk, dict)
-            else getattr(chunk, "delta", None)
-        )
-        index = (
-            chunk.get("index", 0)
-            if isinstance(chunk, dict)
-            else getattr(chunk, "index", 0)
-        )
+        delta = chunk.get("delta") if isinstance(chunk, dict) else getattr(chunk, "delta", None)
+        index = chunk.get("index", 0) if isinstance(chunk, dict) else getattr(chunk, "index", 0)
 
         if not delta:
             return events
 
-        delta_type = (
-            delta.get("type")
-            if isinstance(delta, dict)
-            else getattr(delta, "type", None)
-        )
+        delta_type = delta.get("type") if isinstance(delta, dict) else getattr(delta, "type", None)
 
         if delta_type == "text_delta":
             # Text content
-            text = (
-                delta.get("text")
-                if isinstance(delta, dict)
-                else getattr(delta, "text", None)
-            )
+            text = delta.get("text") if isinstance(delta, dict) else getattr(delta, "text", None)
             if text:
                 self._text_buffer += text
                 events.append(StreamEvent.text(text, chunk))
@@ -553,11 +538,7 @@ class StreamingToolCallDetector:
         """Handle Anthropic content_block_stop event."""
         events: list[StreamEvent] = []
 
-        index = (
-            chunk.get("index", 0)
-            if isinstance(chunk, dict)
-            else getattr(chunk, "index", 0)
-        )
+        index = chunk.get("index", 0) if isinstance(chunk, dict) else getattr(chunk, "index", 0)
 
         # Find and complete the partial call at this index
         for _call_id, partial in list(self._partial_calls.items()):
@@ -607,9 +588,7 @@ class StreamingToolCallDetector:
                 )
 
                 for part_idx, part in enumerate(parts):
-                    part_events = self._process_google_part(
-                        part, cand_idx, part_idx, chunk
-                    )
+                    part_events = self._process_google_part(part, cand_idx, part_idx, chunk)
                     events.extend(part_events)
 
             # Check for finish
@@ -634,9 +613,7 @@ class StreamingToolCallDetector:
         events: list[StreamEvent] = []
 
         # Check for text
-        text = (
-            part.get("text") if isinstance(part, dict) else getattr(part, "text", None)
-        )
+        text = part.get("text") if isinstance(part, dict) else getattr(part, "text", None)
         if text:
             self._text_buffer += text
             events.append(StreamEvent.text(text, chunk))
@@ -703,21 +680,30 @@ class StreamingToolCallDetector:
 
     def _cleanup_completed_calls(self) -> None:
         """
-        Remove completed calls if the dictionary exceeds max size.
+        Remove completed and stale partial calls to prevent unbounded memory growth.
 
-        This prevents unbounded memory growth in long-running streams.
-        Completed calls are removed first as they're no longer needed
-        for streaming state.
+        Completed calls are removed first (oldest first) when the dictionary
+        exceeds max size. Additionally, incomplete partial calls older than
+        ``_stale_timeout_seconds`` are reaped to prevent abandoned streams
+        from leaking memory.
         """
+        now = datetime.now(timezone.utc)
+
+        # Always reap stale incomplete calls regardless of size
+        stale_keys = [
+            key
+            for key, call in self._partial_calls.items()
+            if not call.is_complete
+            and (now - call.started_at).total_seconds() > self._stale_timeout_seconds
+        ]
+        for key in stale_keys:
+            del self._partial_calls[key]
+
         if len(self._partial_calls) <= self._max_partial_calls:
             return
 
         # Remove completed calls first (oldest first by started_at)
-        completed = [
-            (key, call)
-            for key, call in self._partial_calls.items()
-            if call.is_complete
-        ]
+        completed = [(key, call) for key, call in self._partial_calls.items() if call.is_complete]
         completed.sort(key=lambda x: x[1].started_at)
 
         # Remove oldest completed calls until under limit
