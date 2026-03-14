@@ -949,19 +949,13 @@ class FallbackExhaustedError(ProxilionError):
         self.errors = errors
         self.attempts = attempts
 
-        error_summary = ", ".join(
-            f"{name}: {type(e).__name__}({e})" for name, e in errors
-        )
-        message = (
-            f"All {attempts} fallback attempts failed. "
-            f"Errors: [{error_summary}]"
-        )
+        error_summary = ", ".join(f"{name}: {type(e).__name__}({e})" for name, e in errors)
+        message = f"All {attempts} fallback attempts failed. Errors: [{error_summary}]"
 
         details = {
             "attempts": attempts,
             "errors": [
-                {"name": name, "type": type(e).__name__, "message": str(e)}
-                for name, e in errors
+                {"name": name, "type": type(e).__name__, "message": str(e)} for name, e in errors
             ],
         }
         super().__init__(message, details)
