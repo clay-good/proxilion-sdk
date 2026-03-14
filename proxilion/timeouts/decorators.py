@@ -15,8 +15,6 @@ import logging
 from collections.abc import Callable, Coroutine
 from typing import Any, ParamSpec, TypeVar
 
-logger = logging.getLogger(__name__)
-
 from proxilion.timeouts.manager import (
     DeadlineContext,
     TimeoutError,
@@ -24,6 +22,8 @@ from proxilion.timeouts.manager import (
     get_current_deadline,
     get_default_manager,
 )
+
+logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -262,8 +262,6 @@ def _run_with_timeout_sync(
         max_workers=1,
         thread_name_prefix="proxilion-timeout",
     )
-    # Mark executor threads as daemon so they don't block process exit
-    executor._thread_name_prefix  # noqa: access to trigger lazy init
     future = executor.submit(func, *args, **kwargs)
     try:
         return future.result(timeout=timeout)
