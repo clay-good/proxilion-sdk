@@ -27,7 +27,7 @@
 | 3 | HIGH | Fix MemoryIntegrityChecker → MemoryIntegrityGuard in docs | DONE |
 | 4 | MEDIUM | Add Python 3.13 classifier | DONE |
 | 5 | MEDIUM | Add structured error context to security exceptions | DONE |
-| 6 | MEDIUM | Add tests for structured exception context | TODO |
+| 6 | MEDIUM | Add tests for structured exception context | DONE |
 | 7 | MEDIUM | Wire structured exception context to raise sites | TODO |
 | 8 | HIGH | Add integration test for full authorization pipeline | TODO |
 | 9 | MEDIUM | Add performance benchmark suite | TODO |
@@ -43,4 +43,4 @@
 
 ## Last Updated
 
-2026-03-15 — Completed spec-v2 Step 5: Added structured error context fields to 7 security exception classes (RateLimitExceeded, CircuitOpenError, IDORViolationError, GuardViolation, SequenceViolationError, BudgetExceededError, IntentHijackError).
+2026-03-15 — Completed spec-v2 Step 6: Added tests/test_exceptions.py with 47 tests covering all 7 enhanced exception classes (default construction, structured field access, inheritance, str representation, top-level importability).
