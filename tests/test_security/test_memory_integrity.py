@@ -608,15 +608,15 @@ class TestEdgeCases:
         assert valid is True
 
     def test_different_secret_keys_produce_different_signatures(self):
-        g1 = MemoryIntegrityGuard(secret_key="key-one")
-        g2 = MemoryIntegrityGuard(secret_key="key-two")
+        g1 = MemoryIntegrityGuard(secret_key="prx_sk_key_one_12345678")
+        g2 = MemoryIntegrityGuard(secret_key="prx_sk_key_two_12345678")
         m1 = g1.sign_message("user", "Hello")
         m2 = g2.sign_message("user", "Hello")
         assert m1.signature != m2.signature
 
     def test_wrong_key_fails_verification(self):
-        g1 = MemoryIntegrityGuard(secret_key="key-one")
-        g2 = MemoryIntegrityGuard(secret_key="key-two")
+        g1 = MemoryIntegrityGuard(secret_key="prx_sk_key_one_12345678")
+        g2 = MemoryIntegrityGuard(secret_key="prx_sk_key_two_12345678")
         msg = g1.sign_message("user", "Hello")
         valid, violation = g2.verify_message(msg)
         assert valid is False
@@ -635,7 +635,7 @@ class TestEdgeCases:
         assert len(result.documents) == 0
 
     def test_bytes_secret_key(self):
-        guard = MemoryIntegrityGuard(secret_key=b"bytes-key")
+        guard = MemoryIntegrityGuard(secret_key=b"bytes-key-16chars")
         msg = guard.sign_message("user", "Hello")
         valid, violation = guard.verify_message(msg)
         assert valid is True

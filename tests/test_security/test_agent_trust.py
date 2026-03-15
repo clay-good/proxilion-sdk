@@ -295,7 +295,7 @@ class TestDelegationChain:
 
 @pytest.fixture()
 def manager():
-    return AgentTrustManager(secret_key="test-secret")
+    return AgentTrustManager(secret_key="prx_sk_test_secret_key_1234")
 
 
 class TestAgentTrustManagerRegistration:

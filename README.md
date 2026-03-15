@@ -383,12 +383,12 @@ from proxilion.security import IntentCapsule, IntentGuard
 capsule = IntentCapsule.create(
     user_id="alice",
     intent="Help me find Python documentation",
-    secret_key="your-secret-key",
+    secret_key="prx_sk_a1b2c3d4e5f6g7h8",  # Use a cryptographically random key in production
     allowed_tools=["search", "read_doc"],
 )
 
 # Guard validates tool calls against original intent
-guard = IntentGuard(capsule, "your-secret-key")
+guard = IntentGuard(capsule, "prx_sk_a1b2c3d4e5f6g7h8")  # Use a cryptographically random key in production
 
 # Valid - matches intent
 assert guard.validate_tool_call("search", {"query": "python docs"})
@@ -409,7 +409,7 @@ Cryptographic verification of conversation context to detect tampering.
 ```python
 from proxilion.security import MemoryIntegrityGuard
 
-guard = MemoryIntegrityGuard(secret_key="your-secret-key")
+guard = MemoryIntegrityGuard(secret_key="prx_sk_a1b2c3d4e5f6g7h8")  # Use a cryptographically random key in production
 
 # Sign each message in conversation
 msg1 = guard.sign_message("user", "Help me with Python")
@@ -454,7 +454,7 @@ mTLS-style signed messaging between agents with trust levels.
 ```python
 from proxilion.security import AgentTrustManager, AgentTrustLevel
 
-manager = AgentTrustManager(secret_key="your-secret-key")
+manager = AgentTrustManager(secret_key="prx_sk_a1b2c3d4e5f6g7h8")  # Use a cryptographically random key in production
 
 # Register agents with trust levels
 manager.register_agent(
@@ -824,5 +824,215 @@ pytest --cov=proxilion --cov-report=html
 
 # Run specific test file
 pytest tests/test_guards.py -v
+```
+
+---
+
+## System Architecture
+
+### High-Level Request Flow
+
+```mermaid
+flowchart TD
+    A[LLM Application] -->|Tool Call Request| B[Proxilion Runtime]
+    B --> C{Input Guard}
+    C -->|Blocked| D[Reject: Prompt Injection]
+    C -->|Passed| E{Schema Validation}
+    E -->|Invalid| F[Reject: Schema Error]
+    E -->|Valid| G{Rate Limiter}
+    G -->|Exceeded| H[Reject: Rate Limited]
+    G -->|Allowed| I{Policy Engine}
+    I -->|Denied| J[Reject: Unauthorized]
+    I -->|Allowed| K{Circuit Breaker}
+    K -->|Open| L[Reject: Service Unavailable]
+    K -->|Closed/Half-Open| M{Sequence Validator}
+    M -->|Violation| N[Reject: Sequence Violation]
+    M -->|Valid| O[Execute Tool]
+    O --> P{Output Guard}
+    P -->|Leak Detected| Q[Redact Sensitive Data]
+    P -->|Clean| R[Return Result]
+    Q --> R
+    B -->|Every Decision| S[Audit Logger]
+    S --> T[Hash Chain]
+```
+
+### Module Dependency Architecture
+
+```mermaid
+graph TB
+    subgraph Core
+        CORE[core.py]
+        TYPES[types.py]
+        EXCEPTIONS[exceptions.py]
+        DECORATORS[decorators.py]
+    end
+
+    subgraph Security
+        RATE[rate_limiter]
+        CB[circuit_breaker]
+        IDOR[idor_protection]
+        SEQ[sequence_validator]
+        SCOPE[scope_enforcer]
+        INTENT[intent_capsule]
+        MEMORY[memory_integrity]
+        TRUST[agent_trust]
+        DRIFT[behavioral_drift]
+        CASCADE[cascade_protection]
+    end
+
+    subgraph Guards
+        INPUT[input_guard]
+        OUTPUT[output_guard]
+    end
+
+    subgraph Audit
+        LOGGER[audit_logger]
+        HASH[hash_chain]
+        COMPLIANCE[compliance]
+        EXPORTERS[cloud_exporters]
+    end
+
+    subgraph Observability
+        COST[cost_tracker]
+        METRICS[metrics]
+        HOOKS[hooks]
+        SESSION[session_cost_tracker]
+    end
+
+    subgraph Engines
+        SIMPLE[simple_engine]
+        CASBIN[casbin_engine]
+        OPA[opa_engine]
+    end
+
+    subgraph Providers
+        OPENAI_A[openai_adapter]
+        ANTHROPIC_A[anthropic_adapter]
+        GEMINI_A[gemini_adapter]
+    end
+
+    subgraph Contrib
+        OPENAI_C[openai_handler]
+        ANTHROPIC_C[anthropic_handler]
+        GOOGLE_C[google_handler]
+        LANGCHAIN_C[langchain_handler]
+        MCP_C[mcp_handler]
+    end
+
+    subgraph Resilience
+        RETRY[retry]
+        FALLBACK[fallback]
+        DEGRADE[degradation]
+    end
+
+    CORE --> TYPES
+    CORE --> EXCEPTIONS
+    CORE --> Security
+    CORE --> Guards
+    CORE --> Engines
+    CORE --> Audit
+    CORE --> Observability
+    CORE --> Resilience
+    DECORATORS --> CORE
+    Contrib --> CORE
+    Contrib --> Providers
+    LOGGER --> HASH
+    LOGGER --> COMPLIANCE
+    LOGGER --> EXPORTERS
+```
+
+### Security Decision Pipeline (Deterministic)
+
+```mermaid
+sequenceDiagram
+    participant App as LLM App
+    participant PX as Proxilion
+    participant IG as Input Guard
+    participant SV as Schema Validator
+    participant RL as Rate Limiter
+    participant PE as Policy Engine
+    participant CB as Circuit Breaker
+    participant SQ as Sequence Validator
+    participant OG as Output Guard
+    participant AL as Audit Logger
+
+    App->>PX: authorize(user, action, resource, args)
+    PX->>IG: check(input_text)
+    Note right of IG: Regex pattern match<br/>Deterministic
+    IG-->>PX: GuardResult(passed, risk_score)
+
+    PX->>SV: validate(tool_schema, args)
+    Note right of SV: Type check + path traversal<br/>Deterministic
+    SV-->>PX: ValidationResult
+
+    PX->>RL: allow_request(user_id)
+    Note right of RL: Token bucket counter<br/>Deterministic
+    RL-->>PX: bool
+
+    PX->>PE: evaluate(user, action, resource)
+    Note right of PE: Python boolean logic<br/>Deterministic
+    PE-->>PX: AuthorizationResult
+
+    PX->>CB: check_state(resource)
+    Note right of CB: State machine<br/>Deterministic
+    CB-->>PX: CircuitState
+
+    PX->>SQ: validate_call(tool, user_id)
+    Note right of SQ: Pattern match on history<br/>Deterministic
+    SQ-->>PX: (allowed, violation)
+
+    PX->>AL: log_authorization(event)
+    Note right of AL: SHA-256 hash chain<br/>Deterministic
+    AL-->>PX: AuditEvent
+
+    PX-->>App: AuthorizationResult
+
+    App->>PX: check_output(response)
+    PX->>OG: check(output_text)
+    Note right of OG: Regex pattern match<br/>Deterministic
+    OG-->>PX: GuardResult
+    PX-->>App: Safe response
+```
+
+### OWASP ASI Top 10 Protection Map
+
+```mermaid
+graph LR
+    subgraph "OWASP ASI Top 10"
+        ASI01[ASI01: Goal Hijacking]
+        ASI02[ASI02: Tool Misuse]
+        ASI03[ASI03: Privilege Escalation]
+        ASI04[ASI04: Data Exfiltration]
+        ASI05[ASI05: IDOR via LLM]
+        ASI06[ASI06: Memory Poisoning]
+        ASI07[ASI07: Insecure Agent Comms]
+        ASI08[ASI08: Resource Exhaustion]
+        ASI09[ASI09: Shadow AI]
+        ASI10[ASI10: Rogue Agents]
+    end
+
+    subgraph "Proxilion Controls"
+        IC[Intent Capsule<br/>HMAC Verification]
+        PA[Policy Authorization<br/>Boolean Logic]
+        RBP[Role-Based Policies<br/>Set Membership]
+        OG2[Output Guards<br/>Regex Detection]
+        IDOR2[IDOR Protection<br/>Scope Validation]
+        MIG[Memory Integrity<br/>HMAC + Hash Chain]
+        ATM[Agent Trust Manager<br/>Signed Messages]
+        RL2[Rate Limiting<br/>Token Bucket]
+        AUL[Audit Logging<br/>SHA-256 Chain]
+        BD[Behavioral Drift<br/>Z-Score Analysis]
+    end
+
+    ASI01 --> IC
+    ASI02 --> PA
+    ASI03 --> RBP
+    ASI04 --> OG2
+    ASI05 --> IDOR2
+    ASI06 --> MIG
+    ASI07 --> ATM
+    ASI08 --> RL2
+    ASI09 --> AUL
+    ASI10 --> BD
 ```
 

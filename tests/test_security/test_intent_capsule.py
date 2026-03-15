@@ -201,9 +201,9 @@ class TestIntentCapsuleCreation:
             user_id="alice",
             intent="Search",
             allowed_tools=[],
-            secret_key=b"binary-key",
+            secret_key=b"binary-key-16byte",
         )
-        assert capsule.verify(b"binary-key")
+        assert capsule.verify(b"binary-key-16byte")
 
 
 class TestIntentCapsuleExpiry:
@@ -340,9 +340,9 @@ class TestIntentCapsuleSignature:
             user_id="alice",
             intent="Search",
             allowed_tools=[],
-            secret_key="my-key",
+            secret_key="prx_sk_my_key_1234567",
         )
-        assert capsule.verify(b"my-key") is True
+        assert capsule.verify(b"prx_sk_my_key_1234567") is True
 
     def test_tampered_intent_fails_verification(self):
         capsule = IntentCapsule.create(
@@ -663,7 +663,7 @@ class TestIntentGuard:
     def test_guard_with_wrong_secret_key_raises(self):
         capsule = self._make_capsule()
         with pytest.raises(IntentHijackError):
-            IntentGuard(capsule, secret_key="wrong-key")
+            IntentGuard(capsule, secret_key="prx_sk_wrong_key_1234")
 
     def test_guard_with_custom_validator(self):
         capsule = self._make_capsule()
@@ -907,7 +907,7 @@ class TestIntentCapsuleManager:
         assert stats["total_capsules"] == 1
 
     def test_manager_with_bytes_key(self):
-        mgr = IntentCapsuleManager(secret_key=b"binary-secret")
+        mgr = IntentCapsuleManager(secret_key=b"binary-secret-1234")
         capsule = mgr.create_capsule(user_id="alice", intent="Search")
         assert mgr.verify_capsule(capsule.capsule_id) is True
 
