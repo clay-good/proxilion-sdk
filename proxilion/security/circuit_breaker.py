@@ -268,6 +268,7 @@ class CircuitBreaker:
             raise
 
         except Exception as e:
+            # Catch-all: any exception from protected function counts as failure
             with self._lock:
                 self._record_failure(e)
             raise
@@ -332,6 +333,7 @@ class CircuitBreaker:
             raise
 
         except Exception as e:
+            # Catch-all: any exception from protected function counts as failure
             with self._lock:
                 self._record_failure(e)
             raise

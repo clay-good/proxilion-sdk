@@ -210,7 +210,8 @@ class IntentValidator:
                     if outcome is not None:
                         return outcome
                 except Exception as e:
-                    logger.error(f"Custom validator failed: {e}")
+                    # Catch-all: user-provided validator may raise any exception
+                    logger.warning("Custom validator %r raised: %s", validator, e)
 
             # Record call for history
             self._record_call(user_id, tool_name, arguments)
