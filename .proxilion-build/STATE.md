@@ -16,7 +16,7 @@
 |------|---------|--------|
 | docs/specs/spec.md | 0.0.4 → 0.0.5 | ALL COMPLETE (10/10 steps) |
 | docs/specs/spec-v1.md | 0.0.6 → 0.0.7 | ALL COMPLETE (15/15 steps) |
-| docs/specs/spec-v2.md | 0.0.7 → 0.0.8 | IN PROGRESS (1/18 steps complete) |
+| docs/specs/spec-v2.md | 0.0.7 → 0.0.8 | IN PROGRESS (5/18 steps complete) |
 
 ## spec-v2.md Progress
 
@@ -26,7 +26,7 @@
 | 2 | HIGH | Narrow broad exception catches in security modules | DONE |
 | 3 | HIGH | Fix MemoryIntegrityChecker → MemoryIntegrityGuard in docs | DONE |
 | 4 | MEDIUM | Add Python 3.13 classifier | DONE |
-| 5 | MEDIUM | Add structured error context to security exceptions | TODO |
+| 5 | MEDIUM | Add structured error context to security exceptions | DONE |
 | 6 | MEDIUM | Add tests for structured exception context | TODO |
 | 7 | MEDIUM | Wire structured exception context to raise sites | TODO |
 | 8 | HIGH | Add integration test for full authorization pipeline | TODO |
@@ -43,4 +43,4 @@
 
 ## Last Updated
 
-2026-03-15 — Completed spec-v2 Step 4: Added Python 3.13 classifier to pyproject.toml.
+2026-03-15 — Completed spec-v2 Step 5: Added structured error context fields to 7 security exception classes (RateLimitExceeded, CircuitOpenError, IDORViolationError, GuardViolation, SequenceViolationError, BudgetExceededError, IntentHijackError).
