@@ -24,7 +24,7 @@
 |------|----------|-------------|--------|
 | 1 | HIGH | Fix mypy errors in pydantic_schema.py | DONE (pre-existing) |
 | 2 | HIGH | Narrow broad exception catches in security modules | DONE |
-| 3 | HIGH | Fix MemoryIntegrityChecker → MemoryIntegrityGuard in docs | TODO |
+| 3 | HIGH | Fix MemoryIntegrityChecker → MemoryIntegrityGuard in docs | DONE |
 | 4 | MEDIUM | Add Python 3.13 classifier | TODO |
 | 5 | MEDIUM | Add structured error context to security exceptions | TODO |
 | 6 | MEDIUM | Add tests for structured exception context | TODO |
@@ -43,4 +43,4 @@
 
 ## Last Updated
 
-2026-03-15 — Completed spec-v2 Step 2: Narrowed broad exception catches in 5 security modules.
+2026-03-15 — Completed spec-v2 Step 3: Fixed MemoryIntegrityChecker → MemoryIntegrityGuard in docs/features/README.md.
