@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Check if casbin is available
 try:
-    import casbin  # type: ignore[import-not-found]
+    import casbin
 
     HAS_CASBIN = True
 except ImportError:

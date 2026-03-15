@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 # Check for azure-storage-blob availability
 try:
-    from azure.identity import DefaultAzureCredential  # type: ignore[import-not-found]
-    from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
 
     HAS_AZURE_STORAGE = True
 except ImportError:

@@ -176,7 +176,7 @@ class ExportBatch:
             return gzip.compress(content)
         elif compression == CompressionType.ZSTD:
             try:
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 cctx = zstd.ZstdCompressor()
                 return bytes(cctx.compress(content))

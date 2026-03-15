@@ -210,7 +210,7 @@ class EngineFactory:
 
         # Check if casbin is available
         try:
-            import casbin  # type: ignore[import-not-found]  # noqa: F401
+            import casbin  # noqa: F401
 
             engines.append("casbin")
         except ImportError:

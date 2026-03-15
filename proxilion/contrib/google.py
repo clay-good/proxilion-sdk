@@ -857,7 +857,7 @@ class ProxilionVertexHandler:
             >>> model = GenerativeModel("gemini-1.5-pro", tools=tools)
         """
         try:
-            from vertexai.generative_models import (  # type: ignore[import-not-found]
+            from vertexai.generative_models import (
                 FunctionDeclaration,
                 Tool,
             )

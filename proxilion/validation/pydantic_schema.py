@@ -32,8 +32,8 @@ try:
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False
-    BaseModel = None  # type: ignore
-    ValidationError = None  # type: ignore
+    BaseModel = None
+    ValidationError = None
 
 
 class PydanticSchemaValidator(SchemaValidator):
@@ -283,7 +283,7 @@ class PydanticSchemaValidator(SchemaValidator):
         if model is None:
             return None
 
-        return model.model_json_schema()
+        return model.model_json_schema()  # type: ignore[no-any-return]
 
     def create_model_from_schema(
         self,
