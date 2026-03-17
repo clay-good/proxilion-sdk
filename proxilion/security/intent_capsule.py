@@ -71,9 +71,9 @@ def _validate_secret_key(secret_key: str | bytes) -> None:
     if len(key_str) < 16:
         raise ConfigurationError("secret_key must be at least 16 characters for HMAC security")
     lower = key_str.lower()
-    is_placeholder = any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(
-        set(key_str)
-    ) == 1
+    is_placeholder = (
+        any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(set(key_str)) == 1
+    )
     if is_placeholder:
         logger.warning("secret_key looks like a placeholder; use a random key in production.")
 
@@ -559,6 +559,8 @@ class IntentGuard:
                     original_intent=capsule.intent,
                     detected_intent="Capsule signature verification failed",
                     confidence=1.0,
+                    allowed_tools=list(capsule.allowed_tools),
+                    user_id=capsule.user_id,
                 )
 
     @property
@@ -599,6 +601,7 @@ class IntentGuard:
                 return self._handle_violation(
                     f"Tool '{tool_name}' not allowed by intent",
                     0.8,
+                    tool_name=tool_name,
                 )
 
             # Check for hijacking patterns if description provided
@@ -612,6 +615,7 @@ class IntentGuard:
                     return self._handle_violation(
                         detection.reasoning,
                         detection.confidence,
+                        tool_name=tool_name,
                     )
 
             # Check constraints
@@ -620,6 +624,7 @@ class IntentGuard:
                 return self._handle_violation(
                     constraint_violation,
                     0.7,
+                    tool_name=tool_name,
                 )
 
             # Record the call
@@ -663,7 +668,9 @@ class IntentGuard:
 
         return None
 
-    def _handle_violation(self, reason: str, confidence: float) -> bool:
+    def _handle_violation(
+        self, reason: str, confidence: float, tool_name: str | None = None
+    ) -> bool:
         """Handle an intent violation."""
         logger.warning(f"Intent violation: {reason} (confidence: {confidence:.1%})")
 
@@ -672,6 +679,9 @@ class IntentGuard:
                 original_intent=self._capsule.intent,
                 detected_intent=reason,
                 confidence=confidence,
+                tool_name=tool_name,
+                allowed_tools=list(self._capsule.allowed_tools),
+                user_id=self._capsule.user_id,
             )
 
         return False

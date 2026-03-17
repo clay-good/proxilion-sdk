@@ -8,7 +8,7 @@
 | Tests passing | 2,354 sync tests passing, 6 skipped (OPA optional deps), async tests skipped (pytest-asyncio not in Python 3.14 env) |
 | Ruff violations | 0 |
 | Mypy errors | 0 |
-| Active branch | proxilion-build/spec-v1 |
+| Active branch | proxilion-build/spec-v2-clean |
 
 ## Specs
 
@@ -16,7 +16,7 @@
 |------|---------|--------|
 | docs/specs/spec.md | 0.0.4 → 0.0.5 | ALL COMPLETE (10/10 steps) |
 | docs/specs/spec-v1.md | 0.0.6 → 0.0.7 | ALL COMPLETE (15/15 steps) |
-| docs/specs/spec-v2.md | 0.0.7 → 0.0.8 | IN PROGRESS (5/18 steps complete) |
+| docs/specs/spec-v2.md | 0.0.7 → 0.0.8 | IN PROGRESS (6/18 steps complete) |
 
 ## spec-v2.md Progress
 
@@ -28,7 +28,7 @@
 | 4 | MEDIUM | Add Python 3.13 classifier | DONE |
 | 5 | MEDIUM | Add structured error context to security exceptions | DONE |
 | 6 | MEDIUM | Add tests for structured exception context | DONE |
-| 7 | MEDIUM | Wire structured exception context to raise sites | TODO |
+| 7 | MEDIUM | Wire structured exception context to raise sites | DONE |
 | 8 | HIGH | Add integration test for full authorization pipeline | TODO |
 | 9 | MEDIUM | Add performance benchmark suite | TODO |
 | 10 | HIGH | Add negative test cases for input guard bypass attempts | TODO |
@@ -43,4 +43,4 @@
 
 ## Last Updated
 
-2026-03-15 — Completed spec-v2 Step 6: Added tests/test_exceptions.py with 47 tests covering all 7 enhanced exception classes (default construction, structured field access, inheritance, str representation, top-level importability).
+2026-03-17 — Completed spec-v2 Step 7: Wired structured exception context to all raise sites. Updated rate_limiter.py (3 sites), decorators.py (6 sites), core.py (2 sites), and intent_capsule.py (2 sites) to pass structured fields (user_id, limit, current_count, input_preview, tool_name, allowed_tools, etc.) to exceptions.
