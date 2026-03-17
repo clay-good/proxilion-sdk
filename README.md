@@ -1036,3 +1036,343 @@ graph LR
     ASI10 --> BD
 ```
 
+### Exception Hierarchy
+
+Proxilion uses a structured exception hierarchy. Security exceptions carry typed context fields for programmatic handling in monitoring and alerting pipelines.
+
+```mermaid
+classDiagram
+    class ProxilionError {
+        +str message
+    }
+    class AuthorizationError
+    class PolicyViolation
+    class PolicyNotFoundError
+    class ConfigurationError
+    class SchemaValidationError
+    class ScopeLoaderError
+    class ApprovalRequiredError
+    class FallbackExhaustedError
+
+    class RateLimitExceeded {
+        +str user_id
+        +int limit
+        +int current_count
+        +float window_seconds
+        +float reset_at
+    }
+    class CircuitOpenError {
+        +str circuit_name
+        +int failure_count
+        +float reset_timeout
+    }
+    class IDORViolationError {
+        +str user_id
+        +str resource_type
+        +str resource_id
+    }
+    class GuardViolation {
+        +str guard_type
+        +list matched_patterns
+        +float risk_score
+        +str input_preview
+    }
+    class InputGuardViolation
+    class OutputGuardViolation
+    class SequenceViolationError {
+        +str rule_name
+        +str tool_name
+        +str user_id
+    }
+    class BudgetExceededError {
+        +str user_id
+        +float budget_limit
+        +float current_spend
+    }
+    class IntentHijackError {
+        +str tool_name
+        +list allowed_tools
+        +str user_id
+    }
+    class ScopeViolationError
+    class ContextIntegrityError
+    class AgentTrustError
+    class BehavioralDriftError
+    class EmergencyHaltError
+
+    ProxilionError <|-- AuthorizationError
+    ProxilionError <|-- PolicyViolation
+    ProxilionError <|-- PolicyNotFoundError
+    ProxilionError <|-- ConfigurationError
+    ProxilionError <|-- SchemaValidationError
+    ProxilionError <|-- ScopeLoaderError
+    ProxilionError <|-- ApprovalRequiredError
+    ProxilionError <|-- FallbackExhaustedError
+    ProxilionError <|-- RateLimitExceeded
+    ProxilionError <|-- CircuitOpenError
+    ProxilionError <|-- IDORViolationError
+    ProxilionError <|-- GuardViolation
+    GuardViolation <|-- InputGuardViolation
+    GuardViolation <|-- OutputGuardViolation
+    ProxilionError <|-- SequenceViolationError
+    ProxilionError <|-- BudgetExceededError
+    ProxilionError <|-- IntentHijackError
+    ProxilionError <|-- ScopeViolationError
+    ProxilionError <|-- ContextIntegrityError
+    ProxilionError <|-- AgentTrustError
+    ProxilionError <|-- BehavioralDriftError
+    ProxilionError <|-- EmergencyHaltError
+```
+
+---
+
+## Stabilization Guarantees
+
+### Memory Safety: Bounded Collections
+
+All long-lived collections in Proxilion are bounded to prevent memory exhaustion in production.
+
+```mermaid
+graph TD
+    subgraph "Bounded Collections"
+        A[behavioral_drift<br/>deque maxlen=10000] -->|evicts oldest| A1[Oldest metrics dropped]
+        B[idor_protection<br/>max 100K objects/scope] -->|raises| B1[ConfigurationError]
+        C[intent_capsule<br/>max 100 calls] -->|enforced| C1[IntentHijackError]
+        D[memory_integrity<br/>max_context_size] -->|raises| D1[ContextIntegrityError]
+        E[cost_tracker<br/>deque maxlen=100K] -->|evicts oldest| E1[Oldest records dropped]
+        F[execution_history<br/>deque maxlen=10K] -->|evicts oldest| F1[Oldest entries dropped]
+        G[agent_trust<br/>max depth=10] -->|raises| G1[AgentTrustError]
+    end
+```
+
+### Audit Integrity: Timestamp-Validated Hash Chains
+
+Each audit event's hash includes the previous hash, the event timestamp, and the event content. Reordering events breaks the chain.
+
+```mermaid
+graph LR
+    E0["Event 0<br/>hash=SHA256(genesis + t0 + content0)"]
+    E1["Event 1<br/>hash=SHA256(hash0 + t1 + content1)"]
+    E2["Event 2<br/>hash=SHA256(hash1 + t2 + content2)"]
+    E3["Event 3<br/>hash=SHA256(hash2 + t3 + content3)"]
+
+    E0 -->|hash0 + t0 <= t1| E1
+    E1 -->|hash1 + t1 <= t2| E2
+    E2 -->|hash2 + t2 <= t3| E3
+```
+
+### Concurrency: Thread-Safety Model
+
+Every mutable shared component in Proxilion is protected by a lock. The singleton ObservabilityHooks uses double-checked locking for initialization safety.
+
+```mermaid
+graph TB
+    subgraph "RLock Protected (Reentrant)"
+        RL1[RateLimiter]
+        RL2[CircuitBreaker]
+        RL3[IDORProtector]
+        RL4[MemoryIntegrityGuard]
+        RL5[AgentTrustManager]
+        RL6[CascadeProtector]
+        RL7[AuditLogger]
+        RL8[SessionManager]
+        RL9[HashChain]
+    end
+
+    subgraph "Lock Protected (Non-Reentrant)"
+        L1[ObservabilityHooks<br/>Double-Checked Locking<br/>Singleton]
+    end
+
+    subgraph "Thread-Safe by Design"
+        TS1[Frozen Dataclasses<br/>UserContext, AgentContext<br/>ToolCallRequest, AuthResult]
+        TS2[contextvars<br/>_current_user<br/>_current_agent]
+    end
+```
+
+### Hardened Security Pipeline
+
+Full request flow with defense-in-depth hardening annotations. Each step shows the security control applied and the hardening guarantee.
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B[Unicode NFKD Normalization]
+    B -->|Strips homoglyphs,<br/>combining chars,<br/>full-width variants| C[Input Guard<br/>14 Regex Patterns]
+    C -->|risk_score >= threshold| D[REJECT:<br/>Prompt Injection]
+    C -->|risk_score < threshold| E[Schema Validation<br/>+ Path Traversal Check]
+    E -->|Invalid schema<br/>or traversal detected| F[REJECT:<br/>Schema/Path Error]
+    E -->|Valid| G[Rate Limiter<br/>Bounded Token Bucket]
+    G -->|Tokens exhausted<br/>Bounded cleanup via TTL| H[REJECT:<br/>Rate Limited]
+    G -->|Tokens available| I[Policy Engine<br/>Boolean Evaluation]
+    I -->|Policy denied| J[REJECT:<br/>Unauthorized]
+    I -->|Policy allowed| K[Circuit Breaker<br/>Deterministic State Machine]
+    K -->|Circuit OPEN| L[REJECT:<br/>Service Unavailable]
+    K -->|Circuit CLOSED/HALF-OPEN| M[Sequence Validator<br/>Bounded History]
+    M -->|Sequence violation| N[REJECT:<br/>Sequence Violation]
+    M -->|Valid sequence| O[Tool Execution<br/>with Critical Hook Gate]
+    O -->|Critical hook failure| P[REJECT:<br/>Hook Violation]
+    O -->|All hooks pass| Q[Output Guard<br/>22 Regex Patterns]
+    Q -->|Leak detected| R[Redact Sensitive Data]
+    Q -->|Clean output| S[Return Result]
+    R --> S
+    O -->|Every decision| T[Audit Logger<br/>Bounded SHA-256 Hash Chain]
+
+    style B fill:#e1f5fe
+    style G fill:#fff3e0
+    style O fill:#fce4ec
+    style T fill:#e8f5e9
+```
+
+### Intent Capsule: Path Constraint Validation
+
+How the intent capsule validates file path arguments against allowed_paths constraints, with PurePosixPath normalization to prevent directory traversal attacks.
+
+```mermaid
+flowchart TD
+    A[Raw Path Argument<br/>e.g. /allowed/../../../etc/passwd] --> B{Path Empty?}
+    B -->|Yes| C[REJECT:<br/>Empty path not allowed]
+    B -->|No| D[PurePosixPath Normalization]
+    D -->|Resolves .. sequences<br/>Removes redundant separators| E[Normalized Path<br/>e.g. /etc/passwd]
+    E --> F{For each allowed_path}
+    F --> G[PurePosixPath<br/>is_relative_to check]
+    G -->|Path IS relative<br/>to an allowed_path| H[ACCEPT:<br/>Path within boundary]
+    G -->|Path NOT relative<br/>to any allowed_path| I{More allowed_paths?}
+    I -->|Yes| F
+    I -->|No| J[REJECT:<br/>Path outside allowed boundary]
+
+    K[/allowed/reports/q1.csv] -->|Normalized| L[/allowed/reports/q1.csv]
+    L -->|is_relative_to /allowed| M[ACCEPT]
+
+    N[/data_backup/secret.txt] -->|Normalized| O[/data_backup/secret.txt]
+    O -->|NOT relative to /data| P[REJECT:<br/>Prefix collision prevented]
+
+    style D fill:#e1f5fe
+    style G fill:#fff3e0
+    style J fill:#ffcdd2
+    style H fill:#c8e6c9
+```
+
+### Secret Key Validation Flow
+
+Cryptographic components (IntentCapsule, MemoryIntegrityGuard, AgentTrustManager) share a unified secret key validation pipeline. Placeholder keys are rejected at initialization to prevent insecure deployments.
+
+```mermaid
+flowchart TD
+    A[Secret Key Input] --> B{Length >= 16?}
+    B -->|No| C[REJECT:<br/>ConfigurationError<br/>Key too short]
+    B -->|Yes| D{Contains placeholder<br/>pattern?}
+    D -->|"your-", "changeme",<br/>"example", "placeholder",<br/>"secret-key", "TODO"| E[REJECT:<br/>ConfigurationError<br/>Placeholder key detected]
+    D -->|No match| F[ACCEPT:<br/>Key validated]
+
+    F --> G[IntentCapsule]
+    F --> H[MemoryIntegrityGuard]
+    F --> I[AgentTrustManager]
+
+    G -->|HMAC-SHA256| J[Signed Intent]
+    H -->|HMAC-SHA256| K[Signed Context]
+    I -->|HMAC-SHA256| L[Signed Messages]
+
+    style C fill:#ffcdd2
+    style E fill:#ffcdd2
+    style F fill:#c8e6c9
+    style G fill:#e1f5fe
+    style H fill:#e1f5fe
+    style I fill:#e1f5fe
+```
+
+### Input Guard: Unicode Normalization Pipeline
+
+Input text is normalized before pattern matching to prevent evasion via homoglyphs, combining characters, or full-width Unicode variants.
+
+```mermaid
+flowchart LR
+    A[Raw Input Text] --> B[NFKD Normalization]
+    B --> C[Strip Combining<br/>Characters<br/>Category Mn]
+    C --> D[ASCII Folding]
+    D --> E[Normalized Text]
+
+    A --> F[Original Text]
+
+    E --> G{14 Regex<br/>Patterns}
+    F --> G
+
+    G -->|Match in either| H[Risk Score =<br/>max of both checks]
+    G -->|No match| I[PASS:<br/>Input clean]
+
+    H -->|score >= threshold| J[BLOCK:<br/>Injection detected]
+    H -->|score < threshold| I
+
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#e1f5fe
+    style J fill:#ffcdd2
+    style I fill:#c8e6c9
+```
+
+### Rate Limiter: Multi-Tier Atomic Check Flow
+
+The rate limiter middleware performs a dry-run check across all tiers before consuming tokens from any tier. If any tier would reject the request, no tokens are consumed anywhere, preventing quota drain on rejection.
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{Dry-Run Check:<br/>Global Limiter}
+    B -->|Insufficient tokens| C[REJECT: Global Rate Limited<br/>No tokens consumed anywhere]
+    B -->|Sufficient tokens| D{Dry-Run Check:<br/>User Limiter}
+    D -->|Insufficient tokens| E[REJECT: User Rate Limited<br/>No tokens consumed anywhere]
+    D -->|Sufficient tokens| F{Dry-Run Check:<br/>Tool Limiter}
+    F -->|Insufficient tokens| G[REJECT: Tool Rate Limited<br/>No tokens consumed anywhere]
+    F -->|Sufficient tokens| H[All Tiers Passed]
+    H --> I[Consume: Global Tokens]
+    I --> J[Consume: User Tokens]
+    J --> K[Consume: Tool Tokens]
+    K --> L[REQUEST ALLOWED]
+
+    style C fill:#ffcdd2
+    style E fill:#ffcdd2
+    style G fill:#ffcdd2
+    style H fill:#c8e6c9
+    style L fill:#c8e6c9
+```
+
+### Replay Protection: TTL-Bounded Nonce Eviction
+
+Inter-agent message nonces are stored in an OrderedDict with insertion timestamps. Eviction removes the oldest entries first, bounded by both TTL and a hard capacity cap.
+
+```mermaid
+flowchart LR
+    A[New Message ID] --> B[Insert into OrderedDict<br/>with timestamp]
+    B --> C{Size > Hard Cap?}
+    C -->|Yes| D[Evict oldest entries<br/>until at cap]
+    C -->|No| E[Check TTL]
+    D --> E
+    E --> F{Oldest entry age<br/>> nonce_ttl_seconds?}
+    F -->|Yes| G[Remove oldest entry]
+    G --> F
+    F -->|No| H[Nonce Store Ready]
+
+    style D fill:#fff3e0
+    style G fill:#fff3e0
+    style H fill:#c8e6c9
+```
+
+### CascadeProtector: Callback Safety Pattern
+
+State changes are computed under the lock, but user-supplied callbacks execute after the lock is released. This prevents deadlock when callbacks acquire external resources.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant CP as CascadeProtector
+    participant Lock as self._lock
+    participant CB as User Callback
+
+    Caller->>CP: isolate_tool(tool)
+    CP->>Lock: acquire()
+    Note over CP: Compute state changes<br/>Store in local list
+    CP->>Lock: release()
+    Note over CP: Lock released BEFORE callbacks
+    CP->>CB: notify(state_change)
+    Note over CB: Safe to acquire<br/>external locks
+    CB-->>CP: callback complete
+    CP-->>Caller: return result
+```
+

@@ -1,9 +1,12 @@
 """Tests for proxilion.security.behavioral_drift module."""
+
 from __future__ import annotations
 
-import pytest
 import time
 
+import pytest
+
+from proxilion.exceptions import EmergencyHaltError
 from proxilion.security.behavioral_drift import (
     BaselineStats,
     BehavioralMonitor,
@@ -12,17 +15,14 @@ from proxilion.security.behavioral_drift import (
     DriftResult,
     KillSwitch,
 )
-from proxilion.exceptions import EmergencyHaltError
-
 
 # ---------------------------------------------------------------------------
 # BaselineStats
 # ---------------------------------------------------------------------------
 
+
 class TestBaselineStats:
-    def _make_stats(
-        self, mean: float = 10.0, std_dev: float = 2.0
-    ) -> BaselineStats:
+    def _make_stats(self, mean: float = 10.0, std_dev: float = 2.0) -> BaselineStats:
         return BaselineStats(
             metric=DriftMetric.TOOL_CALL_RATE,
             mean=mean,
@@ -70,6 +70,7 @@ class TestBaselineStats:
 # DriftResult
 # ---------------------------------------------------------------------------
 
+
 class TestDriftResult:
     def test_to_dict_keys(self) -> None:
         result = DriftResult(
@@ -101,18 +102,22 @@ class TestDriftResult:
 # BehavioralMonitor
 # ---------------------------------------------------------------------------
 
+
 class TestBehavioralMonitor:
     def test_creation_defaults(self) -> None:
         monitor = BehavioralMonitor(agent_id="test")
         assert monitor.agent_id == "test"
 
-    @pytest.mark.parametrize("kwarg,value", [
-        ("baseline_window", 0),
-        ("baseline_window", -1),
-        ("detection_window", 0),
-        ("drift_threshold", -0.5),
-        ("min_baseline_samples", 0),
-    ])
+    @pytest.mark.parametrize(
+        "kwarg,value",
+        [
+            ("baseline_window", 0),
+            ("baseline_window", -1),
+            ("detection_window", 0),
+            ("drift_threshold", -0.5),
+            ("min_baseline_samples", 0),
+        ],
+    )
     def test_invalid_params_raise_value_error(self, kwarg: str, value: float) -> None:
         with pytest.raises(ValueError):
             BehavioralMonitor(agent_id="test", **{kwarg: value})
@@ -148,7 +153,7 @@ class TestBehavioralMonitor:
             baseline_window=100,
             min_baseline_samples=20,
         )
-        for i in range(25):
+        for _i in range(25):
             monitor.record_response({"content": "x" * 100})
         baseline = monitor.lock_baseline()
         assert len(baseline) > 0
@@ -160,7 +165,7 @@ class TestBehavioralMonitor:
             agent_id="test",
             min_baseline_samples=20,
         )
-        for i in range(5):
+        for _i in range(5):
             monitor.record_response({"content": "x"})
         baseline = monitor.lock_baseline()
         # Not enough samples, so no metric should appear
@@ -280,7 +285,7 @@ class TestBehavioralMonitor:
             monitor.record_response({"content": "x" * 100})
 
         # Should auto-lock baseline and return a result
-        result = monitor.check_drift()
+        monitor.check_drift()
         assert len(monitor.get_baseline()) > 0
 
     def test_check_drift_empty_detection_window(self) -> None:
@@ -306,6 +311,7 @@ class TestBehavioralMonitor:
 # ---------------------------------------------------------------------------
 # KillSwitch
 # ---------------------------------------------------------------------------
+
 
 class TestKillSwitch:
     def test_initial_state(self) -> None:
@@ -392,6 +398,7 @@ class TestKillSwitch:
 # ---------------------------------------------------------------------------
 # DriftDetector
 # ---------------------------------------------------------------------------
+
 
 class TestDriftDetector:
     def test_creation(self) -> None:
@@ -487,6 +494,7 @@ class TestDriftDetector:
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_zero_std_dev_baseline_no_false_drift(self) -> None:

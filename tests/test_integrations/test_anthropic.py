@@ -139,9 +139,7 @@ class TestProxilionToolHandler:
             "description": "Get weather for a location",
             "input_schema": {
                 "type": "object",
-                "properties": {
-                    "location": {"type": "string"}
-                },
+                "properties": {"location": {"type": "string"}},
                 "required": ["location"],
             },
         }
@@ -189,10 +187,9 @@ class TestProxilionToolHandler:
         assert registered is not None
         assert registered.name == "my_tool"
 
-    def test_execute_tool(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_tool(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test executing a tool."""
+
         @proxilion_simple.policy("get_weather")
         class WeatherPolicy(Policy):
             def can_execute(self, context):
@@ -221,10 +218,9 @@ class TestProxilionToolHandler:
         # Result is JSON stringified
         assert "London" in result.result
 
-    def test_execute_tool_unauthorized(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_tool_unauthorized(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that execution is denied for unauthorized users."""
+
         @proxilion_simple.policy("admin_tool")
         class AdminPolicy(Policy):
             def can_execute(self, context):
@@ -253,9 +249,7 @@ class TestProxilionToolHandler:
         assert result.authorized is False
         assert result.error == "Not authorized"
 
-    def test_execute_tool_not_found(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_tool_not_found(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test executing a tool that doesn't exist."""
         handler = ProxilionToolHandler(proxilion_simple)
 
@@ -273,6 +267,7 @@ class TestProxilionToolHandler:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test executing with Anthropic tool_use block object."""
+
         @proxilion_simple.policy("calculator")
         class CalcPolicy(Policy):
             def can_execute(self, context):
@@ -311,10 +306,9 @@ class TestProxilionToolHandler:
         assert result.tool_use_id == "toolu_abc"
         assert "8" in result.result
 
-    def test_execute_safe_errors(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_safe_errors(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that safe errors hide implementation details."""
+
         @proxilion_simple.policy("buggy_tool")
         class BuggyPolicy(Policy):
             def can_execute(self, context):
@@ -342,10 +336,9 @@ class TestProxilionToolHandler:
         assert "sensitive" not in result.error
         assert result.error == "Tool execution failed"
 
-    def test_execute_detailed_errors(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_detailed_errors(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that detailed errors show implementation details."""
+
         @proxilion_simple.policy("buggy_tool")
         class BuggyPolicy(Policy):
             def can_execute(self, context):
@@ -373,10 +366,9 @@ class TestProxilionToolHandler:
         assert "Detailed error message" in result.error
 
     @pytest.mark.asyncio
-    async def test_execute_async_tool(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    async def test_execute_async_tool(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test executing an async tool."""
+
         @proxilion_simple.policy("async_tool")
         class AsyncPolicy(Policy):
             def can_execute(self, context):
@@ -443,10 +435,9 @@ class TestProxilionToolHandler:
         assert len(tools) == 1
         assert tools[0] == schema
 
-    def test_execution_history(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execution_history(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that execution history is tracked."""
+
         @proxilion_simple.policy("tracked_tool")
         class TrackedPolicy(Policy):
             def can_execute(self, context):
@@ -465,16 +456,22 @@ class TestProxilionToolHandler:
 
         # Execute multiple times
         handler.execute(
-            tool_name="tracked_tool", tool_use_id="t1",
-            input_data={"x": 1}, user=basic_user,
+            tool_name="tracked_tool",
+            tool_use_id="t1",
+            input_data={"x": 1},
+            user=basic_user,
         )
         handler.execute(
-            tool_name="tracked_tool", tool_use_id="t2",
-            input_data={"x": 2}, user=basic_user,
+            tool_name="tracked_tool",
+            tool_use_id="t2",
+            input_data={"x": 2},
+            user=basic_user,
         )
         handler.execute(
-            tool_name="tracked_tool", tool_use_id="t3",
-            input_data={"x": 3}, user=basic_user,
+            tool_name="tracked_tool",
+            tool_use_id="t3",
+            input_data={"x": 3},
+            user=basic_user,
         )
 
         history = handler.execution_history
@@ -485,10 +482,9 @@ class TestProxilionToolHandler:
 class TestProcessToolUse:
     """Tests for process_tool_use helper function."""
 
-    def test_process_single_tool_use(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_process_single_tool_use(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test processing response with single tool_use."""
+
         @proxilion_simple.policy("get_weather")
         class WeatherPolicy(Policy):
             def can_execute(self, context):
@@ -530,10 +526,9 @@ class TestProcessToolUse:
         assert results[0].success is True
         assert "London" in results[0].result
 
-    def test_process_multiple_tool_uses(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_process_multiple_tool_uses(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test processing response with multiple tool_use blocks."""
+
         @proxilion_simple.policy("tool_a")
         class ToolAPolicy(Policy):
             def can_execute(self, context):
@@ -590,10 +585,9 @@ class TestProcessToolUse:
         assert len(results) == 2
         assert all(r.success for r in results)
 
-    def test_process_mixed_content(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_process_mixed_content(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test processing response with mixed content types."""
+
         @proxilion_simple.policy("my_tool")
         class MyToolPolicy(Policy):
             def can_execute(self, context):
@@ -635,9 +629,7 @@ class TestProcessToolUse:
         assert len(results) == 1
         assert results[0].tool_name == "my_tool"
 
-    def test_process_empty_response(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_process_empty_response(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test processing response with no tool_use blocks."""
         handler = ProxilionToolHandler(proxilion_simple)
 
@@ -663,10 +655,9 @@ class TestProcessToolUse:
 class TestProcessToolUseAsync:
     """Tests for process_tool_use_async helper function."""
 
-    async def test_process_async(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    async def test_process_async(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test async processing of tool_use blocks."""
+
         @proxilion_simple.policy("async_tool")
         class AsyncPolicy(Policy):
             def can_execute(self, context):
@@ -754,6 +745,7 @@ class TestRegisteredTool:
 
     def test_registered_tool_creation(self):
         """Test creating a registered tool record."""
+
         def impl(x: int) -> int:
             return x
 

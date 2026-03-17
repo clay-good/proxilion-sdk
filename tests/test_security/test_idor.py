@@ -111,7 +111,8 @@ class TestBulkValidation:
         """Test filtering to only accessible IDs."""
         ids_to_filter = ["doc_1", "doc_2", "doc_4", "doc_5"]
         accessible = [
-            id_ for id_ in ids_to_filter
+            id_
+            for id_ in ids_to_filter
             if idor_protector.validate_access("user_123", "document", id_)
         ]
 
@@ -127,6 +128,7 @@ class TestIDPatterns:
     def test_uuid_pattern(self):
         """Test UUID pattern detection."""
         import re
+
         pattern = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
             re.IGNORECASE,
@@ -143,6 +145,7 @@ class TestIDPatterns:
     def test_numeric_pattern(self):
         """Test numeric ID pattern detection."""
         import re
+
         pattern = re.compile(r"^\d+$")
 
         # Valid numeric IDs
@@ -156,6 +159,7 @@ class TestIDPatterns:
     def test_alphanumeric_pattern(self):
         """Test alphanumeric ID pattern detection."""
         import re
+
         pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
 
         # Valid alphanumeric IDs

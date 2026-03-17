@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -44,16 +43,20 @@ def engine(mock_casbin_module, tmp_path):
     model_file.write_text("[request_definition]\nr = sub, obj, act\n")
     policy_file.write_text("p, alice, document, read\n")
 
-    with patch.dict("sys.modules", {"casbin": mock_casbin_module}):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+    with (
+        patch.dict("sys.modules", {"casbin": mock_casbin_module}),
+        patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+        patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+    ):
+        from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine({
-                    "model_path": str(model_file),
-                    "policy_path": str(policy_file),
-                })
-                yield eng
+        eng = CasbinPolicyEngine(
+            {
+                "model_path": str(model_file),
+                "policy_path": str(policy_file),
+            }
+        )
+        yield eng
 
 
 class TestHasCasbinFlag:
@@ -78,14 +81,16 @@ class TestCasbinEngineInit:
     """Test engine initialization."""
 
     def test_init_without_config_paths(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                assert eng._enforcer is None
-                assert eng._model_path is None
-                assert eng._policy_path is None
+            eng = CasbinPolicyEngine()
+            assert eng._enforcer is None
+            assert eng._model_path is None
+            assert eng._policy_path is None
 
     def test_init_with_config_paths(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
@@ -93,30 +98,34 @@ class TestCasbinEngineInit:
         model_file.write_text("[request_definition]\n")
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine({
+            eng = CasbinPolicyEngine(
+                {
                     "model_path": str(model_file),
                     "policy_path": str(policy_file),
-                })
-                assert eng._enforcer is not None
-                assert eng._initialized is True
-                mock_casbin_module.Enforcer.assert_called_once_with(
-                    str(model_file), str(policy_file)
-                )
+                }
+            )
+            assert eng._enforcer is not None
+            assert eng._initialized is True
+            mock_casbin_module.Enforcer.assert_called_once_with(str(model_file), str(policy_file))
 
     def test_init_with_only_model_path_does_not_load(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
         model_file.write_text("[request_definition]\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine({"model_path": str(model_file)})
-                assert eng._enforcer is None
+            eng = CasbinPolicyEngine({"model_path": str(model_file)})
+            assert eng._enforcer is None
 
     def test_name_attribute(self, engine):
         assert engine.name == "casbin"
@@ -142,13 +151,15 @@ class TestEnforcerProperty:
         assert engine.enforcer is not None
 
     def test_enforcer_raises_when_not_initialized(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="not initialized"):
-                    _ = eng.enforcer
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="not initialized"):
+                _ = eng.enforcer
 
 
 class TestLoadPolicies:
@@ -160,13 +171,15 @@ class TestLoadPolicies:
         model_file.write_text("[request_definition]\n")
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.load_policies(tmp_path)
-                assert eng._initialized is True
+            eng = CasbinPolicyEngine()
+            eng.load_policies(tmp_path)
+            assert eng._initialized is True
 
     def test_load_from_conf_file(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
@@ -174,27 +187,29 @@ class TestLoadPolicies:
         model_file.write_text("[request_definition]\n")
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.load_policies(model_file)
-                mock_casbin_module.Enforcer.assert_called_with(
-                    str(model_file), str(policy_file)
-                )
+            eng = CasbinPolicyEngine()
+            eng.load_policies(model_file)
+            mock_casbin_module.Enforcer.assert_called_with(str(model_file), str(policy_file))
 
     def test_load_from_invalid_extension_raises(self, mock_casbin_module, tmp_path):
         bad_file = tmp_path / "policy.txt"
         bad_file.write_text("something")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="Invalid source"):
-                    eng.load_policies(bad_file)
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="Invalid source"):
+                eng.load_policies(bad_file)
 
     def test_load_from_string_path(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
@@ -202,13 +217,15 @@ class TestLoadPolicies:
         model_file.write_text("[request_definition]\n")
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.load_policies(str(model_file))
-                assert eng._initialized is True
+            eng = CasbinPolicyEngine()
+            eng.load_policies(str(model_file))
+            assert eng._initialized is True
 
 
 class TestLoadPoliciesFromFiles:
@@ -218,29 +235,29 @@ class TestLoadPoliciesFromFiles:
         policy_file = tmp_path / "policy.csv"
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="Model file not found"):
-                    eng.load_policies_from_files(
-                        tmp_path / "missing.conf", policy_file
-                    )
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="Model file not found"):
+                eng.load_policies_from_files(tmp_path / "missing.conf", policy_file)
 
     def test_missing_policy_file_raises(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
         model_file.write_text("[request_definition]\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="Policy file not found"):
-                    eng.load_policies_from_files(
-                        model_file, tmp_path / "missing.csv"
-                    )
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="Policy file not found"):
+                eng.load_policies_from_files(model_file, tmp_path / "missing.csv")
 
     def test_enforcer_creation_failure_raises(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
@@ -249,13 +266,15 @@ class TestLoadPoliciesFromFiles:
         policy_file.write_text("p, alice, doc, read\n")
         mock_casbin_module.Enforcer.side_effect = RuntimeError("bad model")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="Failed to initialize Casbin enforcer"):
-                    eng.load_policies_from_files(model_file, policy_file)
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="Failed to initialize Casbin enforcer"):
+                eng.load_policies_from_files(model_file, policy_file)
 
     def test_accepts_string_paths(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
@@ -263,14 +282,16 @@ class TestLoadPoliciesFromFiles:
         model_file.write_text("[request_definition]\n")
         policy_file.write_text("p, alice, doc, read\n")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.load_policies_from_files(str(model_file), str(policy_file))
-                assert eng._model_path == model_file
-                assert eng._policy_path == policy_file
+            eng = CasbinPolicyEngine()
+            eng.load_policies_from_files(str(model_file), str(policy_file))
+            assert eng._model_path == model_file
+            assert eng._policy_path == policy_file
 
 
 class TestLoadPoliciesFromAdapter:
@@ -281,39 +302,44 @@ class TestLoadPoliciesFromAdapter:
         model_file.write_text("[request_definition]\n")
         adapter = MagicMock()
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine({"model_path": str(model_file)})
-                mock_casbin_module.Enforcer.reset_mock()
-                eng.load_policies_from_adapter(adapter)
-                mock_casbin_module.Enforcer.assert_called_once_with(
-                    str(model_file), adapter
-                )
-                assert eng._initialized is True
+            eng = CasbinPolicyEngine({"model_path": str(model_file)})
+            mock_casbin_module.Enforcer.reset_mock()
+            eng.load_policies_from_adapter(adapter)
+            mock_casbin_module.Enforcer.assert_called_once_with(str(model_file), adapter)
+            assert eng._initialized is True
 
     def test_load_adapter_without_model_path_raises(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyLoadError, match="model_path is required"):
-                    eng.load_policies_from_adapter(MagicMock())
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyLoadError, match="model_path is required"):
+                eng.load_policies_from_adapter(MagicMock())
 
     def test_adapter_enforcer_failure_raises(self, mock_casbin_module, tmp_path):
         model_file = tmp_path / "model.conf"
         model_file.write_text("[request_definition]\n")
         mock_casbin_module.Enforcer.side_effect = RuntimeError("adapter error")
 
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine({"model_path": str(model_file)})
-                with pytest.raises(PolicyLoadError, match="Failed to initialize Casbin with adapter"):
-                    eng.load_policies_from_adapter(MagicMock())
+            eng = CasbinPolicyEngine({"model_path": str(model_file)})
+            match_msg = "Failed to initialize Casbin with adapter"
+            with pytest.raises(PolicyLoadError, match=match_msg):
+                eng.load_policies_from_adapter(MagicMock())
 
 
 class TestEvaluate:
@@ -355,24 +381,28 @@ class TestEvaluate:
             engine.evaluate(user, "read", "doc")
 
     def test_enforcer_not_initialized_raises(self, mock_casbin_module, user):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                with pytest.raises(PolicyEvaluationError, match="not initialized"):
-                    eng.evaluate(user, "read", "doc")
+            eng = CasbinPolicyEngine()
+            with pytest.raises(PolicyEvaluationError, match="not initialized"):
+                eng.evaluate(user, "read", "doc")
 
 
 class TestEvaluateAsync:
     """Test async evaluation."""
 
+    @pytest.mark.asyncio
     async def test_evaluate_async_delegates_to_sync(self, engine, user):
         engine._enforcer.enforce.return_value = True
         result = await engine.evaluate_async(user, "read", "document")
         assert result.allowed is True
         engine._enforcer.enforce.assert_called_once_with("alice", "document", "read")
 
+    @pytest.mark.asyncio
     async def test_evaluate_async_denied(self, engine, user):
         engine._enforcer.enforce.return_value = False
         result = await engine.evaluate_async(user, "write", "secret")
@@ -524,36 +554,42 @@ class TestReloadAndSavePolicies:
         engine._enforcer.load_policy.assert_called_once()
 
     def test_reload_policies_no_enforcer(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.reload_policies()
+            eng = CasbinPolicyEngine()
+            eng.reload_policies()
 
     def test_save_policies(self, engine):
         engine.save_policies()
         engine._enforcer.save_policy.assert_called_once()
 
     def test_save_policies_no_enforcer(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                eng.save_policies()
+            eng = CasbinPolicyEngine()
+            eng.save_policies()
 
 
 class TestInheritedBehavior:
     """Test behavior inherited from BasePolicyEngine."""
 
     def test_is_initialized_false_by_default(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                assert eng.is_initialized() is False
+            eng = CasbinPolicyEngine()
+            assert eng.is_initialized() is False
 
     def test_is_initialized_true_after_load(self, engine):
         assert engine.is_initialized() is True
@@ -564,9 +600,11 @@ class TestInheritedBehavior:
         assert engine.get_config("nonexistent", "default") == "default"
 
     def test_config_defaults_to_empty_dict(self, mock_casbin_module):
-        with patch("proxilion.engines.casbin_engine.HAS_CASBIN", True):
-            with patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module):
-                from proxilion.engines.casbin_engine import CasbinPolicyEngine
+        with (
+            patch("proxilion.engines.casbin_engine.HAS_CASBIN", True),
+            patch("proxilion.engines.casbin_engine.casbin", mock_casbin_module),
+        ):
+            from proxilion.engines.casbin_engine import CasbinPolicyEngine
 
-                eng = CasbinPolicyEngine()
-                assert eng.config == {}
+            eng = CasbinPolicyEngine()
+            assert eng.config == {}

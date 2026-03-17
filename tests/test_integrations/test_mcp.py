@@ -107,9 +107,7 @@ class TestMCPSession:
         # Resource not in permissions dict - denied by default
         assert session.has_permission("calculator", "execute") is False
 
-    def test_session_with_agent_context(
-        self, basic_user: UserContext, basic_agent: AgentContext
-    ):
+    def test_session_with_agent_context(self, basic_user: UserContext, basic_agent: AgentContext):
         """Test session with agent context."""
         session = MCPSession(
             session_id="session_123",
@@ -266,6 +264,7 @@ class TestMCPToolWrapper:
 
     def test_wrapper_initialization(self, proxilion_simple: Proxilion):
         """Test tool wrapper initialization."""
+
         class MockTool:
             name = "test_tool"
             description = "A test tool"
@@ -288,6 +287,7 @@ class TestMCPToolWrapper:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test executing wrapped tool with session."""
+
         @proxilion_simple.policy("test_tool")
         class TestToolPolicy(Policy):
             def can_execute(self, context):
@@ -323,6 +323,7 @@ class TestMCPToolWrapper:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that wrapped tool denies unauthorized access."""
+
         @proxilion_simple.policy("restricted_tool")
         class RestrictedPolicy(Policy):
             def can_execute(self, context):
@@ -355,8 +356,10 @@ class TestMCPToolWrapper:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that wrapper rejects expired sessions."""
+
         class MockTool:
             name = "test_tool"
+
             async def execute(self, arguments):
                 return {"result": "success"}
 
@@ -379,6 +382,7 @@ class TestMCPToolWrapper:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that wrapper checks session-specific permissions."""
+
         @proxilion_simple.policy("file_write")
         class FileWritePolicy(Policy):
             def can_execute(self, context):
@@ -386,6 +390,7 @@ class TestMCPToolWrapper:
 
         class MockTool:
             name = "file_write"
+
             async def execute(self, arguments):
                 return {"result": "success"}
 
@@ -413,6 +418,7 @@ class TestProxilionMCPServer:
 
     def test_server_initialization(self, proxilion_simple: Proxilion):
         """Test MCP server initialization."""
+
         class MockServer:
             tools = []
 
@@ -429,6 +435,7 @@ class TestProxilionMCPServer:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test handling a tool call through the server."""
+
         @proxilion_simple.policy("calculator")
         class CalculatorPolicy(Policy):
             def can_execute(self, context):
@@ -468,6 +475,7 @@ class TestProxilionMCPServer:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that server denies unknown tools by default."""
+
         class MockServer:
             tools = []
 
@@ -488,10 +496,9 @@ class TestProxilionMCPServer:
 
         assert "not found" in str(exc.value)
 
-    def test_server_create_session(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_server_create_session(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test creating a session through the server."""
+
         class MockServer:
             tools = []
 
@@ -508,6 +515,7 @@ class TestProxilionMCPServer:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test creating a session with client validation (default accepts all)."""
+
         class MockServer:
             tools = []
 
@@ -516,9 +524,7 @@ class TestProxilionMCPServer:
             proxilion=proxilion_simple,
         )
 
-        session = server.create_session(
-            basic_user, client_id="my-client", client_secret="secret"
-        )
+        session = server.create_session(basic_user, client_id="my-client", client_secret="secret")
         assert session is not None
         assert session.user_context == basic_user
 
@@ -546,6 +552,7 @@ class TestProxilionMCPServer:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test custom validate_client override via subclass."""
+
         class MockServer:
             tools = []
 
@@ -564,6 +571,7 @@ class TestProxilionMCPServer:
 
         # Untrusted client fails
         from proxilion.contrib.mcp import MCPSecurityError
+
         with pytest.raises(MCPSecurityError):
             server.create_session(basic_user, client_id="untrusted-client")
 
@@ -571,6 +579,7 @@ class TestProxilionMCPServer:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that omitting client_id skips validation entirely."""
+
         class MockServer:
             tools = []
 
@@ -666,10 +675,9 @@ class TestCreateMCPToolHandler:
     """Tests for create_mcp_tool_handler function."""
 
     @pytest.mark.asyncio
-    async def test_create_handler(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    async def test_create_handler(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test creating a tool handler function."""
+
         @proxilion_simple.policy("test_tool")
         class TestToolPolicy(Policy):
             def can_execute(self, context):
@@ -697,9 +705,7 @@ class TestCreateMCPToolHandler:
         assert result == {"result": "handled"}
 
     @pytest.mark.asyncio
-    async def test_handler_unknown_tool(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    async def test_handler_unknown_tool(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test handler with unknown tool."""
         handler = create_mcp_tool_handler(
             proxilion=proxilion_simple,

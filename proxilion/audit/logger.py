@@ -24,6 +24,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+# Import fcntl for file locking (Unix only)
+try:
+    import fcntl
+
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+
 from proxilion.audit.events import (
     AuditEventData,
     AuditEventV2,
@@ -370,11 +378,22 @@ class AuditLogger:
         if self._file is None:
             return
 
-        line = event.to_json(pretty=False) + "\n"
-        self._file.write(line)
+        line = event.to_json(pretty=False)
+        if not line.endswith("\n"):
+            line += "\n"
 
-        if self.config.sync_writes:
-            self._file.flush()
+        # Acquire file lock if available (Unix only)
+        if HAS_FCNTL:
+            fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
+
+        try:
+            self._file.write(line)
+            if self.config.sync_writes:
+                self._file.flush()
+        finally:
+            # Release file lock if available
+            if HAS_FCNTL:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
 
     def _write_batch_marker(self, batch: Any) -> None:
         """Write a batch marker to the log file."""
@@ -385,11 +404,22 @@ class AuditLogger:
             "_type": "batch_marker",
             "batch": batch.to_dict(),
         }
-        line = json.dumps(marker, sort_keys=True) + "\n"
-        self._file.write(line)
+        line = json.dumps(marker, sort_keys=True)
+        if not line.endswith("\n"):
+            line += "\n"
 
-        if self.config.sync_writes:
-            self._file.flush()
+        # Acquire file lock if available (Unix only)
+        if HAS_FCNTL:
+            fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
+
+        try:
+            self._file.write(line)
+            if self.config.sync_writes:
+                self._file.flush()
+        finally:
+            # Release file lock if available
+            if HAS_FCNTL:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
 
     def _redact_event(self, event: AuditEventV2) -> AuditEventV2:
         """Apply redaction to an event's sensitive data."""

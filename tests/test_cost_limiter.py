@@ -167,19 +167,23 @@ class TestCostLimiterCore:
         """Test adding a limit."""
         limiter = CostLimiter(limits=[])
 
-        limiter.add_limit(CostLimit(
-            max_cost=10.00,
-            period=timedelta(hours=1),
-            name="new_limit",
-        ))
+        limiter.add_limit(
+            CostLimit(
+                max_cost=10.00,
+                period=timedelta(hours=1),
+                name="new_limit",
+            )
+        )
 
         assert len(limiter.get_limits()) == 1
 
     def test_remove_limit(self) -> None:
         """Test removing a limit."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), name="to_remove"),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), name="to_remove"),
+            ]
+        )
 
         assert limiter.remove_limit("to_remove")
         assert len(limiter.get_limits()) == 0
@@ -200,18 +204,22 @@ class TestCostLimitChecking:
 
     def test_check_limit_allowed(self) -> None:
         """Test request within limit."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), scope=LimitScope.USER),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), scope=LimitScope.USER),
+            ]
+        )
 
         result = limiter.check_limit("user_123", estimated_cost=1.00)
         assert result.allowed
 
     def test_check_limit_denied(self) -> None:
         """Test request exceeding limit."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), scope=LimitScope.USER),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), scope=LimitScope.USER),
+            ]
+        )
 
         # Record spend to hit limit
         for _ in range(11):
@@ -222,16 +230,22 @@ class TestCostLimitChecking:
 
     def test_check_limit_multi_tier(self) -> None:
         """Test multi-tier limits."""
-        limiter = CostLimiter(limits=[
-            CostLimit(
-                max_cost=1.00, period=timedelta(minutes=1),
-                scope=LimitScope.USER, name="burst",
-            ),
-            CostLimit(
-                max_cost=10.00, period=timedelta(hours=1),
-                scope=LimitScope.USER, name="hourly",
-            ),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(
+                    max_cost=1.00,
+                    period=timedelta(minutes=1),
+                    scope=LimitScope.USER,
+                    name="burst",
+                ),
+                CostLimit(
+                    max_cost=10.00,
+                    period=timedelta(hours=1),
+                    scope=LimitScope.USER,
+                    name="hourly",
+                ),
+            ]
+        )
 
         # Record spend to exceed burst limit
         for _ in range(2):
@@ -243,9 +257,11 @@ class TestCostLimitChecking:
 
     def test_check_limit_warning(self) -> None:
         """Test warning when approaching limit."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), warn_at=0.8),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), warn_at=0.8),
+            ]
+        )
 
         # Record spend to approach limit
         limiter.record_spend("user_123", 8.00)
@@ -256,9 +272,11 @@ class TestCostLimitChecking:
 
     def test_check_limit_soft_limit(self) -> None:
         """Test soft limit allows but warns."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), hard_limit=False),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), hard_limit=False),
+            ]
+        )
 
         # Record spend to exceed limit
         limiter.record_spend("user_123", 10.00)
@@ -279,9 +297,11 @@ class TestSpendRecording:
 
     def test_record_spend(self) -> None:
         """Test recording spend."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         limiter.record_spend("user_123", 5.00)
 
@@ -290,9 +310,11 @@ class TestSpendRecording:
 
     def test_record_spend_accumulates(self) -> None:
         """Test spend accumulates."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=100.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=100.00, period=timedelta(hours=1)),
+            ]
+        )
 
         limiter.record_spend("user_123", 5.00)
         limiter.record_spend("user_123", 3.00)
@@ -303,9 +325,11 @@ class TestSpendRecording:
 
     def test_get_remaining_budget(self) -> None:
         """Test getting remaining budget."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         limiter.record_spend("user_123", 3.00)
 
@@ -314,9 +338,11 @@ class TestSpendRecording:
 
     def test_reset_period(self) -> None:
         """Test manual reset of period."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         limiter.record_spend("user_123", 5.00)
         limiter.reset_period("user_123")
@@ -367,10 +393,12 @@ class TestStatusReporting:
 
     def test_get_status(self) -> None:
         """Test getting comprehensive status."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1), name="hourly"),
-            CostLimit(max_cost=50.00, period=timedelta(days=1), name="daily"),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1), name="hourly"),
+                CostLimit(max_cost=50.00, period=timedelta(days=1), name="daily"),
+            ]
+        )
 
         limiter.record_spend("user_123", 5.00)
 
@@ -391,18 +419,22 @@ class TestHybridRateLimiter:
 
     def test_init(self) -> None:
         """Test initialization."""
-        cost_limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        cost_limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         hybrid = HybridRateLimiter(cost_limiter=cost_limiter)
         assert hybrid is not None
 
     def test_allow_request_cost_only(self) -> None:
         """Test with only cost limiter."""
-        cost_limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        cost_limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         hybrid = HybridRateLimiter(cost_limiter=cost_limiter)
 
@@ -411,9 +443,11 @@ class TestHybridRateLimiter:
 
     def test_allow_request_cost_exceeded(self) -> None:
         """Test when cost limit exceeded."""
-        cost_limiter = CostLimiter(limits=[
-            CostLimit(max_cost=1.00, period=timedelta(hours=1)),
-        ])
+        cost_limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=1.00, period=timedelta(hours=1)),
+            ]
+        )
 
         hybrid = HybridRateLimiter(cost_limiter=cost_limiter)
 
@@ -427,9 +461,11 @@ class TestHybridRateLimiter:
 
     def test_record_usage(self) -> None:
         """Test recording usage through hybrid limiter."""
-        cost_limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        cost_limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         hybrid = HybridRateLimiter(cost_limiter=cost_limiter)
 
@@ -440,9 +476,11 @@ class TestHybridRateLimiter:
 
     def test_get_status(self) -> None:
         """Test getting status from hybrid limiter."""
-        cost_limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        cost_limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         hybrid = HybridRateLimiter(cost_limiter=cost_limiter)
 
@@ -527,18 +565,17 @@ class TestThreadSafety:
         """Test concurrent spend recording."""
         import threading
 
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=1000.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=1000.00, period=timedelta(hours=1)),
+            ]
+        )
 
         def record_spend() -> None:
             for _ in range(100):
                 limiter.record_spend("user_123", 0.01)
 
-        threads = [
-            threading.Thread(target=record_spend)
-            for _ in range(10)
-        ]
+        threads = [threading.Thread(target=record_spend) for _ in range(10)]
 
         for t in threads:
             t.start()
@@ -552,9 +589,11 @@ class TestThreadSafety:
         """Test concurrent limit checking."""
         import threading
 
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=100.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=100.00, period=timedelta(hours=1)),
+            ]
+        )
 
         results = []
         lock = threading.Lock()
@@ -565,10 +604,7 @@ class TestThreadSafety:
                 with lock:
                     results.append(result.allowed)
 
-        threads = [
-            threading.Thread(target=check_limit)
-            for _ in range(5)
-        ]
+        threads = [threading.Thread(target=check_limit) for _ in range(5)]
 
         for t in threads:
             t.start()
@@ -595,18 +631,22 @@ class TestEdgeCases:
 
     def test_zero_cost_request(self) -> None:
         """Test checking limit with zero cost."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         result = limiter.check_limit("user_123", estimated_cost=0.0)
         assert result.allowed
 
     def test_exact_limit(self) -> None:
         """Test request that exactly reaches limit."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         limiter.record_spend("user_123", 9.00)
 
@@ -623,9 +663,11 @@ class TestEdgeCases:
 
     def test_user_isolation(self) -> None:
         """Test that users are isolated."""
-        limiter = CostLimiter(limits=[
-            CostLimit(max_cost=10.00, period=timedelta(hours=1)),
-        ])
+        limiter = CostLimiter(
+            limits=[
+                CostLimit(max_cost=10.00, period=timedelta(hours=1)),
+            ]
+        )
 
         # User A hits limit
         limiter.record_spend("user_a", 10.00)

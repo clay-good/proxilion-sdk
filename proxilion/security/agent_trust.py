@@ -76,9 +76,9 @@ def _validate_secret_key(secret_key: str | bytes) -> None:
     if len(key_str) < 16:
         raise ConfigurationError("secret_key must be at least 16 characters for HMAC security")
     lower = key_str.lower()
-    is_placeholder = any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(
-        set(key_str)
-    ) == 1
+    is_placeholder = (
+        any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(set(key_str)) == 1
+    )
     if is_placeholder:
         logger.warning("secret_key looks like a placeholder; use a random key in production.")
 

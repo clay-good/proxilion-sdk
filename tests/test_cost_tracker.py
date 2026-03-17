@@ -308,9 +308,7 @@ class TestBudgetPolicy:
 
     def test_check_budget_per_request(self) -> None:
         """Test per-request budget limit."""
-        tracker = CostTracker(
-            budget_policy=BudgetPolicy(max_cost_per_request=0.01)
-        )
+        tracker = CostTracker(budget_policy=BudgetPolicy(max_cost_per_request=0.01))
 
         # Small request should be allowed
         allowed, reason = tracker.check_budget(
@@ -329,9 +327,7 @@ class TestBudgetPolicy:
 
     def test_check_budget_per_user_daily(self) -> None:
         """Test per-user daily budget limit."""
-        tracker = CostTracker(
-            budget_policy=BudgetPolicy(max_cost_per_user_per_day=1.00)
-        )
+        tracker = CostTracker(budget_policy=BudgetPolicy(max_cost_per_user_per_day=1.00))
 
         # Record some usage
         for _ in range(10):
@@ -354,9 +350,7 @@ class TestBudgetPolicy:
 
     def test_check_budget_token_limit(self) -> None:
         """Test per-request token limit."""
-        tracker = CostTracker(
-            budget_policy=BudgetPolicy(max_tokens_per_request=5000)
-        )
+        tracker = CostTracker(budget_policy=BudgetPolicy(max_tokens_per_request=5000))
 
         # Small request allowed
         allowed, reason = tracker.check_budget(
@@ -508,9 +502,7 @@ class TestCostSummary:
         )
 
         # Get summary for last hour only
-        summary = tracker.get_summary(
-            start=datetime.now(timezone.utc) - timedelta(hours=1)
-        )
+        summary = tracker.get_summary(start=datetime.now(timezone.utc) - timedelta(hours=1))
 
         assert summary.total_input_tokens == 2000
         assert summary.record_count == 1
@@ -705,16 +697,12 @@ class TestCreateCostTracker:
 
     def test_create_with_budget_policy(self) -> None:
         """Test factory with budget policy."""
-        tracker = create_cost_tracker(
-            budget_policy=BudgetPolicy(max_cost_per_request=1.00)
-        )
+        tracker = create_cost_tracker(budget_policy=BudgetPolicy(max_cost_per_request=1.00))
         assert tracker.get_budget_policy() is not None
 
     def test_create_with_custom_pricing(self) -> None:
         """Test factory with custom pricing."""
-        custom = {
-            "my_model": ModelPricing("My Model", 0.01, 0.02)
-        }
+        custom = {"my_model": ModelPricing("My Model", 0.01, 0.02)}
         tracker = create_cost_tracker(custom_pricing=custom)
         assert tracker.get_pricing("my_model") is not None
 
@@ -793,10 +781,7 @@ class TestThreadSafety:
                 with lock:
                     results.append(record)
 
-        threads = [
-            threading.Thread(target=record_usage, args=(f"user_{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=record_usage, args=(f"user_{i}",)) for i in range(5)]
 
         for t in threads:
             t.start()
@@ -809,9 +794,7 @@ class TestThreadSafety:
         """Test concurrent budget checking."""
         import threading
 
-        tracker = CostTracker(
-            budget_policy=BudgetPolicy(max_cost_per_user_per_day=100.00)
-        )
+        tracker = CostTracker(budget_policy=BudgetPolicy(max_cost_per_user_per_day=100.00))
         results = []
         lock = threading.Lock()
 
@@ -821,10 +804,7 @@ class TestThreadSafety:
                 with lock:
                     results.append(allowed)
 
-        threads = [
-            threading.Thread(target=check_budget, args=(f"user_{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=check_budget, args=(f"user_{i}",)) for i in range(5)]
 
         for t in threads:
             t.start()
@@ -845,19 +825,25 @@ class TestInputValidation:
     def test_negative_input_tokens_rejected(self) -> None:
         tracker = CostTracker()
         with pytest.raises(ValueError, match="input_tokens must be non-negative"):
-            tracker.record_usage(model="claude-sonnet-4-20250514", input_tokens=-1, output_tokens=10)
+            tracker.record_usage(
+                model="claude-sonnet-4-20250514", input_tokens=-1, output_tokens=10
+            )
 
     def test_negative_output_tokens_rejected(self) -> None:
         tracker = CostTracker()
         with pytest.raises(ValueError, match="output_tokens must be non-negative"):
-            tracker.record_usage(model="claude-sonnet-4-20250514", input_tokens=10, output_tokens=-5)
+            tracker.record_usage(
+                model="claude-sonnet-4-20250514", input_tokens=10, output_tokens=-5
+            )
 
     def test_negative_cache_read_tokens_rejected(self) -> None:
         tracker = CostTracker()
         with pytest.raises(ValueError, match="cache_read_tokens must be non-negative"):
             tracker.record_usage(
                 model="claude-sonnet-4-20250514",
-                input_tokens=10, output_tokens=10, cache_read_tokens=-1,
+                input_tokens=10,
+                output_tokens=10,
+                cache_read_tokens=-1,
             )
 
     def test_negative_cache_write_tokens_rejected(self) -> None:
@@ -865,7 +851,9 @@ class TestInputValidation:
         with pytest.raises(ValueError, match="cache_write_tokens must be non-negative"):
             tracker.record_usage(
                 model="claude-sonnet-4-20250514",
-                input_tokens=10, output_tokens=10, cache_write_tokens=-1,
+                input_tokens=10,
+                output_tokens=10,
+                cache_write_tokens=-1,
             )
 
     def test_zero_tokens_accepted(self) -> None:
@@ -889,6 +877,4 @@ class TestInputValidation:
 
     def test_negative_pricing_rejected(self) -> None:
         with pytest.raises(ValueError, match="must be non-negative"):
-            ModelPricing(
-                model_name="bad", input_price_per_1k=-0.01, output_price_per_1k=0.01
-            )
+            ModelPricing(model_name="bad", input_price_per_1k=-0.01, output_price_per_1k=0.01)

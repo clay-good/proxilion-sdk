@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from proxilion.security.intent_validator import (
@@ -94,34 +92,26 @@ class TestParameterInjection:
 
     def test_null_byte_blocked(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {"query": "hello\x00world"}
-        )
+        outcome = validator.validate("user1", "search", {"query": "hello\x00world"})
         assert outcome.should_block is True
         assert outcome.risk_score == 1.0
         assert "Null byte" in (outcome.reason or "")
 
     def test_null_byte_in_different_param(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {"name": "safe", "path": "/etc/\x00passwd"}
-        )
+        outcome = validator.validate("user1", "search", {"name": "safe", "path": "/etc/\x00passwd"})
         assert outcome.should_block is True
 
     def test_very_long_string_suspicious(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {"query": "a" * 10001}
-        )
+        outcome = validator.validate("user1", "search", {"query": "a" * 10001})
         assert outcome.result == ValidationResult.SUSPICIOUS
         assert outcome.risk_score == 0.4
         assert "long parameter" in (outcome.reason or "").lower()
 
     def test_string_within_limit_valid(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {"query": "a" * 10000}
-        )
+        outcome = validator.validate("user1", "search", {"query": "a" * 10000})
         assert outcome.is_valid is True
 
     def test_deeply_nested_dict_suspicious(self) -> None:
@@ -138,9 +128,7 @@ class TestParameterInjection:
 
     def test_shallow_nesting_valid(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {"data": {"a": {"b": "c"}}}
-        )
+        outcome = validator.validate("user1", "search", {"data": {"a": {"b": "c"}}})
         assert outcome.is_valid is True
 
 
@@ -166,45 +154,25 @@ class TestWorkflowTransitions:
         )
         return validator
 
-    def test_valid_initial_transition(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
-        outcome = validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
+    def test_valid_initial_transition(self, validator_with_workflow: IntentValidator) -> None:
+        outcome = validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
         assert outcome.is_valid is True
 
-    def test_valid_subsequent_transition(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
-        validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
-        outcome = validator_with_workflow.validate(
-            "user1", "view", {}, workflow_name="doc_flow"
-        )
+    def test_valid_subsequent_transition(self, validator_with_workflow: IntentValidator) -> None:
+        validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
+        outcome = validator_with_workflow.validate("user1", "view", {}, workflow_name="doc_flow")
         assert outcome.is_valid is True
 
-    def test_invalid_transition_suspicious(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
+    def test_invalid_transition_suspicious(self, validator_with_workflow: IntentValidator) -> None:
         # First move to "search"
-        validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
+        validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
         # "edit" is not allowed from "search"
-        outcome = validator_with_workflow.validate(
-            "user1", "edit", {}, workflow_name="doc_flow"
-        )
+        outcome = validator_with_workflow.validate("user1", "edit", {}, workflow_name="doc_flow")
         assert outcome.result == ValidationResult.SUSPICIOUS
         assert "transition" in (outcome.reason or "").lower()
 
-    def test_workflow_state_tracking(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
-        validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
+    def test_workflow_state_tracking(self, validator_with_workflow: IntentValidator) -> None:
+        validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
         state = validator_with_workflow.get_user_state("user1", "doc_flow")
         assert state is not None
         assert state.current_state == "search"
@@ -213,14 +181,10 @@ class TestWorkflowTransitions:
 
     def test_unknown_workflow_passes(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        outcome = validator.validate(
-            "user1", "search", {}, workflow_name="nonexistent"
-        )
+        outcome = validator.validate("user1", "search", {}, workflow_name="nonexistent")
         assert outcome.is_valid is True
 
-    def test_tool_to_state_mapping(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
+    def test_tool_to_state_mapping(self, validator_with_workflow: IntentValidator) -> None:
         mapping = {"search_tool": "search", "view_tool": "view"}
         outcome = validator_with_workflow.validate(
             "user1",
@@ -237,19 +201,13 @@ class TestWorkflowTransitions:
     def test_reset_user_state_specific_workflow(
         self, validator_with_workflow: IntentValidator
     ) -> None:
-        validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
+        validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
         validator_with_workflow.reset_user_state("user1", workflow_name="doc_flow")
         state = validator_with_workflow.get_user_state("user1", "doc_flow")
         assert state is None
 
-    def test_reset_user_state_all(
-        self, validator_with_workflow: IntentValidator
-    ) -> None:
-        validator_with_workflow.validate(
-            "user1", "search", {}, workflow_name="doc_flow"
-        )
+    def test_reset_user_state_all(self, validator_with_workflow: IntentValidator) -> None:
+        validator_with_workflow.validate("user1", "search", {}, workflow_name="doc_flow")
         validator_with_workflow.record_failure("user1")
         validator_with_workflow.reset_user_state("user1")
         state = validator_with_workflow.get_user_state("user1", "doc_flow")
@@ -303,9 +261,7 @@ class TestCustomValidators:
     def test_custom_validator_blocks(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
 
-        def block_delete(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
+        def block_delete(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
             if tool_name == "delete":
                 return ValidationOutcome(
                     result=ValidationResult.BLOCKED,
@@ -321,9 +277,7 @@ class TestCustomValidators:
     def test_custom_validator_defers(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
 
-        def no_opinion(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
+        def no_opinion(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
             return None
 
         validator.register_validator(no_opinion)
@@ -333,9 +287,7 @@ class TestCustomValidators:
     def test_custom_validator_runs_before_builtin(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
 
-        def always_valid(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
+        def always_valid(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
             return ValidationOutcome(result=ValidationResult.VALID, reason="override")
 
         validator.register_validator(always_valid)
@@ -347,19 +299,11 @@ class TestCustomValidators:
     def test_multiple_custom_validators_first_wins(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
 
-        def first(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
-            return ValidationOutcome(
-                result=ValidationResult.SUSPICIOUS, reason="first"
-            )
+        def first(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
+            return ValidationOutcome(result=ValidationResult.SUSPICIOUS, reason="first")
 
-        def second(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
-            return ValidationOutcome(
-                result=ValidationResult.BLOCKED, reason="second"
-            )
+        def second(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
+            return ValidationOutcome(result=ValidationResult.BLOCKED, reason="second")
 
         validator.register_validator(first)
         validator.register_validator(second)
@@ -369,9 +313,7 @@ class TestCustomValidators:
     def test_failing_custom_validator_is_skipped(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
 
-        def broken(
-            user_id: str, tool_name: str, arguments: dict
-        ) -> ValidationOutcome | None:
+        def broken(user_id: str, tool_name: str, arguments: dict) -> ValidationOutcome | None:
             raise RuntimeError("oops")
 
         validator.register_validator(broken)
@@ -480,9 +422,7 @@ class TestEdgeCases:
 
     def test_multiple_users_isolated(self) -> None:
         validator = IntentValidator(thresholds=_NO_TIME_CHECK)
-        validator.register_workflow(
-            "wf", {"initial": ["a"], "a": ["b"]}
-        )
+        validator.register_workflow("wf", {"initial": ["a"], "a": ["b"]})
         validator.validate("u1", "a", {}, workflow_name="wf")
         validator.validate("u2", "a", {}, workflow_name="wf")
         state1 = validator.get_user_state("u1", "wf")

@@ -91,9 +91,7 @@ class TestProxilionFunctionHandler:
             "description": "Get weather for a location",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "location": {"type": "string"}
-                },
+                "properties": {"location": {"type": "string"}},
                 "required": ["location"],
             },
         }
@@ -141,10 +139,9 @@ class TestProxilionFunctionHandler:
         assert registered is not None
         assert registered.name == "my_func"
 
-    def test_execute_function(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_function(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test executing a function."""
+
         @proxilion_simple.policy("get_weather")
         class WeatherPolicy(Policy):
             def can_execute(self, context):
@@ -175,6 +172,7 @@ class TestProxilionFunctionHandler:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that execution is denied for unauthorized users."""
+
         @proxilion_simple.policy("admin_func")
         class AdminPolicy(Policy):
             def can_execute(self, context):
@@ -202,9 +200,7 @@ class TestProxilionFunctionHandler:
         assert result.authorized is False
         assert result.error == "Not authorized"  # Safe error
 
-    def test_execute_function_not_found(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_function_not_found(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test executing a function that doesn't exist."""
         handler = ProxilionFunctionHandler(proxilion_simple)
 
@@ -221,6 +217,7 @@ class TestProxilionFunctionHandler:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test executing with JSON string arguments."""
+
         @proxilion_simple.policy("json_func")
         class JsonPolicy(Policy):
             def can_execute(self, context):
@@ -250,6 +247,7 @@ class TestProxilionFunctionHandler:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test executing with OpenAI function_call object."""
+
         @proxilion_simple.policy("calc")
         class CalcPolicy(Policy):
             def can_execute(self, context):
@@ -285,10 +283,9 @@ class TestProxilionFunctionHandler:
         assert result.success is True
         assert result.result == 8
 
-    def test_execute_safe_errors(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_safe_errors(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that safe errors hide implementation details."""
+
         @proxilion_simple.policy("buggy_func")
         class BuggyPolicy(Policy):
             def can_execute(self, context):
@@ -315,10 +312,9 @@ class TestProxilionFunctionHandler:
         assert "sensitive" not in result.error
         assert result.error == "Function execution failed"
 
-    def test_execute_detailed_errors(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_execute_detailed_errors(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that detailed errors show implementation details."""
+
         @proxilion_simple.policy("buggy_func")
         class BuggyPolicy(Policy):
             def can_execute(self, context):
@@ -349,6 +345,7 @@ class TestProxilionFunctionHandler:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test executing an async function."""
+
         @proxilion_simple.policy("async_func")
         class AsyncPolicy(Policy):
             def can_execute(self, context):
@@ -403,10 +400,9 @@ class TestProxilionFunctionHandler:
         assert tools[0]["type"] == "function"
         assert tools[0]["function"] == schema
 
-    def test_call_history(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_call_history(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that call history is tracked."""
+
         @proxilion_simple.policy("tracked_func")
         class TrackedPolicy(Policy):
             def can_execute(self, context):
@@ -436,10 +432,9 @@ class TestProxilionFunctionHandler:
 class TestCreateSecureFunction:
     """Tests for create_secure_function helper."""
 
-    def test_create_sync_wrapper(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_create_sync_wrapper(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test creating a sync wrapper."""
+
         @proxilion_simple.policy("secure_func")
         class SecurePolicy(Policy):
             def can_execute(self, context):
@@ -465,6 +460,7 @@ class TestCreateSecureFunction:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test that sync wrapper blocks unauthorized access."""
+
         @proxilion_simple.policy("admin_func")
         class AdminPolicy(Policy):
             def can_execute(self, context):
@@ -484,10 +480,9 @@ class TestCreateSecureFunction:
             wrapped(user=basic_user)
 
     @pytest.mark.asyncio
-    async def test_create_async_wrapper(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    async def test_create_async_wrapper(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test creating an async wrapper."""
+
         @proxilion_simple.policy("async_func")
         class AsyncPolicy(Policy):
             def can_execute(self, context):
@@ -514,6 +509,7 @@ class TestProcessOpenAIResponse:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test processing response with function_call."""
+
         @proxilion_simple.policy("get_weather")
         class WeatherPolicy(Policy):
             def can_execute(self, context):
@@ -569,6 +565,7 @@ class TestProcessOpenAIResponse:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test processing response with tool_calls format."""
+
         @proxilion_simple.policy("calculator")
         class CalcPolicy(Policy):
             def can_execute(self, context):
@@ -628,9 +625,7 @@ class TestProcessOpenAIResponse:
         assert results[0].success is True
         assert results[0].result == 15
 
-    def test_process_empty_response(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_process_empty_response(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test processing response with no function calls."""
         handler = ProxilionFunctionHandler(proxilion_simple)
 
@@ -664,6 +659,7 @@ class TestRegisteredFunction:
 
     def test_registered_function_creation(self):
         """Test creating a registered function record."""
+
         def impl(x: int) -> int:
             return x
 

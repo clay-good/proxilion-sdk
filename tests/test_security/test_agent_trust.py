@@ -13,11 +13,9 @@ from proxilion.security.agent_trust import (
     AgentTrustManager,
     DelegationChain,
     DelegationToken,
-    SignedMessage,
     TrustLevel,
     VerificationResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # TrustLevel
@@ -58,12 +56,12 @@ class TestAgentCredential:
     """Tests for AgentCredential dataclass."""
 
     def _make_credential(self, **overrides):
-        defaults = dict(
-            agent_id="agent-1",
-            trust_level=TrustLevel.STANDARD,
-            capabilities={"read", "write"},
-            public_key="abc123",
-        )
+        defaults = {
+            "agent_id": "agent-1",
+            "trust_level": TrustLevel.STANDARD,
+            "capabilities": {"read", "write"},
+            "public_key": "abc123",
+        }
         defaults.update(overrides)
         return AgentCredential(**defaults)
 
@@ -171,15 +169,15 @@ class TestAgentCredential:
 class TestDelegationToken:
     def _make_token(self, **overrides):
         now = datetime.now(timezone.utc)
-        defaults = dict(
-            token_id="tok-1",
-            issuer_agent="issuer",
-            delegate_agent="delegate",
-            granted_capabilities={"read"},
-            issued_at=now,
-            expires_at=now + timedelta(hours=1),
-            signature="sig",
-        )
+        defaults = {
+            "token_id": "tok-1",
+            "issuer_agent": "issuer",
+            "delegate_agent": "delegate",
+            "granted_capabilities": {"read"},
+            "issued_at": now,
+            "expires_at": now + timedelta(hours=1),
+            "signature": "sig",
+        }
         defaults.update(overrides)
         return DelegationToken(**defaults)
 
@@ -300,9 +298,7 @@ def manager():
 
 class TestAgentTrustManagerRegistration:
     def test_register_agent(self, manager):
-        cred = manager.register_agent(
-            "agent-1", TrustLevel.STANDARD, {"read", "write"}
-        )
+        cred = manager.register_agent("agent-1", TrustLevel.STANDARD, {"read", "write"})
         assert cred.agent_id == "agent-1"
         assert cred.trust_level == TrustLevel.STANDARD
         assert cred.capabilities == {"read", "write"}
@@ -315,35 +311,25 @@ class TestAgentTrustManagerRegistration:
 
     def test_register_with_parent(self, manager):
         manager.register_agent("parent", TrustLevel.FULL, {"delegate", "read"})
-        child = manager.register_agent(
-            "child", TrustLevel.LIMITED, {"read"}, parent_agent="parent"
-        )
+        child = manager.register_agent("child", TrustLevel.LIMITED, {"read"}, parent_agent="parent")
         assert child.parent_agent == "parent"
 
     def test_register_with_missing_parent_raises(self, manager):
         with pytest.raises(AgentTrustError):
-            manager.register_agent(
-                "child", TrustLevel.LIMITED, {"read"}, parent_agent="ghost"
-            )
+            manager.register_agent("child", TrustLevel.LIMITED, {"read"}, parent_agent="ghost")
 
     def test_register_child_equal_trust_to_parent_raises(self, manager):
         manager.register_agent("parent", TrustLevel.STANDARD, {"read"})
         with pytest.raises(AgentTrustError):
-            manager.register_agent(
-                "child", TrustLevel.STANDARD, {"read"}, parent_agent="parent"
-            )
+            manager.register_agent("child", TrustLevel.STANDARD, {"read"}, parent_agent="parent")
 
     def test_register_child_higher_trust_than_parent_raises(self, manager):
         manager.register_agent("parent", TrustLevel.LIMITED, {"read"})
         with pytest.raises(AgentTrustError):
-            manager.register_agent(
-                "child", TrustLevel.FULL, {"read"}, parent_agent="parent"
-            )
+            manager.register_agent("child", TrustLevel.FULL, {"read"}, parent_agent="parent")
 
     def test_register_with_ttl(self, manager):
-        cred = manager.register_agent(
-            "temp", TrustLevel.MINIMAL, {"read"}, ttl_seconds=3600
-        )
+        cred = manager.register_agent("temp", TrustLevel.MINIMAL, {"read"}, ttl_seconds=3600)
         assert cred.expires_at is not None
 
     def test_register_with_list_capabilities(self, manager):
@@ -457,9 +443,7 @@ class TestAgentTrustManagerMessages:
     def test_create_and_verify_message(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         assert msg.from_agent == "sender"
         assert msg.to_agent == "receiver"
         assert msg.signature
@@ -468,28 +452,20 @@ class TestAgentTrustManagerMessages:
 
     def test_create_message_unknown_sender_raises(self, manager):
         with pytest.raises(AgentTrustError):
-            manager.create_signed_message(
-                "ghost", "receiver", "execute", {"task": "test"}
-            )
+            manager.create_signed_message("ghost", "receiver", "execute", {"task": "test"})
 
     def test_create_message_expired_sender_raises(self, manager):
-        manager.register_agent(
-            "expired", TrustLevel.STANDARD, {"read"}, ttl_seconds=1
-        )
+        manager.register_agent("expired", TrustLevel.STANDARD, {"read"}, ttl_seconds=1)
         # Force expiration
         agent = manager.get_agent("expired")
         agent.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         with pytest.raises(AgentTrustError):
-            manager.create_signed_message(
-                "expired", "receiver", "read", {"data": 1}
-            )
+            manager.create_signed_message("expired", "receiver", "read", {"data": 1})
 
     def test_verify_message_replay_detection(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         result1 = manager.verify_message(msg)
         assert result1.valid is True
         result2 = manager.verify_message(msg)
@@ -499,9 +475,7 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_replay_disabled(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         r1 = manager.verify_message(msg, check_replay=False)
         r2 = manager.verify_message(msg, check_replay=False)
         assert r1.valid is True
@@ -510,9 +484,7 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_too_old(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         # Fake old timestamp
         msg.timestamp = time.time() - 600
         # Re-sign won't match, but age check happens first
@@ -523,9 +495,7 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_unknown_sender(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         manager.unregister_agent("sender")
         result = manager.verify_message(msg)
         assert result.valid is False
@@ -533,9 +503,7 @@ class TestAgentTrustManagerMessages:
 
     def test_verify_message_unknown_receiver(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
-        msg = manager.create_signed_message(
-            "sender", "ghost", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "ghost", "execute", {"task": "test"})
         result = manager.verify_message(msg)
         assert result.valid is False
         assert "Unknown receiver" in result.error
@@ -543,22 +511,16 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_tampered_signature(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         msg.signature = "tampered"
         result = manager.verify_message(msg)
         assert result.valid is False
         assert "Invalid signature" in result.error
 
     def test_verify_message_expired_sender_credential(self, manager):
-        manager.register_agent(
-            "sender", TrustLevel.STANDARD, {"execute"}, ttl_seconds=3600
-        )
+        manager.register_agent("sender", TrustLevel.STANDARD, {"execute"}, ttl_seconds=3600)
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         # Expire the sender after message was created
         agent = manager.get_agent("sender")
         agent.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -569,9 +531,7 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_sender_lacks_capability(self, manager):
         manager.register_agent("sender", TrustLevel.STANDARD, {"read"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "sender", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("sender", "receiver", "execute", {"task": "test"})
         result = manager.verify_message(msg)
         assert result.valid is False
         assert "lacks capability" in result.error
@@ -601,9 +561,7 @@ class TestAgentTrustManagerMessages:
     def test_verify_message_untrusted_sender(self, manager):
         manager.register_agent("untrusted", TrustLevel.UNTRUSTED, {"execute"})
         manager.register_agent("receiver", TrustLevel.STANDARD, {"read"})
-        msg = manager.create_signed_message(
-            "untrusted", "receiver", "execute", {"task": "test"}
-        )
+        msg = manager.create_signed_message("untrusted", "receiver", "execute", {"task": "test"})
         result = manager.verify_message(msg)
         assert result.valid is False
         assert "UNTRUSTED" in result.error
@@ -619,9 +577,7 @@ class TestAgentTrustManagerMessages:
 
     def test_create_message_with_metadata(self, manager):
         manager.register_agent("a", TrustLevel.STANDARD, {"execute"})
-        msg = manager.create_signed_message(
-            "a", "b", "execute", {}, metadata={"priority": "high"}
-        )
+        msg = manager.create_signed_message("a", "b", "execute", {}, metadata={"priority": "high"})
         assert msg.metadata == {"priority": "high"}
 
 
@@ -670,9 +626,7 @@ class TestAgentTrustManagerDelegationChainVerification:
 
 class TestAgentTrustManagerCleanup:
     def test_cleanup_expired_agents(self, manager):
-        manager.register_agent(
-            "temp", TrustLevel.MINIMAL, {"read"}, ttl_seconds=3600
-        )
+        manager.register_agent("temp", TrustLevel.MINIMAL, {"read"}, ttl_seconds=3600)
         # Force expiration
         agent = manager.get_agent("temp")
         agent.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
@@ -705,9 +659,7 @@ class TestSerialization:
         manager.register_agent("boss", TrustLevel.FULL, {"delegate", "execute"})
         manager.register_agent("worker", TrustLevel.LIMITED, {"read"})
         token = manager.create_delegation("boss", "worker", {"execute"})
-        msg = manager.create_signed_message(
-            "worker", "boss", "execute", {}, delegation_token=token
-        )
+        msg = manager.create_signed_message("worker", "boss", "execute", {}, delegation_token=token)
         d = msg.to_dict()
         assert d["delegation_token"] is not None
         assert d["delegation_token"]["issuer_agent"] == "boss"

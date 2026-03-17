@@ -302,26 +302,34 @@ class TestTrustEnforcer:
     @pytest.fixture
     def registered_enforcer(self, enforcer):
         """Create an enforcer with registered agents."""
-        enforcer.register_agent(AgentIdentity(
-            agent_id="internal_agent",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "write", "admin"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="partner_agent",
-            trust_level=TrustLevel.PARTNER,
-            allowed_scopes={"read", "write"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="external_agent",
-            trust_level=TrustLevel.EXTERNAL,
-            allowed_scopes={"read"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="untrusted_agent",
-            trust_level=TrustLevel.UNTRUSTED,
-            allowed_scopes=set(),
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal_agent",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "write", "admin"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="partner_agent",
+                trust_level=TrustLevel.PARTNER,
+                allowed_scopes={"read", "write"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="external_agent",
+                trust_level=TrustLevel.EXTERNAL,
+                allowed_scopes={"read"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="untrusted_agent",
+                trust_level=TrustLevel.UNTRUSTED,
+                allowed_scopes=set(),
+            )
+        )
         return enforcer
 
     def test_register_agent(self, enforcer):
@@ -338,10 +346,12 @@ class TestTrustEnforcer:
 
     def test_unregister_agent(self, enforcer):
         """Test agent unregistration."""
-        enforcer.register_agent(AgentIdentity(
-            agent_id="test",
-            trust_level=TrustLevel.INTERNAL,
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="test",
+                trust_level=TrustLevel.INTERNAL,
+            )
+        )
 
         result = enforcer.unregister_agent("test")
         assert result is True
@@ -357,14 +367,14 @@ class TestTrustEnforcer:
     def test_internal_to_internal_allowed(self, registered_enforcer):
         """Test INTERNAL -> INTERNAL is allowed without approval."""
         enforcer = registered_enforcer
-        enforcer.register_agent(AgentIdentity(
-            agent_id="internal_2",
-            trust_level=TrustLevel.INTERNAL,
-        ))
-
-        allowed, requires_approval = enforcer.check_trust_boundary(
-            "internal_agent", "internal_2"
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal_2",
+                trust_level=TrustLevel.INTERNAL,
+            )
         )
+
+        allowed, requires_approval = enforcer.check_trust_boundary("internal_agent", "internal_2")
         assert allowed is True
         assert requires_approval is False
 
@@ -401,22 +411,20 @@ class TestTrustEnforcer:
 
     def test_untrusted_to_any_blocked(self, registered_enforcer):
         """Test UNTRUSTED -> * is blocked."""
-        allowed, _ = registered_enforcer.check_trust_boundary(
-            "untrusted_agent", "internal_agent"
-        )
+        allowed, _ = registered_enforcer.check_trust_boundary("untrusted_agent", "internal_agent")
         assert allowed is False
 
-        allowed, _ = registered_enforcer.check_trust_boundary(
-            "untrusted_agent", "partner_agent"
-        )
+        allowed, _ = registered_enforcer.check_trust_boundary("untrusted_agent", "partner_agent")
         assert allowed is False
 
     def test_unknown_agent_raises(self, enforcer):
         """Test that unknown agents raise ValueError."""
-        enforcer.register_agent(AgentIdentity(
-            agent_id="known",
-            trust_level=TrustLevel.INTERNAL,
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="known",
+                trust_level=TrustLevel.INTERNAL,
+            )
+        )
 
         with pytest.raises(ValueError, match="not registered"):
             enforcer.check_trust_boundary("known", "unknown")
@@ -469,11 +477,13 @@ class TestTrustEnforcer:
     def test_create_chained_delegation(self, registered_enforcer):
         """Test creating chained delegation."""
         # Register another internal agent for chaining
-        registered_enforcer.register_agent(AgentIdentity(
-            agent_id="internal_agent_2",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "write"},
-        ))
+        registered_enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal_agent_2",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "write"},
+            )
+        )
 
         # First delegation (internal to internal)
         token1 = registered_enforcer.create_delegation(
@@ -498,11 +508,13 @@ class TestTrustEnforcer:
     def test_scope_expansion_blocked(self, registered_enforcer):
         """Test that scope expansion is blocked in chained delegation."""
         # Register another internal agent for chaining
-        registered_enforcer.register_agent(AgentIdentity(
-            agent_id="internal_agent_2",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "write"},
-        ))
+        registered_enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal_agent_2",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "write"},
+            )
+        )
 
         token1 = registered_enforcer.create_delegation(
             from_agent="internal_agent",
@@ -526,11 +538,13 @@ class TestTrustEnforcer:
 
         # Register agents
         for i in range(5):
-            enforcer.register_agent(AgentIdentity(
-                agent_id=f"agent_{i}",
-                trust_level=TrustLevel.INTERNAL,
-                allowed_scopes={"read"},
-            ))
+            enforcer.register_agent(
+                AgentIdentity(
+                    agent_id=f"agent_{i}",
+                    trust_level=TrustLevel.INTERNAL,
+                    allowed_scopes={"read"},
+                )
+            )
 
         # Create first delegation
         token1 = enforcer.create_delegation(
@@ -611,9 +625,7 @@ class TestTrustEnforcer:
         # This should be blocked by the default boundaries
 
         # First verify the direct boundary check detects this
-        allowed, _ = registered_enforcer.check_trust_boundary(
-            "external_agent", "internal_agent"
-        )
+        allowed, _ = registered_enforcer.check_trust_boundary("external_agent", "internal_agent")
         assert allowed is False
 
         # Now try to create a delegation that crosses this boundary
@@ -629,11 +641,13 @@ class TestTrustEnforcer:
     def test_get_delegation_chain(self, registered_enforcer):
         """Test getting delegation chain identities."""
         # Register another internal agent for the chain
-        registered_enforcer.register_agent(AgentIdentity(
-            agent_id="internal_agent_2",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "write"},
-        ))
+        registered_enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal_agent_2",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "write"},
+            )
+        )
 
         token1 = registered_enforcer.create_delegation(
             from_agent="internal_agent",
@@ -698,8 +712,7 @@ class TestDefaultBoundaries:
     def test_untrusted_blocked(self):
         """Test that UNTRUSTED has blocking boundary."""
         untrusted_boundaries = [
-            b for b in DEFAULT_BOUNDARIES
-            if b.from_level == TrustLevel.UNTRUSTED
+            b for b in DEFAULT_BOUNDARIES if b.from_level == TrustLevel.UNTRUSTED
         ]
         assert len(untrusted_boundaries) > 0
         # All should be blocked
@@ -709,9 +722,12 @@ class TestDefaultBoundaries:
     def test_internal_to_internal(self):
         """Test INTERNAL -> INTERNAL boundary."""
         boundary = next(
-            (b for b in DEFAULT_BOUNDARIES
-             if b.from_level == TrustLevel.INTERNAL and b.to_level == TrustLevel.INTERNAL),
-            None
+            (
+                b
+                for b in DEFAULT_BOUNDARIES
+                if b.from_level == TrustLevel.INTERNAL and b.to_level == TrustLevel.INTERNAL
+            ),
+            None,
         )
         assert boundary is not None
         assert boundary.allowed is True
@@ -732,26 +748,34 @@ class TestTrustIntegration:
 
         # Set up a realistic multi-agent scenario
         # All agents in the same org (internal) to allow chaining
-        enforcer.register_agent(AgentIdentity(
-            agent_id="orchestrator",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"*"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="data_service",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "write", "query"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="analytics_service",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read", "query"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="visualization_service",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read"},
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="orchestrator",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"*"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="data_service",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "write", "query"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="analytics_service",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read", "query"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="visualization_service",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read"},
+            )
+        )
 
         # Orchestrator delegates to data service
         token1 = enforcer.create_delegation(
@@ -791,16 +815,20 @@ class TestTrustIntegration:
         """Test that expired delegations are invalid."""
         enforcer = TrustEnforcer()
 
-        enforcer.register_agent(AgentIdentity(
-            agent_id="a",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read"},
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="b",
-            trust_level=TrustLevel.INTERNAL,
-            allowed_scopes={"read"},
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="a",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read"},
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="b",
+                trust_level=TrustLevel.INTERNAL,
+                allowed_scopes={"read"},
+            )
+        )
 
         # Create short-lived token
         token = enforcer.create_delegation(
@@ -816,6 +844,7 @@ class TestTrustIntegration:
 
         # After expiry, manually check
         import time
+
         time.sleep(1.1)
 
         valid, reason = enforcer.validate_delegation(token)
@@ -833,14 +862,18 @@ class TestTrustIntegration:
 
         enforcer = TrustEnforcer(boundaries=custom_boundaries)
 
-        enforcer.register_agent(AgentIdentity(
-            agent_id="internal",
-            trust_level=TrustLevel.INTERNAL,
-        ))
-        enforcer.register_agent(AgentIdentity(
-            agent_id="partner",
-            trust_level=TrustLevel.PARTNER,
-        ))
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="internal",
+                trust_level=TrustLevel.INTERNAL,
+            )
+        )
+        enforcer.register_agent(
+            AgentIdentity(
+                agent_id="partner",
+                trust_level=TrustLevel.PARTNER,
+            )
+        )
 
         # Should be blocked with custom boundaries
         allowed, _ = enforcer.check_trust_boundary("internal", "partner")

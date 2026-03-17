@@ -1,4 +1,5 @@
 """Tests for base_exporters and explainability audit modules."""
+
 from __future__ import annotations
 
 import io
@@ -10,15 +11,28 @@ from unittest.mock import MagicMock
 import pytest
 
 from proxilion.audit.base_exporters import (
-    CallbackExporter, ConsoleExporter, FileExporter, MultiExporter,
-    StreamExporter, read_jsonl_events, verify_jsonl_chain,
+    CallbackExporter,
+    ConsoleExporter,
+    FileExporter,
+    MultiExporter,
+    StreamExporter,
+    read_jsonl_events,
+    verify_jsonl_chain,
 )
 from proxilion.audit.events import AuditEventData, AuditEventV2, EventType
 from proxilion.audit.explainability import (
-    DecisionExplainer, DecisionFactor, DecisionType, ExplainableDecision,
-    ExplainabilityLogger, Explanation, ExplanationFormat, Outcome,
-    create_authorization_decision, create_budget_decision,
-    create_guard_decision, create_rate_limit_decision,
+    DecisionExplainer,
+    DecisionFactor,
+    DecisionType,
+    ExplainabilityLogger,
+    ExplainableDecision,
+    Explanation,
+    ExplanationFormat,
+    Outcome,
+    create_authorization_decision,
+    create_budget_decision,
+    create_guard_decision,
+    create_rate_limit_decision,
 )
 from proxilion.audit.hash_chain import GENESIS_HASH, HashChain, MerkleBatch
 
@@ -27,12 +41,20 @@ def _make_event(tool="search", allowed=True, prev=GENESIS_HASH, long_args=False)
     args = {"query": "x" * 200} if long_args else {"query": "test", "limit": 10}
     data = AuditEventData(
         event_type=EventType.AUTHORIZATION_GRANTED if allowed else EventType.AUTHORIZATION_DENIED,
-        user_id="user_123", user_roles=["user"], session_id="sess_abc",
-        user_attributes={"dept": "eng"}, agent_id=None, agent_capabilities=[],
-        agent_trust_score=None, tool_name=tool, tool_arguments=args,
-        tool_timestamp=datetime.now(timezone.utc), authorization_allowed=allowed,
+        user_id="user_123",
+        user_roles=["user"],
+        session_id="sess_abc",
+        user_attributes={"dept": "eng"},
+        agent_id=None,
+        agent_capabilities=[],
+        agent_trust_score=None,
+        tool_name=tool,
+        tool_arguments=args,
+        tool_timestamp=datetime.now(timezone.utc),
+        authorization_allowed=allowed,
         authorization_reason="Policy allowed" if allowed else "Denied",
-        policies_evaluated=["TestPolicy"], authorization_metadata={},
+        policies_evaluated=["TestPolicy"],
+        authorization_metadata={},
     )
     ev = AuditEventV2(data=data, previous_hash=prev)
     ev.compute_hash()
@@ -41,7 +63,10 @@ def _make_event(tool="search", allowed=True, prev=GENESIS_HASH, long_args=False)
 
 def _make_batch() -> MerkleBatch:
     return MerkleBatch(
-        batch_id="batch_1", start_sequence=0, end_sequence=9, event_count=10,
+        batch_id="batch_1",
+        start_sequence=0,
+        end_sequence=9,
+        event_count=10,
         merkle_root="sha256:abcdef1234567890abcdef1234567890abcdef1234567890",
         created_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -53,12 +78,21 @@ def _make_chain(n=3) -> tuple[HashChain, list[AuditEventV2]]:
     for i in range(n):
         ev = AuditEventV2(
             data=AuditEventData(
-                event_type=EventType.AUTHORIZATION_GRANTED, user_id=f"u{i}",
-                user_roles=["user"], session_id=f"s{i}", user_attributes={},
-                agent_id=None, agent_capabilities=[], agent_trust_score=None,
-                tool_name=f"tool_{i}", tool_arguments={"i": i},
-                tool_timestamp=datetime.now(timezone.utc), authorization_allowed=True,
-                authorization_reason="OK", policies_evaluated=[], authorization_metadata={},
+                event_type=EventType.AUTHORIZATION_GRANTED,
+                user_id=f"u{i}",
+                user_roles=["user"],
+                session_id=f"s{i}",
+                user_attributes={},
+                agent_id=None,
+                agent_capabilities=[],
+                agent_trust_score=None,
+                tool_name=f"tool_{i}",
+                tool_arguments={"i": i},
+                tool_timestamp=datetime.now(timezone.utc),
+                authorization_allowed=True,
+                authorization_reason="OK",
+                policies_evaluated=[],
+                authorization_metadata={},
             ),
             previous_hash=chain.last_hash,
         )
@@ -66,15 +100,19 @@ def _make_chain(n=3) -> tuple[HashChain, list[AuditEventV2]]:
     return chain, events
 
 
-def _decision(dt=DecisionType.AUTHORIZATION, outcome=Outcome.ALLOWED,
-              factors=None, context=None, **kw) -> ExplainableDecision:
+def _decision(
+    dt=DecisionType.AUTHORIZATION, outcome=Outcome.ALLOWED, factors=None, context=None, **kw
+) -> ExplainableDecision:
     return ExplainableDecision(
-        decision_type=dt, outcome=outcome, factors=factors or [], context=context or {}, **kw,
+        decision_type=dt,
+        outcome=outcome,
+        factors=factors or [],
+        context=context or {},
+        **kw,
     )
 
 
 class TestBaseExporters:
-
     def test_file_exporter_write_and_append(self, tmp_path: Path):
         path = tmp_path / "audit.jsonl"
         ev = _make_event()
@@ -150,14 +188,12 @@ class TestBaseExporters:
         path = tmp_path / "chain.jsonl"
         with FileExporter(path) as exp:
             exp.export_chain(chain)
-        assert len([l for l in path.read_text().strip().split("\n") if l]) == 3
+        assert len([line for line in path.read_text().strip().split("\n") if line]) == 3
 
     def test_console_exporter_granted_and_denied(self):
         for allowed, expect in [(True, "ALLOWED"), (False, "DENIED")]:
             buf = io.StringIO()
-            ConsoleExporter(output=buf, use_colors=False).export_event(
-                _make_event(allowed=allowed)
-            )
+            ConsoleExporter(output=buf, use_colors=False).export_event(_make_event(allowed=allowed))
             assert expect in buf.getvalue()
 
     def test_console_exporter_verbose(self):
@@ -244,10 +280,12 @@ class TestBaseExporters:
 
     def test_multi_exporter_close(self):
         buf1, buf2 = io.StringIO(), io.StringIO()
-        MultiExporter([
-            StreamExporter(buf1, close_on_exit=True),
-            StreamExporter(buf2, close_on_exit=True),
-        ]).close()
+        MultiExporter(
+            [
+                StreamExporter(buf1, close_on_exit=True),
+                StreamExporter(buf2, close_on_exit=True),
+            ]
+        ).close()
         assert buf1.closed and buf2.closed
 
     def test_multi_exporter_empty(self):
@@ -317,7 +355,6 @@ class TestBaseExporters:
 
 
 class TestExplainability:
-
     def test_decision_factor_to_dict(self):
         f = DecisionFactor("role_check", False, 0.5, "Missing", {"req": "admin"}, ["LDAP"])
         d = f.to_dict()
@@ -386,79 +423,130 @@ class TestExplainability:
         explainer = DecisionExplainer()
         for outcome, expect in [(Outcome.ALLOWED, "ALLOWED"), (Outcome.DENIED, "DENIED")]:
             passed = outcome == Outcome.ALLOWED
-            expl = explainer.explain(_decision(
-                outcome=outcome,
-                factors=[DecisionFactor("role", passed, 1.0, "Has role" if passed else "No role")],
-            ))
+            expl = explainer.explain(
+                _decision(
+                    outcome=outcome,
+                    factors=[
+                        DecisionFactor("role", passed, 1.0, "Has role" if passed else "No role")
+                    ],
+                )
+            )
             assert expect in expl.summary
 
     def test_explainer_rate_limit(self):
-        expl = DecisionExplainer().explain(_decision(
-            dt=DecisionType.RATE_LIMIT, outcome=Outcome.DENIED,
-            factors=[DecisionFactor("rc", False, 1.0, "Over")],
-            context={"current": 105, "limit": 100},
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                dt=DecisionType.RATE_LIMIT,
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor("rc", False, 1.0, "Over")],
+                context={"current": 105, "limit": 100},
+            )
+        )
         assert "105" in expl.summary or "DENIED" in expl.summary
 
     def test_explainer_guard_states(self):
         explainer = DecisionExplainer()
-        assert "ALLOWED" in explainer.explain(_decision(
-            dt=DecisionType.INPUT_GUARD, outcome=Outcome.ALLOWED,
-        )).summary
-        assert "MODIFIED" in explainer.explain(_decision(
-            dt=DecisionType.INPUT_GUARD, outcome=Outcome.MODIFIED,
-        )).summary.upper() or "redact" in explainer.explain(_decision(
-            dt=DecisionType.INPUT_GUARD, outcome=Outcome.MODIFIED,
-        )).summary.lower()
-        expl = explainer.explain(_decision(
-            dt=DecisionType.OUTPUT_GUARD, outcome=Outcome.DENIED,
-            factors=[DecisionFactor("pii", False, 1.0, "PII found")],
-            context={"violation_type": "PII"},
-        ))
+        assert (
+            "ALLOWED"
+            in explainer.explain(
+                _decision(
+                    dt=DecisionType.INPUT_GUARD,
+                    outcome=Outcome.ALLOWED,
+                )
+            ).summary
+        )
+        assert (
+            "MODIFIED"
+            in explainer.explain(
+                _decision(
+                    dt=DecisionType.INPUT_GUARD,
+                    outcome=Outcome.MODIFIED,
+                )
+            ).summary.upper()
+            or "redact"
+            in explainer.explain(
+                _decision(
+                    dt=DecisionType.INPUT_GUARD,
+                    outcome=Outcome.MODIFIED,
+                )
+            ).summary.lower()
+        )
+        expl = explainer.explain(
+            _decision(
+                dt=DecisionType.OUTPUT_GUARD,
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor("pii", False, 1.0, "PII found")],
+                context={"violation_type": "PII"},
+            )
+        )
         assert "PII" in expl.summary or "BLOCKED" in expl.summary
 
     def test_explainer_circuit_breaker_states(self):
         explainer = DecisionExplainer()
-        for state, expect in [("closed", "AVAILABLE"), ("open", "UNAVAILABLE"), ("half_open", "TESTING")]:
-            expl = explainer.explain(_decision(
-                dt=DecisionType.CIRCUIT_BREAKER,
-                outcome=Outcome.ALLOWED if state == "closed" else Outcome.DENIED,
-                context={"state": state, "failures": 5},
-            ))
+        states = [("closed", "AVAILABLE"), ("open", "UNAVAILABLE"), ("half_open", "TESTING")]
+        for state, expect in states:
+            expl = explainer.explain(
+                _decision(
+                    dt=DecisionType.CIRCUIT_BREAKER,
+                    outcome=Outcome.ALLOWED if state == "closed" else Outcome.DENIED,
+                    context={"state": state, "failures": 5},
+                )
+            )
             assert expect in expl.summary
 
     def test_explainer_intent_validation(self):
-        expl = DecisionExplainer().explain(_decision(
-            dt=DecisionType.INTENT_VALIDATION, outcome=Outcome.DENIED,
-            factors=[DecisionFactor("intent", False, 1.0, "Hijack")],
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                dt=DecisionType.INTENT_VALIDATION,
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor("intent", False, 1.0, "Hijack")],
+            )
+        )
         assert "hijack" in expl.summary.lower() or "BLOCKED" in expl.summary
 
     def test_explainer_budget(self):
         explainer = DecisionExplainer()
-        assert "5.00" in explainer.explain(_decision(
-            dt=DecisionType.BUDGET, outcome=Outcome.ALLOWED,
-            factors=[DecisionFactor("b", True, 1.0, "OK")],
-            context={"spent": 5.0, "limit": 10.0},
-        )).summary
-        assert "EXCEEDED" in explainer.explain(_decision(
-            dt=DecisionType.BUDGET, outcome=Outcome.DENIED,
-            factors=[DecisionFactor("b", False, 1.0, "Over")],
-            context={"spent": 15.0, "limit": 10.0},
-        )).summary
+        assert (
+            "5.00"
+            in explainer.explain(
+                _decision(
+                    dt=DecisionType.BUDGET,
+                    outcome=Outcome.ALLOWED,
+                    factors=[DecisionFactor("b", True, 1.0, "OK")],
+                    context={"spent": 5.0, "limit": 10.0},
+                )
+            ).summary
+        )
+        assert (
+            "EXCEEDED"
+            in explainer.explain(
+                _decision(
+                    dt=DecisionType.BUDGET,
+                    outcome=Outcome.DENIED,
+                    factors=[DecisionFactor("b", False, 1.0, "Over")],
+                    context={"spent": 15.0, "limit": 10.0},
+                )
+            ).summary
+        )
 
     def test_explainer_behavioral_drift(self):
-        expl = DecisionExplainer().explain(_decision(
-            dt=DecisionType.BEHAVIORAL_DRIFT, outcome=Outcome.DENIED,
-            context={"metric": "latency", "deviation": 3.5},
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                dt=DecisionType.BEHAVIORAL_DRIFT,
+                outcome=Outcome.DENIED,
+                context={"metric": "latency", "deviation": 3.5},
+            )
+        )
         assert "latency" in expl.summary
 
     def test_explainer_unknown_type_fallback(self):
-        expl = DecisionExplainer().explain(ExplainableDecision(
-            decision_type="custom_check", outcome="DENIED",
-            factors=[DecisionFactor("x", False, 1.0, "Nope")],
-        ))
+        expl = DecisionExplainer().explain(
+            ExplainableDecision(
+                decision_type="custom_check",
+                outcome="DENIED",
+                factors=[DecisionFactor("x", False, 1.0, "Nope")],
+            )
+        )
         assert "Nope" in expl.summary
 
     def test_explainer_formats(self):
@@ -477,24 +565,36 @@ class TestExplainability:
 
     def test_explainer_counterfactuals(self):
         explainer = DecisionExplainer()
-        denied_role = explainer.explain(_decision(
-            outcome=Outcome.DENIED,
-            factors=[DecisionFactor("role_check", False, 0.5, "Missing role")],
-        ))
+        denied_role = explainer.explain(
+            _decision(
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor("role_check", False, 0.5, "Missing role")],
+            )
+        )
         assert "role" in denied_role.counterfactual.lower()
-        allowed = explainer.explain(_decision(
-            factors=[DecisionFactor("role", True, 0.8, "Has role")],
-        ))
+        allowed = explainer.explain(
+            _decision(
+                factors=[DecisionFactor("role", True, 0.8, "Has role")],
+            )
+        )
         assert "failed" in allowed.counterfactual.lower()
         assert explainer.explain(_decision()).counterfactual is None
 
     def test_explainer_counterfactual_factor_types(self):
         explainer = DecisionExplainer()
-        for name, expect in [("rate_limit", "rate limit"), ("budget_x", "budget"), ("trust_lvl", "trust"), ("custom_xyz", "custom_xyz")]:
-            expl = explainer.explain(_decision(
-                outcome=Outcome.DENIED,
-                factors=[DecisionFactor(name, False, 1.0, "Fail")],
-            ))
+        factor_types = [
+            ("rate_limit", "rate limit"),
+            ("budget_x", "budget"),
+            ("trust_lvl", "trust"),
+            ("custom_xyz", "custom_xyz"),
+        ]
+        for name, expect in factor_types:
+            expl = explainer.explain(
+                _decision(
+                    outcome=Outcome.DENIED,
+                    factors=[DecisionFactor(name, False, 1.0, "Fail")],
+                )
+            )
             assert expect in expl.counterfactual.lower()
 
     def test_explainer_confidence_levels(self):
@@ -505,26 +605,40 @@ class TestExplainability:
 
     def test_explainer_recommendations(self):
         explainer = DecisionExplainer()
-        for name, expect in [("role_check", "permission"), ("rate_x", "wait"), ("budget_x", "budget"), ("trust_x", "agent"), ("intent_x", "tool call"), ("circuit_x", "retry")]:
-            expl = explainer.explain(_decision(
-                outcome=Outcome.DENIED,
-                factors=[DecisionFactor(name, False, 1.0, "No")],
-            ))
+        recommendations = [
+            ("role_check", "permission"),
+            ("rate_x", "wait"),
+            ("budget_x", "budget"),
+            ("trust_x", "agent"),
+            ("intent_x", "tool call"),
+            ("circuit_x", "retry"),
+        ]
+        for name, expect in recommendations:
+            expl = explainer.explain(
+                _decision(
+                    outcome=Outcome.DENIED,
+                    factors=[DecisionFactor(name, False, 1.0, "No")],
+                )
+            )
             assert any(expect in r.lower() for r in expl.recommendations)
 
     def test_explainer_no_recommendations_when_disabled(self):
-        expl = DecisionExplainer(include_recommendations=False).explain(_decision(
-            outcome=Outcome.DENIED,
-            factors=[DecisionFactor("role", False, 1.0, "No")],
-        ))
+        expl = DecisionExplainer(include_recommendations=False).explain(
+            _decision(
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor("role", False, 1.0, "No")],
+            )
+        )
         assert expl.recommendations == []
 
     def test_explainer_recommendations_dedup_and_limit(self):
-        expl = DecisionExplainer().explain(_decision(
-            outcome=Outcome.DENIED,
-            factors=[DecisionFactor(f"role_{i}", False, 0.2, "No") for i in range(5)]
-            + [DecisionFactor("rate_x", False, 0.1, "No")],
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                outcome=Outcome.DENIED,
+                factors=[DecisionFactor(f"role_{i}", False, 0.2, "No") for i in range(5)]
+                + [DecisionFactor("rate_x", False, 0.1, "No")],
+            )
+        )
         assert len(expl.recommendations) <= 3
 
     def test_explainer_custom_templates(self):
@@ -547,20 +661,24 @@ class TestExplainability:
         assert explainer.explain(_decision()).summary == "Custom!"
 
     def test_explainer_detailed_includes_context_and_evidence(self):
-        expl = DecisionExplainer().explain(_decision(
-            factors=[DecisionFactor("role", True, 0.5, "OK", evidence=["Checked"])],
-            context={"user_id": "alice"},
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                factors=[DecisionFactor("role", True, 0.5, "OK", evidence=["Checked"])],
+                context={"user_id": "alice"},
+            )
+        )
         assert "alice" in expl.detailed or "User Id" in expl.detailed
 
     def test_explainer_factors_explained_list(self):
-        expl = DecisionExplainer().explain(_decision(
-            outcome=Outcome.DENIED,
-            factors=[
-                DecisionFactor("role", False, 0.5, "No role"),
-                DecisionFactor("rate", True, 0.5, "OK"),
-            ],
-        ))
+        expl = DecisionExplainer().explain(
+            _decision(
+                outcome=Outcome.DENIED,
+                factors=[
+                    DecisionFactor("role", False, 0.5, "No role"),
+                    DecisionFactor("rate", True, 0.5, "OK"),
+                ],
+            )
+        )
         assert len(expl.factors_explained) == 2
 
     def test_logger_log_and_retrieve(self):
@@ -591,11 +709,13 @@ class TestExplainability:
     def test_logger_filtered_queries(self):
         logger = ExplainabilityLogger()
         for i in range(5):
-            logger.log_decision(_decision(
-                dt=DecisionType.AUTHORIZATION if i < 3 else DecisionType.RATE_LIMIT,
-                outcome=Outcome.ALLOWED if i % 2 == 0 else Outcome.DENIED,
-                context={"user_id": f"u{i}", "current": 1, "limit": 10},
-            ))
+            logger.log_decision(
+                _decision(
+                    dt=DecisionType.AUTHORIZATION if i < 3 else DecisionType.RATE_LIMIT,
+                    outcome=Outcome.ALLOWED if i % 2 == 0 else Outcome.DENIED,
+                    context={"user_id": f"u{i}", "current": 1, "limit": 10},
+                )
+            )
         assert len(logger.get_decisions(decision_type=DecisionType.AUTHORIZATION)) == 3
         assert len(logger.get_decisions(outcome=Outcome.DENIED)) == 2
         assert len(logger.get_decisions(user_id="u0")) == 1
@@ -610,10 +730,12 @@ class TestExplainability:
     def test_logger_export_json_and_jsonl(self):
         logger = ExplainabilityLogger()
         logger.log_decision(_decision(factors=[DecisionFactor("r", True, 1.0, "ok")]))
-        logger.log_decision(_decision(dt=DecisionType.RATE_LIMIT, context={"current": 1, "limit": 10}))
+        ctx = {"current": 1, "limit": 10}
+        logger.log_decision(_decision(dt=DecisionType.RATE_LIMIT, context=ctx))
         parsed = json.loads(logger.export_decisions(format="json"))
         assert len(parsed) == 2 and "explanation" in parsed[0]
-        lines = [l for l in logger.export_decisions(format="jsonl").strip().split("\n") if l]
+        jsonl_export = logger.export_decisions(format="jsonl").strip().split("\n")
+        lines = [line for line in jsonl_export if line]
         assert len(lines) == 2
         no_expl = json.loads(logger.export_decisions(format="json", include_explanations=False))
         assert "explanation" not in no_expl[0]
@@ -642,7 +764,8 @@ class TestExplainability:
         ExplainabilityLogger(audit_logger=mock).log_decision(_decision())
 
     def test_create_authorization_decision_helper(self):
-        d = create_authorization_decision("alice", "delete", True, [DecisionFactor("r", True, 1.0, "OK")])
+        factors = [DecisionFactor("r", True, 1.0, "OK")]
+        d = create_authorization_decision("alice", "delete", True, factors)
         assert d.decision_type == DecisionType.AUTHORIZATION and d.outcome == Outcome.ALLOWED
         assert d.context["user_id"] == "alice" and d.context["tool_name"] == "delete"
         d2 = create_authorization_decision("bob", "admin", False, [])
@@ -653,7 +776,8 @@ class TestExplainability:
         assert create_guard_decision("output", False, [], modified=True).outcome == Outcome.MODIFIED
         assert create_guard_decision("input", False, []).outcome == Outcome.DENIED
         d = create_guard_decision("input", True, [], content_sample="x" * 200)
-        assert d.context["content_preview"].endswith("...") and len(d.context["content_preview"]) == 103
+        preview = d.context["content_preview"]
+        assert preview.endswith("...") and len(preview) == 103
         d2 = create_guard_decision("input", True, [], content_sample="short")
         assert d2.context["content_preview"] == "short"
 

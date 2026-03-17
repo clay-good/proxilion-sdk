@@ -295,6 +295,7 @@ class TestProxilionVertexHandlerInit:
 
     def test_properties(self, handler, weather_tool_declaration):
         """Test handler properties."""
+
         def weather_impl(location: str) -> dict:
             return {"temp": 72}
 
@@ -320,6 +321,7 @@ class TestToolRegistration:
 
     def test_register_basic_tool(self, handler, weather_tool_declaration):
         """Register a basic tool."""
+
         def weather_impl(location: str, units: str = "celsius") -> dict:
             return {"temp": 72, "units": units}
 
@@ -340,6 +342,7 @@ class TestToolRegistration:
 
     def test_register_async_tool(self, handler, weather_tool_declaration):
         """Register an async tool."""
+
         async def async_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -356,6 +359,7 @@ class TestToolRegistration:
 
     def test_register_with_custom_action(self, handler, weather_tool_declaration):
         """Register tool with custom action."""
+
         def impl(location: str) -> dict:
             return {}
 
@@ -372,6 +376,7 @@ class TestToolRegistration:
 
     def test_register_default_resource(self, handler, weather_tool_declaration):
         """Resource defaults to tool name."""
+
         def impl(location: str) -> dict:
             return {}
 
@@ -407,6 +412,7 @@ class TestToolRegistration:
 
     def test_register_tool_from_function(self, handler):
         """Register tool by inferring from function."""
+
         def search_database(query: str, limit: int = 10) -> list:
             """Search the database for matching records."""
             return [{"id": 1}]
@@ -533,15 +539,7 @@ class TestFunctionCallExtraction:
     def test_extract_empty_response(self, handler):
         """Extract from response without function calls."""
         response = {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {"text": "Hello, how can I help you?"}
-                        ]
-                    }
-                }
-            ]
+            "candidates": [{"content": {"parts": [{"text": "Hello, how can I help you?"}]}}]
         }
 
         calls = handler.extract_function_calls(response)
@@ -562,15 +560,7 @@ class TestFunctionCallExtraction:
     def test_standalone_extract_function(self):
         """Test standalone extract_function_calls function."""
         response = {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {"functionCall": {"name": "test", "args": {}}}
-                        ]
-                    }
-                }
-            ]
+            "candidates": [{"content": {"parts": [{"functionCall": {"name": "test", "args": {}}}]}}]
         }
 
         calls = extract_function_calls(response)
@@ -589,6 +579,7 @@ class TestToolExecution:
 
     def test_execute_authorized_tool(self, handler, user, weather_tool_declaration):
         """Execute a tool that user is authorized for."""
+
         def get_weather(location: str) -> dict:
             return {"temp": 72, "location": location}
 
@@ -612,6 +603,7 @@ class TestToolExecution:
 
     def test_execute_unauthorized_tool(self, handler, user, database_tool_declaration):
         """Execute a tool that user is not authorized for."""
+
         def query_db(query: str) -> list:
             return [{"id": 1}]
 
@@ -635,6 +627,7 @@ class TestToolExecution:
 
     def test_execute_admin_authorized(self, handler, admin_user, database_tool_declaration):
         """Admin can execute restricted tools."""
+
         def query_db(query: str) -> list:
             return [{"id": 1}]
 
@@ -657,6 +650,7 @@ class TestToolExecution:
 
     def test_execute_without_user(self, handler, weather_tool_declaration):
         """Execute tool without user skips authorization."""
+
         def get_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -691,6 +685,7 @@ class TestToolExecution:
 
     def test_execute_tool_with_error(self, handler, weather_tool_declaration):
         """Execute tool that raises exception."""
+
         def failing_weather(location: str) -> dict:
             raise ValueError("API error")
 
@@ -737,6 +732,7 @@ class TestToolExecution:
 
     def test_execution_history(self, handler, weather_tool_declaration):
         """Execution history is maintained."""
+
         def get_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -768,6 +764,7 @@ class TestAsyncExecution:
     @pytest.mark.asyncio
     async def test_execute_async_tool(self, handler, weather_tool_declaration):
         """Execute async tool."""
+
         async def async_weather(location: str) -> dict:
             return {"temp": 72, "location": location}
 
@@ -791,6 +788,7 @@ class TestAsyncExecution:
     @pytest.mark.asyncio
     async def test_execute_sync_tool_async(self, handler, weather_tool_declaration):
         """Execute sync tool via async method."""
+
         def sync_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -813,6 +811,7 @@ class TestAsyncExecution:
     @pytest.mark.asyncio
     async def test_execute_async_unauthorized(self, handler, user, database_tool_declaration):
         """Async execution respects authorization."""
+
         async def query_db(query: str) -> list:
             return []
 
@@ -844,6 +843,7 @@ class TestProcessResponse:
 
     def test_process_response_single_call(self, handler, user, weather_tool_declaration):
         """Process response with single function call."""
+
         def get_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -879,6 +879,7 @@ class TestProcessResponse:
 
     def test_process_response_multiple_calls(self, handler, weather_tool_declaration):
         """Process response with multiple function calls."""
+
         def get_weather(location: str) -> dict:
             return {"temp": 72, "location": location}
 
@@ -910,17 +911,7 @@ class TestProcessResponse:
 
     def test_process_response_no_function_calls(self, handler):
         """Process response without function calls."""
-        response = {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {"text": "Hello!"}
-                        ]
-                    }
-                }
-            ]
-        }
+        response = {"candidates": [{"content": {"parts": [{"text": "Hello!"}]}}]}
 
         results = handler.process_response(response)
 
@@ -929,6 +920,7 @@ class TestProcessResponse:
     @pytest.mark.asyncio
     async def test_process_response_async(self, handler, weather_tool_declaration):
         """Process response asynchronously."""
+
         async def async_weather(location: str) -> dict:
             return {"temp": 72}
 
@@ -1003,9 +995,7 @@ class TestToolOutputFormatting:
 
     def test_standalone_format_tool_response(self):
         """Test standalone format_tool_response function."""
-        results = [
-            GeminiToolResult(name="test", success=True, result={"data": 123})
-        ]
+        results = [GeminiToolResult(name="test", success=True, result={"data": 123})]
 
         formatted = format_tool_response(results)
 
@@ -1041,7 +1031,10 @@ class TestGeminiToolsExport:
             assert "function_declarations" in tools[0]
 
     def test_tool_declarations_property(
-        self, handler, weather_tool_declaration, database_tool_declaration,
+        self,
+        handler,
+        weather_tool_declaration,
+        database_tool_declaration,
     ):
         """Get tool declarations."""
         handler.register_tool(
@@ -1231,6 +1224,7 @@ class TestEdgeCases:
 
     def test_empty_args(self, handler, weather_tool_declaration):
         """Handle function call with empty args."""
+
         def no_args_tool() -> str:
             return "result"
 
@@ -1261,6 +1255,7 @@ class TestEdgeCases:
 
     def test_complex_result_serialization(self, handler):
         """Handle complex result types."""
+
         def complex_tool() -> dict:
             return {
                 "nested": {"key": "value"},

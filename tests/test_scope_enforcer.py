@@ -464,7 +464,9 @@ class TestScopeContext:
         assert not ctx.is_tool_allowed("delete_user", "delete")
 
     def test_get_calls_tracks_validated_tools(
-        self, enforcer: ScopeEnforcer, user: UserContext,
+        self,
+        enforcer: ScopeEnforcer,
+        user: UserContext,
     ) -> None:
         """Test that validated calls are tracked."""
         scope = enforcer.get_scope("admin")
@@ -539,7 +541,9 @@ class TestScopedExecution:
             ctx.validate_tool("delete_user", "delete")
 
     def test_context_manager_closes_on_success(
-        self, enforcer: ScopeEnforcer, user: UserContext,
+        self,
+        enforcer: ScopeEnforcer,
+        user: UserContext,
     ) -> None:
         """Test context is closed after successful execution."""
         with scoped_execution(enforcer, "read_only", user) as ctx:
@@ -548,7 +552,9 @@ class TestScopedExecution:
         assert ctx.is_closed
 
     def test_context_manager_closes_on_exception(
-        self, enforcer: ScopeEnforcer, user: UserContext,
+        self,
+        enforcer: ScopeEnforcer,
+        user: UserContext,
     ) -> None:
         """Test context is closed even on exception."""
         ctx = None
@@ -571,7 +577,9 @@ class TestScopedExecution:
         assert len(ctx.get_calls()) == 3
 
     def test_context_manager_blocks_disallowed_tools(
-        self, enforcer: ScopeEnforcer, user: UserContext,
+        self,
+        enforcer: ScopeEnforcer,
+        user: UserContext,
     ) -> None:
         """Test context manager raises on disallowed tools."""
         with (
@@ -633,6 +641,7 @@ class TestDefaultToolClassifications:
     def test_read_patterns(self) -> None:
         """Test read patterns are classified correctly."""
         import re
+
         for pattern, scope in DEFAULT_TOOL_CLASSIFICATIONS.items():
             if scope == ExecutionScope.READ_ONLY:
                 # Should match get_, read_, etc.
@@ -829,10 +838,7 @@ class TestThreadSafety:
             with lock:
                 results.append(scope.name)
 
-        threads = [
-            threading.Thread(target=create_scope, args=(f"scope_{i}",))
-            for i in range(10)
-        ]
+        threads = [threading.Thread(target=create_scope, args=(f"scope_{i}",)) for i in range(10)]
 
         for t in threads:
             t.start()
@@ -855,10 +861,7 @@ class TestThreadSafety:
                 results.append(classification)
 
         tools = [f"get_user_{i}" for i in range(20)]
-        threads = [
-            threading.Thread(target=classify, args=(tool,))
-            for tool in tools
-        ]
+        threads = [threading.Thread(target=classify, args=(tool,)) for tool in tools]
 
         for t in threads:
             t.start()

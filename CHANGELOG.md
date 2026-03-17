@@ -5,6 +5,28 @@ All notable changes to the Proxilion SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2026-03-14
+
+### Added
+- **Secret key validation**: `IntentCapsule`, `MemoryIntegrityGuard`, and `AgentTrustManager` now require secret keys ≥ 16 characters and warn on placeholder patterns
+- **Test coverage**: New test modules for hash chain internals (`test_hash_chain_detailed.py`), built-in policies (`test_builtin_policies.py`), policy engine mocks (`test_engines_mocked.py`), and thread safety (`test_thread_safety.py`)
+- **Integration test fixtures**: `tests/fixtures/` package with shared `UserContext`, `ToolCallRequest`, and provider response objects
+- **Security regression tests**: `test_security_regression.py` covering OWASP ASI01-ASI10 attack vectors (prompt injection, tool misuse, data exfiltration, IDOR, replay, privilege escalation, intent hijacking, cascade failure, DoS, supply chain)
+- **Feature documentation**: Six new `docs/features/` files covering input guards, output guards, rate limiting, audit logging, security controls, and observability
+- **Decorator API docs**: New quickstart section for `@authorize_tool_call`, `@rate_limited`, `@circuit_protected`, `@require_approval`
+- **CI hardening**: Python 3.13 in test matrix, `--cov-fail-under=85` coverage threshold, `pip-audit` security scanning, `tests/` included in ruff scope, `[dev,all]` extras for typecheck job
+- **Scheduler graceful shutdown**: `RequestScheduler.shutdown()` now accepts `timeout: float = 5.0` parameter and logs a warning if workers do not stop within the deadline
+- **Audit log hardening**: `AuditLogger` uses `fcntl.LOCK_EX` (Unix) for concurrent multi-process write safety and flushes after every event
+
+### Fixed
+- **Version drift**: Synchronized `proxilion/__init__.py` `__version__` to `0.0.6` (from `0.0.5`)
+- **Stale mypy type-ignore comments**: Removed 13 unused `# type: ignore[import-not-found]` annotations from optional-import try/except blocks
+- **Ruff violations in test files**: Fixed `B007` (unused loop variables), `F841` (unused assignments), `C408` (dict() literals), `N806` (class names in function scope), `I001` (import sorting), `F401` (unused imports), and `E501` (line length) across 12 test files
+
+### Changed
+- **CLAUDE.md**: Updated version note to reflect synchronized 0.0.6 state
+- **README.md**: Updated secret key examples to use `prx_sk_a1b2c3d4e5f6g7h8` pattern with production guidance
+
 ## [0.0.5] - 2026-03-13
 
 ### Fixed

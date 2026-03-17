@@ -729,8 +729,7 @@ class TestIntegration:
         # All should have the same total events
         assert eu_report.summary["total_operations"] == soc2_report.summary["total_operations"]
         assert (
-            soc2_report.summary["total_operations"]
-            == iso_report.summary["total_events_analyzed"]
+            soc2_report.summary["total_operations"] == iso_report.summary["total_events_analyzed"]
         )
 
     def test_complete_workflow(self, now):

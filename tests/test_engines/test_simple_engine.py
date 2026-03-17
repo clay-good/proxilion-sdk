@@ -42,9 +42,7 @@ class TestSimplePolicyEngineInit:
         assert isinstance(engine.registry, PolicyRegistry)
 
     def test_init_with_config(self):
-        engine = SimplePolicyEngine(
-            config={"allow_missing_policies": False}
-        )
+        engine = SimplePolicyEngine(config={"allow_missing_policies": False})
         assert engine.allow_missing_policies is False
 
     def test_init_with_registry(self):
@@ -63,9 +61,7 @@ class TestSimplePolicyEngineInit:
 class TestSimplePolicyEngineEvaluate:
     """Test SimplePolicyEngine evaluation."""
 
-    def test_deny_when_no_policy(
-        self, engine: SimplePolicyEngine, basic_user: UserContext
-    ):
+    def test_deny_when_no_policy(self, engine: SimplePolicyEngine, basic_user: UserContext):
         result = engine.evaluate(basic_user, "read", "unknown_resource")
         assert result.allowed is False
         # Default DenyAllPolicy is used for unregistered resources
@@ -93,17 +89,13 @@ class TestSimplePolicyEngineEvaluate:
         assert engine.evaluate(admin_user, "write", "document").allowed is True
         assert engine.evaluate(basic_user, "write", "document").allowed is False
 
-    def test_dict_rules_override(
-        self, engine: SimplePolicyEngine, basic_user: UserContext
-    ):
+    def test_dict_rules_override(self, engine: SimplePolicyEngine, basic_user: UserContext):
         engine.add_rule("api", "execute", ["user", "admin"])
         result = engine.evaluate(basic_user, "execute", "api")
         assert result.allowed is True
         assert "Dictionary rule" in result.reason
 
-    def test_dict_rules_deny(
-        self, engine: SimplePolicyEngine, basic_user: UserContext
-    ):
+    def test_dict_rules_deny(self, engine: SimplePolicyEngine, basic_user: UserContext):
         engine.add_rule("api", "configure", ["admin"])
         result = engine.evaluate(basic_user, "configure", "api")
         assert result.allowed is False
@@ -134,10 +126,12 @@ class TestSimplePolicyEngineDictRules:
         assert engine._dict_rules["calc"]["execute"] == ["user"]
 
     def test_add_rules_batch(self, engine: SimplePolicyEngine):
-        engine.add_rules({
-            "calc": {"execute": ["user"], "configure": ["admin"]},
-            "db": {"query": ["analyst"]},
-        })
+        engine.add_rules(
+            {
+                "calc": {"execute": ["user"], "configure": ["admin"]},
+                "db": {"query": ["analyst"]},
+            }
+        )
         assert "calc" in engine._dict_rules
         assert "db" in engine._dict_rules
         assert engine._dict_rules["calc"]["configure"] == ["admin"]

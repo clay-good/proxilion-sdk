@@ -74,6 +74,7 @@ class TestPolicyRegistration:
 
     def test_policy_decorator_registers_policy(self, proxilion_simple: Proxilion):
         """Test that @policy decorator registers the policy class."""
+
         @proxilion_simple.policy("test_resource")
         class TestPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -85,6 +86,7 @@ class TestPolicyRegistration:
 
     def test_policy_decorator_preserves_class(self, proxilion_simple: Proxilion):
         """Test that decorator returns the original class."""
+
         @proxilion_simple.policy("another_resource")
         class AnotherPolicy(Policy):
             def can_read(self, context: dict) -> bool:
@@ -95,6 +97,7 @@ class TestPolicyRegistration:
 
     def test_multiple_policies_registration(self, proxilion_simple: Proxilion):
         """Test registering multiple policies."""
+
         @proxilion_simple.policy("resource_a")
         class PolicyA(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -116,6 +119,7 @@ class TestCanMethod:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test can() returns True when policy allows."""
+
         @proxilion_simple.policy("open_resource")
         class OpenPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -128,6 +132,7 @@ class TestCanMethod:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test can() returns False when policy denies."""
+
         @proxilion_simple.policy("restricted_resource")
         class RestrictedPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -136,10 +141,9 @@ class TestCanMethod:
         result = proxilion_simple.can(basic_user, "execute", "restricted_resource")
         assert result is False
 
-    def test_can_with_admin_user(
-        self, proxilion_simple: Proxilion, admin_user: UserContext
-    ):
+    def test_can_with_admin_user(self, proxilion_simple: Proxilion, admin_user: UserContext):
         """Test can() with admin user passes restricted policy."""
+
         @proxilion_simple.policy("admin_only")
         class AdminOnlyPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -148,10 +152,9 @@ class TestCanMethod:
         result = proxilion_simple.can(admin_user, "execute", "admin_only")
         assert result is True
 
-    def test_can_with_context(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_can_with_context(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test can() passes context to policy."""
+
         @proxilion_simple.policy("context_aware")
         class ContextAwarePolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -177,6 +180,7 @@ class TestCheckMethod:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test check() returns AuthorizationResult."""
+
         @proxilion_simple.policy("check_test")
         class CheckTestPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -190,6 +194,7 @@ class TestCheckMethod:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test check() includes evaluated policies in result."""
+
         @proxilion_simple.policy("policy_tracking")
         class PolicyTrackingPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -202,6 +207,7 @@ class TestCheckMethod:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test check() includes reason when denied."""
+
         @proxilion_simple.policy("denied_resource")
         class DeniedPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -215,10 +221,9 @@ class TestCheckMethod:
 class TestAuthorizeDecorator:
     """Tests for the @authorize decorator."""
 
-    def test_authorize_allows_execution(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_authorize_allows_execution(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test @authorize allows function execution when policy permits."""
+
         @proxilion_simple.policy("decorated_resource")
         class DecoratedPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -231,10 +236,9 @@ class TestAuthorizeDecorator:
         result = protected_function(5, user=basic_user)
         assert result == 10
 
-    def test_authorize_blocks_execution(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_authorize_blocks_execution(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test @authorize blocks function execution when policy denies."""
+
         @proxilion_simple.policy("blocked_resource")
         class BlockedPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -247,10 +251,9 @@ class TestAuthorizeDecorator:
         with pytest.raises(AuthorizationError):
             blocked_function(user=basic_user)
 
-    def test_authorize_async_function(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_authorize_async_function(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test @authorize works with async functions."""
+
         @proxilion_simple.policy("async_resource")
         class AsyncPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -267,6 +270,7 @@ class TestAuthorizeDecorator:
         self, proxilion_simple: Proxilion, basic_user: UserContext
     ):
         """Test @authorize can infer resource from function name."""
+
         @proxilion_simple.policy("my_tool")
         class MyToolPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -287,6 +291,7 @@ class TestRoleBasedAuthorization:
         self, proxilion_simple: Proxilion, admin_user: UserContext, basic_user: UserContext
     ):
         """Test admin users can access admin-only resources."""
+
         @proxilion_simple.policy("admin_resource")
         class AdminResourcePolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -306,6 +311,7 @@ class TestRoleBasedAuthorization:
         self, proxilion_simple: Proxilion, analyst_user: UserContext, basic_user: UserContext
     ):
         """Test analyst-specific permissions."""
+
         @proxilion_simple.policy("data_resource")
         class DataResourcePolicy(Policy):
             def can_read(self, context: dict) -> bool:
@@ -329,10 +335,9 @@ class TestRoleBasedAuthorization:
 class TestContextualAuthorization:
     """Tests for context-aware authorization."""
 
-    def test_time_based_context(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_time_based_context(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test authorization based on context values."""
+
         @proxilion_simple.policy("time_sensitive")
         class TimeSensitivePolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -341,22 +346,19 @@ class TestContextualAuthorization:
 
         # During business hours
         result = proxilion_simple.can(
-            basic_user, "execute", "time_sensitive",
-            context={"is_business_hours": True}
+            basic_user, "execute", "time_sensitive", context={"is_business_hours": True}
         )
         assert result is True
 
         # Outside business hours
         result = proxilion_simple.can(
-            basic_user, "execute", "time_sensitive",
-            context={"is_business_hours": False}
+            basic_user, "execute", "time_sensitive", context={"is_business_hours": False}
         )
         assert result is False
 
-    def test_resource_specific_context(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_resource_specific_context(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test authorization based on resource-specific context."""
+
         @proxilion_simple.policy("document")
         class DocumentPolicy(Policy):
             def can_read(self, context: dict) -> bool:
@@ -366,15 +368,16 @@ class TestContextualAuthorization:
 
         # User's own document
         result = proxilion_simple.can(
-            basic_user, "read", "document",
-            context={"owner_id": "user_123", "document_id": "doc_1"}
+            basic_user, "read", "document", context={"owner_id": "user_123", "document_id": "doc_1"}
         )
         assert result is True
 
         # Someone else's document
         result = proxilion_simple.can(
-            basic_user, "read", "document",
-            context={"owner_id": "other_user", "document_id": "doc_2"}
+            basic_user,
+            "read",
+            "document",
+            context={"owner_id": "other_user", "document_id": "doc_2"},
         )
         assert result is False
 
@@ -386,6 +389,7 @@ class TestAuditLogging:
         self, proxilion_with_audit: Proxilion, basic_user: UserContext
     ):
         """Test that authorization checks are logged."""
+
         @proxilion_with_audit.policy("audited_resource")
         class AuditedPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -410,10 +414,9 @@ class TestErrorHandling:
         # Default behavior should deny if no policy found
         assert result.allowed is False
 
-    def test_policy_exception_handling(
-        self, proxilion_simple: Proxilion, basic_user: UserContext
-    ):
+    def test_policy_exception_handling(self, proxilion_simple: Proxilion, basic_user: UserContext):
         """Test that exceptions in policy are handled gracefully."""
+
         @proxilion_simple.policy("buggy_resource")
         class BuggyPolicy(Policy):
             def can_execute(self, context: dict) -> bool:
@@ -425,6 +428,7 @@ class TestErrorHandling:
 
     def test_authorize_without_user_raises(self, proxilion_simple: Proxilion):
         """Test that @authorize raises when no user provided."""
+
         @proxilion_simple.policy("user_required")
         class UserRequiredPolicy(Policy):
             def can_execute(self, context: dict) -> bool:

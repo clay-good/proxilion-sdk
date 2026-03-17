@@ -5,7 +5,7 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.7 |
-| Tests passing | 2,354 sync tests passing, 6 skipped (OPA optional deps), async tests skipped (pytest-asyncio not in Python 3.14 env) |
+| Tests passing | 2,403 passed, 107 skipped (async tests + OPA deps), pytest-asyncio not in Python 3.14 env |
 | Ruff violations | 0 |
 | Mypy errors | 0 |
 | Active branch | proxilion-build/spec-v2-clean |
@@ -43,4 +43,4 @@
 
 ## Last Updated
 
-2026-03-17 — Completed spec-v2 Step 7: Wired structured exception context to all raise sites. Updated rate_limiter.py (3 sites), decorators.py (6 sites), core.py (2 sites), and intent_capsule.py (2 sites) to pass structured fields (user_id, limit, current_count, input_preview, tool_name, allowed_tools, etc.) to exceptions.
+2026-03-17 — Verification pass 1/3: All checks green. 2,403 tests passed, 107 skipped. Ruff lint 0 violations. Ruff format clean. Security scan clean (no eval/exec/shell=True/hardcoded secrets/SQL injection patterns).

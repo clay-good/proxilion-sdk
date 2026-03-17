@@ -370,13 +370,13 @@ class RequestScheduler:
                 self._resume_event.set()
                 logger.info("Scheduler resumed")
 
-    def shutdown(self, wait: bool = True, timeout: float | None = None) -> None:
+    def shutdown(self, wait: bool = True, timeout: float = 5.0) -> None:
         """
         Shutdown the scheduler.
 
         Args:
             wait: Whether to wait for pending requests.
-            timeout: Maximum time to wait for pending requests.
+            timeout: Maximum time to wait for pending requests (default: 5.0 seconds).
         """
         with self._state_lock:
             if self._state in (SchedulerState.SHUTTING_DOWN, SchedulerState.STOPPED):
@@ -387,9 +387,27 @@ class RequestScheduler:
         logger.info("Scheduler shutting down...")
 
         if wait:
-            # Wait for workers to complete
+            # Wait for workers to complete with timeout
+            import time
+
+            start_time = time.time()
+
             for worker in self._workers:
-                worker.join(timeout=timeout)
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed
+
+                if remaining <= 0:
+                    logger.warning(
+                        f"Shutdown timeout ({timeout}s) reached, "
+                        "some workers may not have completed cleanly"
+                    )
+                    break
+
+                worker.join(timeout=remaining)
+
+                # Check if worker is still alive after join
+                if worker.is_alive():
+                    logger.warning(f"Worker {worker.name} did not complete within timeout")
 
         # Force stop
         with self._state_lock:
@@ -402,7 +420,8 @@ class RequestScheduler:
                     future.cancel()
             self._pending_futures.clear()
 
-        self._executor.shutdown(wait=False)
+        # Shutdown executor with wait
+        self._executor.shutdown(wait=wait)
         logger.info("Scheduler stopped")
 
     def get_queue_stats(self) -> dict[str, Any]:

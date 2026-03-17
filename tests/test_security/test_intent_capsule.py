@@ -793,7 +793,9 @@ class TestIntentCapsuleManager:
     def test_get_user_capsules_excludes_expired(self):
         mgr = IntentCapsuleManager(secret_key=SECRET_KEY)
         expired_capsule = mgr.create_capsule(
-            user_id="alice", intent="Search", ttl_seconds=1,
+            user_id="alice",
+            intent="Search",
+            ttl_seconds=1,
         )
         expired_capsule.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         mgr.create_capsule(user_id="alice", intent="Search 2", ttl_seconds=3600)

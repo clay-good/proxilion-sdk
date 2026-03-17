@@ -195,11 +195,13 @@ class TestSequenceValidatorCore:
         validator.add_rule(rule)
 
         rules = validator.get_rules()
-        rules.append(SequenceRule(
-            name="extra",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="*",
-        ))
+        rules.append(
+            SequenceRule(
+                name="extra",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="*",
+            )
+        )
 
         # Original should not be modified
         assert len(validator.get_rules()) == 1
@@ -216,12 +218,14 @@ class TestRequireBefore:
     def test_require_before_blocked_no_prior(self) -> None:
         """Test deletion blocked without confirmation."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         allowed, violation = validator.validate_call("delete_file", "user_1")
         assert not allowed
@@ -233,12 +237,14 @@ class TestRequireBefore:
     def test_require_before_allowed_with_prior(self) -> None:
         """Test deletion allowed after confirmation."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         # Confirm first
         validator.record_call("confirm_delete", "user_1")
@@ -251,12 +257,14 @@ class TestRequireBefore:
     def test_require_before_wildcard_match(self) -> None:
         """Test wildcard matching for required pattern."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         # Any confirm_* should work
         validator.record_call("confirm_action", "user_1")
@@ -267,12 +275,14 @@ class TestRequireBefore:
     def test_require_before_non_matching_tool_allowed(self) -> None:
         """Test non-matching tools are allowed."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         # Tools not matching delete_* should be allowed
         allowed, _ = validator.validate_call("read_file", "user_1")
@@ -281,12 +291,14 @@ class TestRequireBefore:
     def test_require_before_user_isolation(self) -> None:
         """Test that history is per-user."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         # User 1 confirms
         validator.record_call("confirm_delete", "user_1")
@@ -312,13 +324,15 @@ class TestForbidAfter:
     def test_forbid_after_blocked_in_window(self) -> None:
         """Test execute blocked after download within window."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="forbid_download_execute",
-            action=SequenceAction.FORBID_AFTER,
-            target_pattern="execute_*",
-            forbidden_pattern="download_*",
-            window_seconds=300.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="forbid_download_execute",
+                action=SequenceAction.FORBID_AFTER,
+                target_pattern="execute_*",
+                forbidden_pattern="download_*",
+                window_seconds=300.0,
+            )
+        )
 
         # Download first
         validator.record_call("download_script", "user_1")
@@ -334,13 +348,15 @@ class TestForbidAfter:
     def test_forbid_after_allowed_outside_window(self) -> None:
         """Test execute allowed when download is outside window."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="forbid_download_execute",
-            action=SequenceAction.FORBID_AFTER,
-            target_pattern="execute_*",
-            forbidden_pattern="download_*",
-            window_seconds=0.1,  # Very short window for testing
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="forbid_download_execute",
+                action=SequenceAction.FORBID_AFTER,
+                target_pattern="execute_*",
+                forbidden_pattern="download_*",
+                window_seconds=0.1,  # Very short window for testing
+            )
+        )
 
         # Download first
         validator.record_call("download_script", "user_1")
@@ -355,13 +371,15 @@ class TestForbidAfter:
     def test_forbid_after_allowed_without_prior(self) -> None:
         """Test execute allowed without prior download."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="forbid_download_execute",
-            action=SequenceAction.FORBID_AFTER,
-            target_pattern="execute_*",
-            forbidden_pattern="download_*",
-            window_seconds=300.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="forbid_download_execute",
+                action=SequenceAction.FORBID_AFTER,
+                target_pattern="execute_*",
+                forbidden_pattern="download_*",
+                window_seconds=300.0,
+            )
+        )
 
         # No download, execute should be allowed
         allowed, _ = validator.validate_call("execute_script", "user_1")
@@ -370,13 +388,15 @@ class TestForbidAfter:
     def test_forbid_after_user_isolation(self) -> None:
         """Test forbid_after is per-user."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="forbid_download_execute",
-            action=SequenceAction.FORBID_AFTER,
-            target_pattern="execute_*",
-            forbidden_pattern="download_*",
-            window_seconds=300.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="forbid_download_execute",
+                action=SequenceAction.FORBID_AFTER,
+                target_pattern="execute_*",
+                forbidden_pattern="download_*",
+                window_seconds=300.0,
+            )
+        )
 
         # User 1 downloads
         validator.record_call("download_script", "user_1")
@@ -401,12 +421,14 @@ class TestRequireSequence:
     def test_require_sequence_first_step_allowed(self) -> None:
         """Test first step in sequence is always allowed."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="checkout_sequence",
-            action=SequenceAction.REQUIRE_SEQUENCE,
-            target_pattern="checkout_*",
-            sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="checkout_sequence",
+                action=SequenceAction.REQUIRE_SEQUENCE,
+                target_pattern="checkout_*",
+                sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
+            )
+        )
 
         # First step allowed without prior
         allowed, _ = validator.validate_call("checkout_cart", "user_1")
@@ -415,12 +437,14 @@ class TestRequireSequence:
     def test_require_sequence_blocked_skipping_step(self) -> None:
         """Test blocking when steps are skipped."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="checkout_sequence",
-            action=SequenceAction.REQUIRE_SEQUENCE,
-            target_pattern="checkout_*",
-            sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="checkout_sequence",
+                action=SequenceAction.REQUIRE_SEQUENCE,
+                target_pattern="checkout_*",
+                sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
+            )
+        )
 
         # Try to skip to payment without cart
         allowed, violation = validator.validate_call("checkout_payment", "user_1")
@@ -431,12 +455,14 @@ class TestRequireSequence:
     def test_require_sequence_allowed_in_order(self) -> None:
         """Test sequence allowed in correct order."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="checkout_sequence",
-            action=SequenceAction.REQUIRE_SEQUENCE,
-            target_pattern="checkout_*",
-            sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="checkout_sequence",
+                action=SequenceAction.REQUIRE_SEQUENCE,
+                target_pattern="checkout_*",
+                sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
+            )
+        )
 
         # Step 1
         validator.record_call("checkout_cart", "user_1")
@@ -455,12 +481,14 @@ class TestRequireSequence:
     def test_require_sequence_non_matching_allowed(self) -> None:
         """Test tools not in sequence are allowed."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="checkout_sequence",
-            action=SequenceAction.REQUIRE_SEQUENCE,
-            target_pattern="checkout_*",
-            sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="checkout_sequence",
+                action=SequenceAction.REQUIRE_SEQUENCE,
+                target_pattern="checkout_*",
+                sequence_patterns=["checkout_cart", "checkout_payment", "checkout_confirm"],
+            )
+        )
 
         # Tool not matching checkout_* is allowed
         allowed, _ = validator.validate_call("read_products", "user_1")
@@ -478,12 +506,14 @@ class TestMaxConsecutive:
     def test_max_consecutive_blocked_at_limit(self) -> None:
         """Test blocking when consecutive calls reach limit."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="max_calls",
-            action=SequenceAction.MAX_CONSECUTIVE,
-            target_pattern="*",
-            max_count=3,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="max_calls",
+                action=SequenceAction.MAX_CONSECUTIVE,
+                target_pattern="*",
+                max_count=3,
+            )
+        )
 
         # First 3 calls allowed
         for _ in range(3):
@@ -502,12 +532,14 @@ class TestMaxConsecutive:
     def test_max_consecutive_reset_by_different_tool(self) -> None:
         """Test consecutive count resets with different tool."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="max_calls",
-            action=SequenceAction.MAX_CONSECUTIVE,
-            target_pattern="*",
-            max_count=3,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="max_calls",
+                action=SequenceAction.MAX_CONSECUTIVE,
+                target_pattern="*",
+                max_count=3,
+            )
+        )
 
         # 3 calls to tool A
         for _ in range(3):
@@ -523,12 +555,14 @@ class TestMaxConsecutive:
     def test_max_consecutive_wildcard_pattern(self) -> None:
         """Test max_consecutive with wildcard pattern."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="max_api_calls",
-            action=SequenceAction.MAX_CONSECUTIVE,
-            target_pattern="api_*",
-            max_count=2,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="max_api_calls",
+                action=SequenceAction.MAX_CONSECUTIVE,
+                target_pattern="api_*",
+                max_count=2,
+            )
+        )
 
         # Different api_* tools don't count as consecutive
         validator.record_call("api_read", "user_1")
@@ -541,12 +575,14 @@ class TestMaxConsecutive:
     def test_max_consecutive_user_isolation(self) -> None:
         """Test max_consecutive is per-user."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="max_calls",
-            action=SequenceAction.MAX_CONSECUTIVE,
-            target_pattern="*",
-            max_count=2,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="max_calls",
+                action=SequenceAction.MAX_CONSECUTIVE,
+                target_pattern="*",
+                max_count=2,
+            )
+        )
 
         # User 1 makes 2 calls
         for _ in range(2):
@@ -572,12 +608,14 @@ class TestCooldown:
     def test_cooldown_blocked_during_cooldown(self) -> None:
         """Test call blocked during cooldown period."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="rate_limit",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="expensive_*",
-            cooldown_seconds=1.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rate_limit",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="expensive_*",
+                cooldown_seconds=1.0,
+            )
+        )
 
         # First call allowed
         allowed, _ = validator.validate_call("expensive_query", "user_1")
@@ -595,12 +633,14 @@ class TestCooldown:
     def test_cooldown_allowed_after_cooldown(self) -> None:
         """Test call allowed after cooldown expires."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="rate_limit",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="expensive_*",
-            cooldown_seconds=0.1,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rate_limit",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="expensive_*",
+                cooldown_seconds=0.1,
+            )
+        )
 
         # First call
         validator.record_call("expensive_query", "user_1")
@@ -615,12 +655,14 @@ class TestCooldown:
     def test_cooldown_different_tools(self) -> None:
         """Test cooldown only applies to same tool."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="rate_limit",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="expensive_*",
-            cooldown_seconds=60.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rate_limit",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="expensive_*",
+                cooldown_seconds=60.0,
+            )
+        )
 
         # Call one tool
         validator.record_call("expensive_query", "user_1")
@@ -632,12 +674,14 @@ class TestCooldown:
     def test_cooldown_user_isolation(self) -> None:
         """Test cooldown is per-user."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="rate_limit",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="expensive_*",
-            cooldown_seconds=60.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rate_limit",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="expensive_*",
+                cooldown_seconds=60.0,
+            )
+        )
 
         # User 1 in cooldown
         validator.record_call("expensive_query", "user_1")
@@ -978,10 +1022,7 @@ class TestThreadSafety:
             for i in range(count):
                 validator.record_call(f"tool_{i}", user_id)
 
-        threads = [
-            threading.Thread(target=record_calls, args=(f"user_{i}", 50))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=record_calls, args=(f"user_{i}", 50)) for i in range(5)]
 
         for t in threads:
             t.start()
@@ -998,12 +1039,14 @@ class TestThreadSafety:
         import threading
 
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="test",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="test",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         results = []
         lock = threading.Lock()
@@ -1015,8 +1058,7 @@ class TestThreadSafety:
                 results.append(allowed)
 
         threads = [
-            threading.Thread(target=validate_and_record, args=(f"user_{i}",))
-            for i in range(10)
+            threading.Thread(target=validate_and_record, args=(f"user_{i}",)) for i in range(10)
         ]
 
         for t in threads:
@@ -1065,12 +1107,14 @@ class TestEdgeCases:
     def test_empty_history(self) -> None:
         """Test validation with empty history."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="cooldown",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="*",
-            cooldown_seconds=60.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="cooldown",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="*",
+                cooldown_seconds=60.0,
+            )
+        )
 
         # First call with no history should be allowed
         allowed, _ = validator.validate_call("any_tool", "user_1")
@@ -1141,19 +1185,23 @@ class TestEdgeCases:
         """Test multiple rules for same target pattern."""
         validator = SequenceValidator(include_defaults=False)
 
-        validator.add_rule(SequenceRule(
-            name="rule_1",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rule_1",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
-        validator.add_rule(SequenceRule(
-            name="rule_2",
-            action=SequenceAction.COOLDOWN,
-            target_pattern="delete_*",
-            cooldown_seconds=60.0,
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="rule_2",
+                action=SequenceAction.COOLDOWN,
+                target_pattern="delete_*",
+                cooldown_seconds=60.0,
+            )
+        )
 
         # First rule should block (no confirm)
         allowed, violation = validator.validate_call("delete_file", "user_1")
@@ -1163,12 +1211,14 @@ class TestEdgeCases:
     def test_validate_call_records_after_confirm(self) -> None:
         """Test that recording a call after successful validation works."""
         validator = SequenceValidator(include_defaults=False)
-        validator.add_rule(SequenceRule(
-            name="require_confirm",
-            action=SequenceAction.REQUIRE_BEFORE,
-            target_pattern="delete_*",
-            required_pattern="confirm_*",
-        ))
+        validator.add_rule(
+            SequenceRule(
+                name="require_confirm",
+                action=SequenceAction.REQUIRE_BEFORE,
+                target_pattern="delete_*",
+                required_pattern="confirm_*",
+            )
+        )
 
         # Confirm
         validator.record_call("confirm_action", "user_1")
