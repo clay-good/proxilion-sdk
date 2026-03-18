@@ -35,31 +35,31 @@
 
 ## Verification Summary
 
-**Pass 1/3 — 2026-03-17** (Post spec-v2 step 8)
+**Pass 1/3 — 2026-03-17** (Post spec-v2 step 9)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,428 passed, 108 skipped |
+| Tests | ✅ PASS | 2,442 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 153 files formatted |
+| Format | ✅ PASS | 154 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 2/3 — 2026-03-17** (Post spec-v2 step 8)
+**Pass 2/3 — 2026-03-17** (Post spec-v2 step 9)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,428 passed, 108 skipped |
+| Tests | ✅ PASS | 2,442 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 153 files formatted |
+| Format | ✅ PASS | 154 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 3/3 — 2026-03-17** (Post spec-v2 step 8)
+**Pass 3/3 — 2026-03-17** (Post spec-v2 step 9)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,428 passed, 108 skipped |
+| Tests | ✅ PASS | 2,442 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 153 files formatted |
+| Format | ✅ PASS | 154 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
 ---
@@ -175,4 +175,11 @@
 
 ## Last Updated
 
-2026-03-17 — Deep security review complete. 8 P1, 14 P2, 19 P3 findings documented. Build verification passes. Codebase is production-ready for non-adversarial environments; P1 findings should be addressed before high-security deployment.
+2026-03-17 — Deep security review complete. 8 P1, 14 P2, 19 P3 findings documented. Build verification passes 3/3. Codebase is production-ready for non-adversarial environments; P1 findings should be addressed before high-security deployment.
+
+**Latest Review (2026-03-17):** Parallel reviewer agents confirmed existing findings. Additional details documented for:
+- ReDoS patterns in input/output guards (input_guard.py:138-234, output_guard.py:217-246)
+- Path traversal bypass vectors (schema.py:502-547)
+- Sequence counter race condition in hash chain (events.py:82-91)
+- MD5 checksum in cloud exporters (cloud_base.py:331-341)
+- JSON parsing without size limits (openai.py:274, adapter.py:95)
