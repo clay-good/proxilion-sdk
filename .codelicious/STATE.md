@@ -5,7 +5,7 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.7 |
-| Tests passing | 2,428 passed, 108 skipped |
+| Tests passing | 2,442 passed, 108 skipped |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
@@ -22,7 +22,7 @@
 | 6 | ✅ | Add tests for structured exception context |
 | 7 | ✅ | Wire structured context to raise sites |
 | 8 | ✅ | Add integration test for full authorization pipeline |
-| 9 | ⏳ | Add performance benchmark suite |
+| 9 | ✅ | Add performance benchmark suite |
 | 10 | ⏳ | Add negative test cases for input guard bypass |
 | 11 | ⏳ | Harden input guard against case-insensitive evasion |
 | 12 | ⏳ | Add sample data generator script |
