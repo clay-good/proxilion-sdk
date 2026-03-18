@@ -35,25 +35,7 @@
 
 ## Verification Summary
 
-**Pass 1/3 — 2026-03-18** (Post spec-v2 step 10)
-
-| Check | Result | Details |
-|-------|--------|---------|
-| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
-| Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 155 files formatted |
-| Security | ✅ PASS | No anti-patterns found |
-
-**Pass 2/3 — 2026-03-18** (Post spec-v2 step 10)
-
-| Check | Result | Details |
-|-------|--------|---------|
-| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
-| Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 155 files formatted |
-| Security | ✅ PASS | No anti-patterns found |
-
-**Pass 3/3 — 2026-03-18** (Post spec-v2 step 10)
+**Pass 1/3 — 2026-03-18** (Post spec-v2 step 11)
 
 | Check | Result | Details |
 |-------|--------|---------|
