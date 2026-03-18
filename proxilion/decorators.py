@@ -505,6 +505,9 @@ def rate_limited(
                         limit_key=key,
                         limit_value=capacity,
                         retry_after=retry_after,
+                        user_id=key,
+                        limit=capacity,
+                        current_count=capacity - limiter.get_remaining(key),
                     )
 
                 return await cast(Awaitable[T], func(*args, **kwargs))
@@ -530,6 +533,9 @@ def rate_limited(
                         limit_key=key,
                         limit_value=capacity,
                         retry_after=retry_after,
+                        user_id=key,
+                        limit=capacity,
+                        current_count=capacity - limiter.get_remaining(key),
                     )
 
                 return func(*args, **kwargs)
@@ -646,6 +652,7 @@ def sequence_validated(
                 # Validate sequence
                 allowed, violation = proxilion.validate_sequence(name, user)
                 if not allowed and violation:
+                    user_id = user.user_id if isinstance(user, UserContext) else str(user)
                     raise SequenceViolationError(
                         rule_name=violation.rule_name,
                         tool_name=name,
@@ -657,6 +664,7 @@ def sequence_validated(
                         consecutive_count=(
                             violation.consecutive_count if violation.consecutive_count else None
                         ),
+                        user_id=user_id,
                     )
 
                 # Execute function
@@ -685,6 +693,7 @@ def sequence_validated(
                 # Validate sequence
                 allowed, violation = proxilion.validate_sequence(name, user)
                 if not allowed and violation:
+                    user_id = user.user_id if isinstance(user, UserContext) else str(user)
                     raise SequenceViolationError(
                         rule_name=violation.rule_name,
                         tool_name=name,
@@ -696,6 +705,7 @@ def sequence_validated(
                         consecutive_count=(
                             violation.consecutive_count if violation.consecutive_count else None
                         ),
+                        user_id=user_id,
                     )
 
                 # Execute function
@@ -927,20 +937,30 @@ def cost_limited(
                 cost_estimate = get_estimated_cost(*args, **kwargs)
 
                 # Check limit
+                current_spend = 0.0
+                budget_limit = 0.0
                 if hasattr(limiter, "allow_request"):
                     # HybridRateLimiter
                     allowed, reason = limiter.allow_request(user_id, cost_estimate)
+                    if hasattr(limiter, "get_status"):
+                        status = limiter.get_status(user_id)
+                        if "cost_limiter" in status:
+                            limits = status["cost_limiter"].get("limits", [])
+                            if limits:
+                                current_spend = limits[0].get("current_spend", 0.0)
+                                budget_limit = limits[0].get("max_cost", 0.0)
                 else:
                     # CostLimiter
                     result = limiter.check_limit(user_id, cost_estimate)
                     allowed = result.allowed
-                    # reason available in result.limit_name if not allowed
+                    current_spend = result.current_spend
+                    budget_limit = result.limit
 
                 if not allowed:
                     raise BudgetExceededError(
                         limit_type="cost_limit",
-                        current_spend=0.0,  # Could get from limiter status
-                        limit=0.0,
+                        current_spend=current_spend,
+                        limit=budget_limit,
                         estimated_cost=cost_estimate,
                         user_id=user_id,
                     )
@@ -966,20 +986,30 @@ def cost_limited(
                 cost_estimate = get_estimated_cost(*args, **kwargs)
 
                 # Check limit
+                current_spend = 0.0
+                budget_limit = 0.0
                 if hasattr(limiter, "allow_request"):
                     # HybridRateLimiter
                     allowed, reason = limiter.allow_request(user_id, cost_estimate)
+                    if hasattr(limiter, "get_status"):
+                        status = limiter.get_status(user_id)
+                        if "cost_limiter" in status:
+                            limits = status["cost_limiter"].get("limits", [])
+                            if limits:
+                                current_spend = limits[0].get("current_spend", 0.0)
+                                budget_limit = limits[0].get("max_cost", 0.0)
                 else:
                     # CostLimiter
                     result = limiter.check_limit(user_id, cost_estimate)
                     allowed = result.allowed
-                    # reason available in result.limit_name if not allowed
+                    current_spend = result.current_spend
+                    budget_limit = result.limit
 
                 if not allowed:
                     raise BudgetExceededError(
                         limit_type="cost_limit",
-                        current_spend=0.0,
-                        limit=0.0,
+                        current_spend=current_spend,
+                        limit=budget_limit,
                         estimated_cost=cost_estimate,
                         user_id=user_id,
                     )

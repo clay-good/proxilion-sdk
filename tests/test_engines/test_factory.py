@@ -57,9 +57,7 @@ class TestEngineFactory:
         class DummyEngine(BasePolicyEngine):
             name = "dummy"
 
-            def evaluate(
-                self, user, action, resource, context=None
-            ) -> AuthorizationResult:
+            def evaluate(self, user, action, resource, context=None) -> AuthorizationResult:
                 return AuthorizationResult(allowed=True, reason="dummy")
 
         EngineFactory.register("dummy", DummyEngine)

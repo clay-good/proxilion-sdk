@@ -468,7 +468,8 @@ class BehavioralMonitor:
                     try:
                         callback(result)
                     except Exception as e:
-                        logger.error(f"Drift callback error: {e}")
+                        # Catch-all: user-provided drift callback may raise any exception
+                        logger.warning("Drift callback %r raised: %s", callback, e)
 
                 return result
 
@@ -599,7 +600,8 @@ class KillSwitch:
                 try:
                     callback(reason)
                 except Exception as e:
-                    logger.error(f"Halt callback error: {e}")
+                    # Catch-all: user-provided halt callback may raise any exception
+                    logger.warning("Halt callback %r raised: %s", callback, e)
 
         if raise_exception:
             raise EmergencyHaltError(reason=reason, triggered_by=triggered_by)
@@ -623,7 +625,8 @@ class KillSwitch:
                     try:
                         callback()
                     except Exception as e:
-                        logger.error(f"Reset callback error: {e}")
+                        # Catch-all: user-provided reset callback may raise any exception
+                        logger.warning("Reset callback %r raised: %s", callback, e)
 
             return was_active
 

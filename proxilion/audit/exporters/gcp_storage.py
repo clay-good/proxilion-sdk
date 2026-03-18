@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 # Check for google-cloud-storage availability
 try:
-    from google.cloud import storage as gcs  # type: ignore[import-not-found]
-    from google.oauth2 import service_account  # type: ignore[import-not-found]
+    from google.cloud import storage as gcs
+    from google.oauth2 import service_account
 
     HAS_GCS = True
 except ImportError:

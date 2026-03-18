@@ -200,14 +200,10 @@ class TestMultiDimensionalRateLimiter:
 
         # First 5 requests should pass (limited by tool)
         for _ in range(5):
-            assert limiter.allow_request(
-                keys={"user": "user_1", "tool": "tool_a"}
-            ) is True
+            assert limiter.allow_request(keys={"user": "user_1", "tool": "tool_a"}) is True
 
         # 6th request should fail (tool limit)
-        assert limiter.allow_request(
-            keys={"user": "user_1", "tool": "tool_a"}
-        ) is False
+        assert limiter.allow_request(keys={"user": "user_1", "tool": "tool_a"}) is False
 
     def test_different_tools_separate_limits(self):
         """Test that different tools have separate limits."""
@@ -239,14 +235,10 @@ class TestMultiDimensionalRateLimiter:
             limiter.allow_request(keys={"user": "user_1", "tool": "tool_a"})
 
         # tool_a is exhausted
-        assert limiter.allow_request(
-            keys={"user": "user_1", "tool": "tool_a"}
-        ) is False
+        assert limiter.allow_request(keys={"user": "user_1", "tool": "tool_a"}) is False
 
         # But user can still use tool_b
-        assert limiter.allow_request(
-            keys={"user": "user_1", "tool": "tool_b"}
-        ) is True
+        assert limiter.allow_request(keys={"user": "user_1", "tool": "tool_b"}) is True
 
 
 class TestRateLimitConfig:

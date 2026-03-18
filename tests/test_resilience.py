@@ -100,9 +100,7 @@ class TestRetryPolicy:
 
     def test_calculate_delay_capped(self):
         """Test delay is capped at max_delay."""
-        policy = RetryPolicy(
-            base_delay=1.0, max_delay=5.0, exponential_base=2.0, jitter=0.0
-        )
+        policy = RetryPolicy(base_delay=1.0, max_delay=5.0, exponential_base=2.0, jitter=0.0)
 
         assert policy.calculate_delay(10) == 5.0  # Capped
 
@@ -935,9 +933,11 @@ class TestResilienceIntegration:
             return await unreliable_primary()
 
         # Create fallback chain
-        chain = FallbackChain([
-            FallbackOption("backup", reliable_backup, priority=2),
-        ])
+        chain = FallbackChain(
+            [
+                FallbackOption("backup", reliable_backup, priority=2),
+            ]
+        )
 
         # Execute with retrying primary
         result = await chain.execute_async(primary=retrying_primary)

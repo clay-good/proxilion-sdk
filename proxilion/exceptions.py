@@ -219,13 +219,21 @@ class RateLimitExceeded(ProxilionError):
         limit_key: The key used for rate limiting (e.g., user ID, tool name).
         limit_value: The configured limit value.
         retry_after: Seconds until the rate limit resets (if known).
+        user_id: The user whose limit was exceeded.
+        limit: The configured limit value (structured field).
+        current_count: Current request count in the window.
+        window_seconds: Duration of the rate limit window in seconds.
+        reset_at: Unix timestamp when the limit resets.
 
     Example:
         >>> raise RateLimitExceeded(
         ...     limit_type="requests",
         ...     limit_key="user_123:database_query",
         ...     limit_value=100,
-        ...     retry_after=60
+        ...     retry_after=60,
+        ...     user_id="user_123",
+        ...     limit=100,
+        ...     current_count=101,
         ... )
     """
 
@@ -235,11 +243,22 @@ class RateLimitExceeded(ProxilionError):
         limit_key: str,
         limit_value: int | None = None,
         retry_after: float | None = None,
+        *,
+        user_id: str | None = None,
+        limit: int | None = None,
+        current_count: int | None = None,
+        window_seconds: float | None = None,
+        reset_at: float | None = None,
     ) -> None:
         self.limit_type = limit_type
         self.limit_key = limit_key
         self.limit_value = limit_value
         self.retry_after = retry_after
+        self.user_id = user_id
+        self.limit = limit if limit is not None else limit_value
+        self.current_count = current_count
+        self.window_seconds = window_seconds
+        self.reset_at = reset_at
 
         message = f"Rate limit exceeded for {limit_type}"
         if limit_value:
@@ -252,6 +271,10 @@ class RateLimitExceeded(ProxilionError):
             "limit_key": limit_key,
             "limit_value": limit_value,
             "retry_after": retry_after,
+            "user_id": user_id,
+            "current_count": current_count,
+            "window_seconds": window_seconds,
+            "reset_at": reset_at,
         }
         super().__init__(message, details)
 
@@ -396,6 +419,7 @@ class IDORViolationError(ProxilionError):
         user_id: The user who attempted the access.
         resource_type: Type of resource being accessed.
         object_id: The object ID that was not authorized.
+        resource_id: Alias for object_id (structured context field).
 
     Example:
         >>> raise IDORViolationError(
@@ -414,6 +438,7 @@ class IDORViolationError(ProxilionError):
         self.user_id = user_id
         self.resource_type = resource_type
         self.object_id = object_id
+        self.resource_id = object_id  # structured alias
 
         message = (
             f"IDOR violation: User '{user_id}' attempted to access "
@@ -440,12 +465,14 @@ class GuardViolation(ProxilionError):
         guard_type: Type of guard that triggered ("input" or "output").
         matched_patterns: List of pattern names that matched.
         risk_score: Calculated risk score (0.0 to 1.0).
+        input_preview: Truncated preview of the input that triggered the violation.
 
     Example:
         >>> raise GuardViolation(
         ...     guard_type="input",
         ...     matched_patterns=["instruction_override", "role_switch"],
-        ...     risk_score=0.95
+        ...     risk_score=0.95,
+        ...     input_preview="Ignore previous instructions and..."
         ... )
     """
 
@@ -454,10 +481,13 @@ class GuardViolation(ProxilionError):
         guard_type: str,
         matched_patterns: list[str],
         risk_score: float,
+        *,
+        input_preview: str | None = None,
     ) -> None:
         self.guard_type = guard_type
         self.matched_patterns = matched_patterns
         self.risk_score = risk_score
+        self.input_preview = input_preview
 
         message = (
             f"{guard_type.title()} guard violation: "
@@ -468,6 +498,7 @@ class GuardViolation(ProxilionError):
             "guard_type": guard_type,
             "matched_patterns": matched_patterns,
             "risk_score": risk_score,
+            "input_preview": input_preview,
         }
         super().__init__(message, details)
 
@@ -483,7 +514,8 @@ class InputGuardViolation(GuardViolation):
     Example:
         >>> raise InputGuardViolation(
         ...     matched_patterns=["instruction_override"],
-        ...     risk_score=0.9
+        ...     risk_score=0.9,
+        ...     input_preview="Ignore previous instructions..."
         ... )
     """
 
@@ -491,11 +523,14 @@ class InputGuardViolation(GuardViolation):
         self,
         matched_patterns: list[str],
         risk_score: float,
+        *,
+        input_preview: str | None = None,
     ) -> None:
         super().__init__(
             guard_type="input",
             matched_patterns=matched_patterns,
             risk_score=risk_score,
+            input_preview=input_preview,
         )
 
 
@@ -509,7 +544,8 @@ class OutputGuardViolation(GuardViolation):
     Example:
         >>> raise OutputGuardViolation(
         ...     matched_patterns=["api_key_generic", "aws_key"],
-        ...     risk_score=0.95
+        ...     risk_score=0.95,
+        ...     input_preview="The API key is sk-abc123..."
         ... )
     """
 
@@ -517,11 +553,14 @@ class OutputGuardViolation(GuardViolation):
         self,
         matched_patterns: list[str],
         risk_score: float,
+        *,
+        input_preview: str | None = None,
     ) -> None:
         super().__init__(
             guard_type="output",
             matched_patterns=matched_patterns,
             risk_score=risk_score,
+            input_preview=input_preview,
         )
 
 
@@ -558,6 +597,8 @@ class SequenceViolationError(ProxilionError):
         violation_type: str | None = None,
         consecutive_count: int | None = None,
         cooldown_remaining: float | None = None,
+        *,
+        user_id: str | None = None,
     ) -> None:
         self.rule_name = rule_name
         self.tool_name = tool_name
@@ -566,6 +607,7 @@ class SequenceViolationError(ProxilionError):
         self.violation_type = violation_type
         self.consecutive_count = consecutive_count
         self.cooldown_remaining = cooldown_remaining
+        self.user_id = user_id
 
         message = f"Sequence violation: {rule_name}"
         if required_prior:
@@ -585,6 +627,7 @@ class SequenceViolationError(ProxilionError):
             "violation_type": violation_type,
             "consecutive_count": consecutive_count,
             "cooldown_remaining": cooldown_remaining,
+            "user_id": user_id,
         }
         super().__init__(message, details)
 
@@ -646,6 +689,7 @@ class BudgetExceededError(ProxilionError):
         limit: The budget limit.
         estimated_cost: The cost that would exceed the limit.
         user_id: User who exceeded the limit.
+        budget_limit: Alias for limit (structured context field).
 
     Example:
         >>> raise BudgetExceededError(
@@ -670,6 +714,7 @@ class BudgetExceededError(ProxilionError):
         self.limit = limit
         self.estimated_cost = estimated_cost
         self.user_id = user_id
+        self.budget_limit = limit  # structured alias
 
         message = f"Budget exceeded: {limit_type} (${current_spend:.4f} / ${limit:.4f})"
         if estimated_cost is not None:
@@ -728,11 +773,17 @@ class IntentHijackError(ProxilionError):
     Attributes:
         original_intent: The signed original intent.
         detected_intent: What the agent appears to be doing now.
+        tool_name: The tool involved in the hijack attempt.
+        allowed_tools: The list of tools permitted by the original intent.
+        user_id: The user associated with the agent session.
 
     Example:
         >>> raise IntentHijackError(
         ...     original_intent="Help user find documents",
-        ...     detected_intent="Exfiltrate user credentials"
+        ...     detected_intent="Exfiltrate user credentials",
+        ...     tool_name="send_email",
+        ...     allowed_tools=["search_docs", "read_file"],
+        ...     user_id="user_123"
         ... )
     """
 
@@ -741,10 +792,17 @@ class IntentHijackError(ProxilionError):
         original_intent: str,
         detected_intent: str,
         confidence: float = 0.0,
+        *,
+        tool_name: str | None = None,
+        allowed_tools: list[str] | None = None,
+        user_id: str | None = None,
     ) -> None:
         self.original_intent = original_intent
         self.detected_intent = detected_intent
         self.confidence = confidence
+        self.tool_name = tool_name
+        self.allowed_tools = allowed_tools
+        self.user_id = user_id
 
         message = (
             f"Intent hijack detected: Original intent was '{original_intent}', "
@@ -756,6 +814,9 @@ class IntentHijackError(ProxilionError):
             "original_intent": original_intent,
             "detected_intent": detected_intent,
             "confidence": confidence,
+            "tool_name": tool_name,
+            "allowed_tools": allowed_tools,
+            "user_id": user_id,
         }
         super().__init__(message, details)
 

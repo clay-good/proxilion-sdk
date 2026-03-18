@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 
 # Check for boto3 availability
 try:
-    import boto3  # type: ignore[import-not-found]
-    from botocore.config import Config as BotoConfig  # type: ignore[import-not-found]
+    import boto3
+    from botocore.config import Config as BotoConfig
 
     HAS_BOTO3 = True
 except ImportError:

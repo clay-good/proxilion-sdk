@@ -314,6 +314,7 @@ class TestWithTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_async_function_completes(self):
         """Async function completes within timeout."""
+
         @with_timeout(5.0)
         async def fast_op():
             await asyncio.sleep(0.1)
@@ -325,6 +326,7 @@ class TestWithTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_async_function_times_out(self):
         """Async function raises on timeout."""
+
         @with_timeout(0.1)
         async def slow_op():
             await asyncio.sleep(1.0)
@@ -335,6 +337,7 @@ class TestWithTimeoutDecorator:
 
     def test_sync_function_completes(self):
         """Sync function completes within timeout."""
+
         @with_timeout(5.0)
         def fast_op():
             time.sleep(0.1)
@@ -345,6 +348,7 @@ class TestWithTimeoutDecorator:
 
     def test_sync_function_times_out(self):
         """Sync function raises on timeout."""
+
         @with_timeout(0.1)
         def slow_op():
             time.sleep(1.0)
@@ -356,6 +360,7 @@ class TestWithTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_respects_deadline(self):
         """Decorator respects active deadline."""
+
         @with_timeout(10.0, use_deadline=True)
         async def op():
             await asyncio.sleep(0.1)
@@ -367,6 +372,7 @@ class TestWithTimeoutDecorator:
 
     def test_custom_operation_name(self):
         """Error includes custom operation name."""
+
         @with_timeout(0.05, operation_name="my_operation")
         def slow():
             time.sleep(0.2)
@@ -396,6 +402,7 @@ class TestWithDeadlineDecorator:
     @pytest.mark.asyncio
     async def test_async_completes(self):
         """Async function completes within deadline."""
+
         @with_deadline(5.0)
         async def fast_op():
             await asyncio.sleep(0.1)
@@ -407,6 +414,7 @@ class TestWithDeadlineDecorator:
     @pytest.mark.asyncio
     async def test_async_times_out(self):
         """Async function raises on deadline exceeded."""
+
         @with_deadline(0.1)
         async def slow_op():
             await asyncio.sleep(1.0)
@@ -417,6 +425,7 @@ class TestWithDeadlineDecorator:
 
     def test_sync_completes(self):
         """Sync function completes within deadline."""
+
         @with_deadline(5.0)
         def fast_op():
             time.sleep(0.1)
@@ -427,6 +436,7 @@ class TestWithDeadlineDecorator:
 
     def test_sync_times_out(self):
         """Sync function raises on deadline exceeded."""
+
         @with_deadline(0.1)
         def slow_op():
             time.sleep(1.0)
@@ -442,6 +452,7 @@ class TestRunWithTimeout:
     @pytest.mark.asyncio
     async def test_completes(self):
         """Coroutine completes within timeout."""
+
         async def fast():
             await asyncio.sleep(0.1)
             return "done"
@@ -452,6 +463,7 @@ class TestRunWithTimeout:
     @pytest.mark.asyncio
     async def test_times_out(self):
         """Coroutine raises on timeout."""
+
         async def slow():
             await asyncio.sleep(1.0)
             return "done"
@@ -462,6 +474,7 @@ class TestRunWithTimeout:
     @pytest.mark.asyncio
     async def test_operation_name_in_error(self):
         """Operation name in error message."""
+
         async def slow():
             await asyncio.sleep(1.0)
 
@@ -476,6 +489,7 @@ class TestRunWithDeadline:
     @pytest.mark.asyncio
     async def test_completes_within_deadline(self):
         """Coroutine completes within deadline."""
+
         async def fast():
             await asyncio.sleep(0.1)
             return "done"
@@ -487,6 +501,7 @@ class TestRunWithDeadline:
     @pytest.mark.asyncio
     async def test_exceeds_deadline(self):
         """Coroutine raises when deadline exceeded."""
+
         async def slow():
             await asyncio.sleep(1.0)
             return "done"
@@ -508,6 +523,7 @@ class TestTimeoutScope:
     @pytest.mark.asyncio
     async def test_run_operations(self):
         """Run operations with scope."""
+
         async def op1():
             await asyncio.sleep(0.05)
             return "result1"
@@ -526,6 +542,7 @@ class TestTimeoutScope:
     @pytest.mark.asyncio
     async def test_checkpoints(self):
         """Record checkpoints."""
+
         async def op():
             await asyncio.sleep(0.05)
             return "done"
@@ -549,6 +566,7 @@ class TestTimeoutScope:
 
     def test_sync_scope(self):
         """Synchronous scope usage."""
+
         def op():
             time.sleep(0.05)
             return "done"
@@ -560,6 +578,7 @@ class TestTimeoutScope:
     @pytest.mark.asyncio
     async def test_scope_timeout(self):
         """Scope raises on timeout."""
+
         async def slow():
             await asyncio.sleep(1.0)
             return "done"
@@ -637,10 +656,7 @@ class TestThreadSafety:
             except Exception as e:
                 errors.append((worker_id, e))
 
-        threads = [
-            threading.Thread(target=worker, args=(i, i + 1))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=worker, args=(i, i + 1)) for i in range(5)]
         for t in threads:
             t.start()
         for t in threads:

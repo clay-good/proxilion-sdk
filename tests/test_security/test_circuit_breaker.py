@@ -34,6 +34,7 @@ class TestCircuitBreakerStates:
 
     def test_stays_closed_on_success(self, circuit_breaker: CircuitBreaker):
         """Test that successful calls keep circuit closed."""
+
         def success_func():
             return "success"
 
@@ -205,7 +206,8 @@ class TestCircuitBreakerRegistry:
         assert breaker is breaker2
 
     def test_different_tools_different_breakers(
-        self, circuit_breaker_registry: CircuitBreakerRegistry,
+        self,
+        circuit_breaker_registry: CircuitBreakerRegistry,
     ):
         """Test that different tools get different breakers."""
         breaker_a = circuit_breaker_registry.get("tool_a")
@@ -260,6 +262,7 @@ class TestCircuitBreakerAsync:
     @pytest.mark.asyncio
     async def test_async_call_success(self, circuit_breaker: CircuitBreaker):
         """Test async call with success."""
+
         async def async_success():
             return "async success"
 

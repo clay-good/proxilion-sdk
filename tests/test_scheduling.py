@@ -373,10 +373,7 @@ class TestRequestScheduler:
 
         try:
             # Submit multiple requests
-            futures = [
-                scheduler.submit(payload=f"task-{i}")
-                for i in range(8)
-            ]
+            futures = [scheduler.submit(payload=f"task-{i}") for i in range(8)]
 
             # Wait for completion
             for f in futures:
@@ -431,6 +428,7 @@ class TestRequestScheduler:
 
     def test_handler_exception(self):
         """Test handling of handler exceptions."""
+
         def failing_handler(payload):
             raise ValueError("test error")
 

@@ -32,8 +32,8 @@ try:
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False
-    BaseModel = None  # type: ignore
-    ValidationError = None  # type: ignore
+    BaseModel = None  # type: ignore[assignment, misc]
+    ValidationError = None  # type: ignore[assignment, misc]
 
 
 class PydanticSchemaValidator(SchemaValidator):

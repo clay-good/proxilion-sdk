@@ -25,8 +25,8 @@ from proxilion.observability.metrics import (
     AlertRule,
     EventType,
     MetricSample,
-    MetricType,
     MetricsCollector,
+    MetricType,
     PrometheusExporter,
     SecurityEvent,
 )
@@ -111,9 +111,7 @@ class TestMetricSample:
         assert sample.labels == {}
 
     def test_with_labels(self):
-        sample = MetricSample(
-            name="m", value=1.0, timestamp=0.0, labels={"env": "prod"}
-        )
+        sample = MetricSample(name="m", value=1.0, timestamp=0.0, labels={"env": "prod"})
         assert sample.labels == {"env": "prod"}
 
 
@@ -480,7 +478,9 @@ class TestAlertManager:
         assert alerts[0].rule_name == "high_rate"
         assert alerts[0].value >= 1.0
 
-    def test_check_no_trigger_below_threshold(self, manager: AlertManager, collector: MetricsCollector):
+    def test_check_no_trigger_below_threshold(
+        self, manager: AlertManager, collector: MetricsCollector
+    ):
         manager.add_rule(
             name="strict",
             event_type=EventType.RATE_LIMIT_HIT,
@@ -522,7 +522,9 @@ class TestAlertManager:
         manager.check(collector)
         assert len(received) == 1
 
-    def test_alert_callback_error_does_not_propagate(self, manager: AlertManager, collector: MetricsCollector):
+    def test_alert_callback_error_does_not_propagate(
+        self, manager: AlertManager, collector: MetricsCollector
+    ):
         manager.on_alert(lambda a: (_ for _ in ()).throw(RuntimeError("boom")))
         manager.add_rule(
             name="err_test",
@@ -554,9 +556,7 @@ class TestAlertManager:
 
     def test_get_recent_alerts_limit(self, manager: AlertManager):
         for i in range(5):
-            alert = Alert(
-                rule_name=f"r{i}", severity="info", message="m", value=1.0, threshold=1.0
-            )
+            alert = Alert(rule_name=f"r{i}", severity="info", message="m", value=1.0, threshold=1.0)
             manager._alert_history.append(alert)
         assert len(manager.get_recent_alerts(limit=2)) == 2
 
@@ -609,7 +609,9 @@ class TestAlertManager:
         alerts = mgr.check(collector)
         assert len(alerts) == 1
 
-    def test_check_skips_rules_without_event_type(self, manager: AlertManager, collector: MetricsCollector):
+    def test_check_skips_rules_without_event_type(
+        self, manager: AlertManager, collector: MetricsCollector
+    ):
         manager.add_rule(name="custom_rule", event_type=None, threshold=1.0)
         alerts = manager.check(collector)
         assert len(alerts) == 0
@@ -662,7 +664,7 @@ class TestPrometheusExporter:
         collector.record_histogram("test_hist", 0.5, buckets=[0.1, 1.0, 10.0])
         collector.record_histogram("test_hist", 0.05, buckets=[0.1, 1.0, 10.0])
         output = exporter.export()
-        assert '# TYPE proxilion_test_hist histogram' in output
+        assert "# TYPE proxilion_test_hist histogram" in output
         assert 'proxilion_test_hist_bucket{le="0.1"} 1' in output
         assert 'proxilion_test_hist_bucket{le="1.0"} 2' in output
         assert 'proxilion_test_hist_bucket{le="+Inf"} 2' in output

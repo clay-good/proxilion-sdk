@@ -58,9 +58,24 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
-from proxilion.exceptions import IntentHijackError
+from proxilion.exceptions import ConfigurationError, IntentHijackError
 
 logger = logging.getLogger(__name__)
+
+_PLACEHOLDER_PATTERNS = ("your-", "changeme", "example", "placeholder", "secret-key", "TODO")
+
+
+def _validate_secret_key(secret_key: str | bytes) -> None:
+    """Validate secret key length and warn on placeholder patterns."""
+    key_str = secret_key.decode() if isinstance(secret_key, bytes) else secret_key
+    if len(key_str) < 16:
+        raise ConfigurationError("secret_key must be at least 16 characters for HMAC security")
+    lower = key_str.lower()
+    is_placeholder = (
+        any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(set(key_str)) == 1
+    )
+    if is_placeholder:
+        logger.warning("secret_key looks like a placeholder; use a random key in production.")
 
 
 class IntentCategory(Enum):
@@ -208,6 +223,7 @@ class IntentCapsule:
         Returns:
             Signed IntentCapsule.
         """
+        _validate_secret_key(secret_key)
         if isinstance(secret_key, str):
             secret_key = secret_key.encode()
 
@@ -529,6 +545,8 @@ class IntentGuard:
             strict_mode: If True, raise exceptions on violations.
         """
         self._capsule = capsule
+        if secret_key is not None:
+            _validate_secret_key(secret_key)
         self._secret_key = secret_key
         self._validator = validator or IntentValidator()
         self._strict_mode = strict_mode
@@ -541,6 +559,8 @@ class IntentGuard:
                     original_intent=capsule.intent,
                     detected_intent="Capsule signature verification failed",
                     confidence=1.0,
+                    allowed_tools=list(capsule.allowed_tools),
+                    user_id=capsule.user_id,
                 )
 
     @property
@@ -581,6 +601,7 @@ class IntentGuard:
                 return self._handle_violation(
                     f"Tool '{tool_name}' not allowed by intent",
                     0.8,
+                    tool_name=tool_name,
                 )
 
             # Check for hijacking patterns if description provided
@@ -594,6 +615,7 @@ class IntentGuard:
                     return self._handle_violation(
                         detection.reasoning,
                         detection.confidence,
+                        tool_name=tool_name,
                     )
 
             # Check constraints
@@ -602,6 +624,7 @@ class IntentGuard:
                 return self._handle_violation(
                     constraint_violation,
                     0.7,
+                    tool_name=tool_name,
                 )
 
             # Record the call
@@ -645,7 +668,9 @@ class IntentGuard:
 
         return None
 
-    def _handle_violation(self, reason: str, confidence: float) -> bool:
+    def _handle_violation(
+        self, reason: str, confidence: float, tool_name: str | None = None
+    ) -> bool:
         """Handle an intent violation."""
         logger.warning(f"Intent violation: {reason} (confidence: {confidence:.1%})")
 
@@ -654,6 +679,9 @@ class IntentGuard:
                 original_intent=self._capsule.intent,
                 detected_intent=reason,
                 confidence=confidence,
+                tool_name=tool_name,
+                allowed_tools=list(self._capsule.allowed_tools),
+                user_id=self._capsule.user_id,
             )
 
         return False
@@ -697,6 +725,7 @@ class IntentCapsuleManager:
             default_ttl: Default TTL for capsules.
             max_capsules: Maximum capsules to track.
         """
+        _validate_secret_key(secret_key)
         if isinstance(secret_key, str):
             secret_key = secret_key.encode()
 

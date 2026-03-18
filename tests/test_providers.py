@@ -83,7 +83,7 @@ class TestUnifiedToolCall:
             "function": {
                 "name": "search",
                 "arguments": '{"query": "python"}',
-            }
+            },
         }
 
         call = UnifiedToolCall.from_openai(openai_call)
@@ -117,7 +117,7 @@ class TestUnifiedToolCall:
             "function": {
                 "name": "test",
                 "arguments": "not valid json",
-            }
+            },
         }
 
         call = UnifiedToolCall.from_openai(openai_call)
@@ -327,6 +327,7 @@ class TestProviderDetection:
 
     def test_detect_provider_safe(self):
         """Safe detection returns UNKNOWN on failure."""
+
         # Create a simple object that doesn't match any provider heuristics
         # MagicMock has .model and .choices which trigger OpenAI detection
         class UnknownType:
@@ -358,30 +359,32 @@ class TestOpenAIAdapter:
         adapter = OpenAIAdapter()
 
         response = {
-            "choices": [{
-                "message": {
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": "call_1",
-                            "type": "function",
-                            "function": {
-                                "name": "get_weather",
-                                "arguments": '{"city": "NYC"}',
-                            }
-                        },
-                        {
-                            "id": "call_2",
-                            "type": "function",
-                            "function": {
-                                "name": "get_time",
-                                "arguments": '{"timezone": "EST"}',
-                            }
-                        }
-                    ]
-                },
-                "finish_reason": "tool_calls"
-            }]
+            "choices": [
+                {
+                    "message": {
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_weather",
+                                    "arguments": '{"city": "NYC"}',
+                                },
+                            },
+                            {
+                                "id": "call_2",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_time",
+                                    "arguments": '{"timezone": "EST"}',
+                                },
+                            },
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ]
         }
 
         calls = adapter.extract_tool_calls(response)
@@ -395,14 +398,7 @@ class TestOpenAIAdapter:
         """Extract from response with no tool calls."""
         adapter = OpenAIAdapter()
 
-        response = {
-            "choices": [{
-                "message": {
-                    "content": "Hello!",
-                    "tool_calls": None
-                }
-            }]
-        }
+        response = {"choices": [{"message": {"content": "Hello!", "tool_calls": None}}]}
 
         calls = adapter.extract_tool_calls(response)
         assert len(calls) == 0
@@ -412,18 +408,13 @@ class TestOpenAIAdapter:
         adapter = OpenAIAdapter()
 
         response = {
-            "choices": [{
-                "message": {
-                    "content": "Here's the result",
-                    "tool_calls": None
-                },
-                "finish_reason": "stop"
-            }],
-            "usage": {
-                "prompt_tokens": 100,
-                "completion_tokens": 50,
-                "total_tokens": 150
-            }
+            "choices": [
+                {
+                    "message": {"content": "Here's the result", "tool_calls": None},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
         }
 
         unified = adapter.extract_response(response)
@@ -465,7 +456,7 @@ class TestOpenAIAdapter:
                 parameters={
                     "type": "object",
                     "properties": {"query": {"type": "string"}},
-                    "required": ["query"]
+                    "required": ["query"],
                 },
                 category=ToolCategory.SEARCH,
             )
@@ -517,9 +508,9 @@ class TestAnthropicAdapter:
                     "id": "toolu_123",
                     "name": "search",
                     "input": {"query": "python"},
-                }
+                },
             ],
-            "stop_reason": "tool_use"
+            "stop_reason": "tool_use",
         }
 
         calls = adapter.extract_tool_calls(response)
@@ -537,10 +528,7 @@ class TestAnthropicAdapter:
                 {"type": "text", "text": "Here is the answer."},
             ],
             "stop_reason": "end_turn",
-            "usage": {
-                "input_tokens": 50,
-                "output_tokens": 20
-            }
+            "usage": {"input_tokens": 50, "output_tokens": 20},
         }
 
         unified = adapter.extract_response(response)
@@ -615,18 +603,15 @@ class TestGeminiAdapter:
         adapter = GeminiAdapter()
 
         response = {
-            "candidates": [{
-                "content": {
-                    "parts": [
-                        {
-                            "functionCall": {
-                                "name": "search_db",
-                                "args": {"query": "users"}
-                            }
-                        }
-                    ]
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"functionCall": {"name": "search_db", "args": {"query": "users"}}}
+                        ]
+                    }
                 }
-            }]
+            ]
         }
 
         calls = adapter.extract_tool_calls(response)
@@ -640,17 +625,14 @@ class TestGeminiAdapter:
         adapter = GeminiAdapter()
 
         response = {
-            "candidates": [{
-                "content": {
-                    "parts": [{"text": "The answer is 42."}]
-                },
-                "finishReason": "STOP"
-            }],
+            "candidates": [
+                {"content": {"parts": [{"text": "The answer is 42."}]}, "finishReason": "STOP"}
+            ],
             "usageMetadata": {
                 "promptTokenCount": 100,
                 "candidatesTokenCount": 20,
-                "totalTokenCount": 120
-            }
+                "totalTokenCount": 120,
+            },
         }
 
         unified = adapter.extract_response(response)
@@ -738,6 +720,7 @@ class TestAdapterFactory:
 
     def test_register_adapter(self):
         """Register a custom adapter."""
+
         class CustomAdapter(BaseAdapter):
             @property
             def provider(self):
@@ -949,20 +932,24 @@ class TestProxilionProviderIntegration:
 
         # Create mock response
         mock_response = {
-            "choices": [{
-                "message": {
-                    "content": None,
-                    "tool_calls": [{
-                        "id": "call_1",
-                        "function": {
-                            "name": "test_tool",
-                            "arguments": '{"x": 5}',
-                        }
-                    }]
-                },
-                "finish_reason": "tool_calls"
-            }],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+            "choices": [
+                {
+                    "message": {
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_1",
+                                "function": {
+                                    "name": "test_tool",
+                                    "arguments": '{"x": 5}',
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
         }
 
         user = UserContext(user_id="test_user", roles=["user"])
@@ -999,11 +986,7 @@ class TestEdgeCases:
     def test_null_tool_calls(self):
         """Handle null tool_calls field."""
         adapter = OpenAIAdapter()
-        response = {
-            "choices": [{
-                "message": {"content": "Hello", "tool_calls": None}
-            }]
-        }
+        response = {"choices": [{"message": {"content": "Hello", "tool_calls": None}}]}
 
         calls = adapter.extract_tool_calls(response)
         assert calls == []
@@ -1042,18 +1025,26 @@ class TestEdgeCases:
         adapter = OpenAIAdapter()
 
         # Dict format
-        tools1 = adapter.format_tools([{
-            "type": "function",
-            "function": {"name": "test", "description": "Test"},
-        }])
+        tools1 = adapter.format_tools(
+            [
+                {
+                    "type": "function",
+                    "function": {"name": "test", "description": "Test"},
+                }
+            ]
+        )
         assert len(tools1) == 1
 
         # Dict without type wrapper
-        tools2 = adapter.format_tools([{
-            "name": "test",
-            "description": "Test",
-            "parameters": {"type": "object"},
-        }])
+        tools2 = adapter.format_tools(
+            [
+                {
+                    "name": "test",
+                    "description": "Test",
+                    "parameters": {"type": "object"},
+                }
+            ]
+        )
         assert len(tools2) == 1
 
     def test_gemini_protobuf_args(self):

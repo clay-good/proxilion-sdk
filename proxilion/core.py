@@ -480,6 +480,7 @@ class Proxilion:
             raise InputGuardViolation(
                 matched_patterns=result.matched_patterns,
                 risk_score=result.risk_score,
+                input_preview=input_text[:200] if input_text else None,
             )
 
         return result
@@ -525,6 +526,7 @@ class Proxilion:
             raise OutputGuardViolation(
                 matched_patterns=result.matched_patterns,
                 risk_score=result.risk_score,
+                input_preview=output_text[:200] if output_text else None,
             )
 
         return result

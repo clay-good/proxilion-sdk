@@ -1,7 +1,6 @@
 """Tests for proxilion.security.memory_integrity module."""
-from __future__ import annotations
 
-import time
+from __future__ import annotations
 
 import pytest
 
@@ -11,7 +10,6 @@ from proxilion.security.memory_integrity import (
     IntegrityViolationType,
     MemoryIntegrityGuard,
     RAGDocument,
-    RAGScanResult,
     SignedMessage,
     VerificationResult,
 )
@@ -165,8 +163,7 @@ class TestMemoryIntegrityGuardContextVerification:
         result = guard.verify_context([m0, m2])
         assert result.valid is False
         has_gap = any(
-            v.violation_type == IntegrityViolationType.SEQUENCE_GAP
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.SEQUENCE_GAP for v in result.violations
         )
         assert has_gap
 
@@ -178,8 +175,7 @@ class TestMemoryIntegrityGuardContextVerification:
         result = guard.verify_context([m1, m0])
         assert result.valid is False
         has_reorder = any(
-            v.violation_type == IntegrityViolationType.SEQUENCE_REORDER
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.SEQUENCE_REORDER for v in result.violations
         )
         assert has_reorder
 
@@ -196,8 +192,7 @@ class TestMemoryIntegrityGuardContextVerification:
         result = guard.verify_context([m0, m1_bad])
         assert result.valid is False
         has_chain_break = any(
-            v.violation_type == IntegrityViolationType.HASH_CHAIN_BREAK
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.HASH_CHAIN_BREAK for v in result.violations
         )
         assert has_chain_break
 
@@ -211,8 +206,7 @@ class TestMemoryIntegrityGuardContextVerification:
         result = guard.verify_context(context)
         assert result.valid is False
         has_overflow = any(
-            v.violation_type == IntegrityViolationType.CONTEXT_OVERFLOW
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.CONTEXT_OVERFLOW for v in result.violations
         )
         assert has_overflow
 
@@ -223,8 +217,7 @@ class TestMemoryIntegrityGuardContextVerification:
         m2 = guard.sign_message("user", "Third")
         result = guard.verify_context([m0, m2], strict_sequence=False)
         has_gap = any(
-            v.violation_type == IntegrityViolationType.SEQUENCE_GAP
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.SEQUENCE_GAP for v in result.violations
         )
         assert not has_gap
 
@@ -258,8 +251,7 @@ class TestMemoryIntegrityGuardRAGScanning:
         assert result.safe is False
         assert 1 in result.poisoned_indices
         assert any(
-            v.violation_type == IntegrityViolationType.RAG_POISONING
-            for v in result.violations
+            v.violation_type == IntegrityViolationType.RAG_POISONING for v in result.violations
         )
 
     def test_system_prompt_extraction_detected(self):
@@ -412,9 +404,12 @@ class TestVerificationResult:
     """Test VerificationResult properties."""
 
     def test_violation_count(self):
-        result = VerificationResult(valid=False, violations=[
-            IntegrityViolationType.SIGNATURE_MISMATCH,  # placeholder
-        ])
+        result = VerificationResult(
+            valid=False,
+            violations=[
+                IntegrityViolationType.SIGNATURE_MISMATCH,  # placeholder
+            ],
+        )
         # The violations list expects IntegrityViolation objects, but
         # we test the count property directly.
         assert result.violation_count == 1
@@ -608,15 +603,15 @@ class TestEdgeCases:
         assert valid is True
 
     def test_different_secret_keys_produce_different_signatures(self):
-        g1 = MemoryIntegrityGuard(secret_key="key-one")
-        g2 = MemoryIntegrityGuard(secret_key="key-two")
+        g1 = MemoryIntegrityGuard(secret_key="prx_sk_key_one_12345678")
+        g2 = MemoryIntegrityGuard(secret_key="prx_sk_key_two_12345678")
         m1 = g1.sign_message("user", "Hello")
         m2 = g2.sign_message("user", "Hello")
         assert m1.signature != m2.signature
 
     def test_wrong_key_fails_verification(self):
-        g1 = MemoryIntegrityGuard(secret_key="key-one")
-        g2 = MemoryIntegrityGuard(secret_key="key-two")
+        g1 = MemoryIntegrityGuard(secret_key="prx_sk_key_one_12345678")
+        g2 = MemoryIntegrityGuard(secret_key="prx_sk_key_two_12345678")
         msg = g1.sign_message("user", "Hello")
         valid, violation = g2.verify_message(msg)
         assert valid is False
@@ -635,7 +630,7 @@ class TestEdgeCases:
         assert len(result.documents) == 0
 
     def test_bytes_secret_key(self):
-        guard = MemoryIntegrityGuard(secret_key=b"bytes-key")
+        guard = MemoryIntegrityGuard(secret_key=b"bytes-key-16chars")
         msg = guard.sign_message("user", "Hello")
         valid, violation = guard.verify_message(msg)
         assert valid is True

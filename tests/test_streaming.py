@@ -288,9 +288,7 @@ class TestStreamingToolCallDetector:
             "choices": [
                 {
                     "index": 0,
-                    "delta": {
-                        "tool_calls": [{"index": 0, "function": {"arguments": '{"city":'}}]
-                    },
+                    "delta": {"tool_calls": [{"index": 0, "function": {"arguments": '{"city":'}}]},
                 }
             ]
         }
@@ -642,12 +640,8 @@ class TestStreamingToolCallDetector:
         """Test getting accumulated text."""
         detector = StreamingToolCallDetector(provider="openai")
 
-        detector.process_chunk(
-            {"choices": [{"index": 0, "delta": {"content": "Hello, "}}]}
-        )
-        detector.process_chunk(
-            {"choices": [{"index": 0, "delta": {"content": "world!"}}]}
-        )
+        detector.process_chunk({"choices": [{"index": 0, "delta": {"content": "Hello, "}}]})
+        detector.process_chunk({"choices": [{"index": 0, "delta": {"content": "world!"}}]})
 
         assert detector.get_text_buffer() == "Hello, world!"
 
@@ -1133,9 +1127,7 @@ class TestStreamingIntegration:
                     {
                         "index": 0,
                         "delta": {
-                            "tool_calls": [
-                                {"index": 0, "function": {"arguments": '{"query":'}}
-                            ]
+                            "tool_calls": [{"index": 0, "function": {"arguments": '{"query":'}}]
                         },
                     }
                 ]
@@ -1145,9 +1137,7 @@ class TestStreamingIntegration:
                     {
                         "index": 0,
                         "delta": {
-                            "tool_calls": [
-                                {"index": 0, "function": {"arguments": ' "test"}'}}
-                            ]
+                            "tool_calls": [{"index": 0, "function": {"arguments": ' "test"}'}}]
                         },
                     }
                 ]
@@ -1265,9 +1255,7 @@ class TestEdgeCases:
     def test_detector_with_none_content(self):
         """Test detector with None content."""
         detector = StreamingToolCallDetector(provider="openai")
-        events = detector.process_chunk(
-            {"choices": [{"index": 0, "delta": {"content": None}}]}
-        )
+        events = detector.process_chunk({"choices": [{"index": 0, "delta": {"content": None}}]})
         assert events == []
 
     def test_partial_tool_call_with_invalid_json_on_complete(self):

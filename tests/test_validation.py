@@ -89,7 +89,9 @@ class TestSchemaValidatorRegistration:
     """Tests for SchemaValidator registration."""
 
     def test_register_schema(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test registering a tool schema."""
         schema_validator.register_schema("calculator", calculator_schema)
@@ -245,7 +247,9 @@ class TestRequiredParameters:
     """Tests for required parameter validation."""
 
     def test_missing_required_parameter(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test validation fails when required parameter is missing."""
         schema_validator.register_schema("calculator", calculator_schema)
@@ -256,16 +260,21 @@ class TestRequiredParameters:
         assert "b" in str(result.errors)
 
     def test_all_required_parameters_present(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test validation passes when all required parameters present."""
         schema_validator.register_schema("calculator", calculator_schema)
 
-        result = schema_validator.validate("calculator", {
-            "operation": "add",
-            "a": 5,
-            "b": 3,
-        })
+        result = schema_validator.validate(
+            "calculator",
+            {
+                "operation": "add",
+                "a": 5,
+                "b": 3,
+            },
+        )
         assert result.valid is True
 
     def test_optional_parameter_missing(self, schema_validator: SchemaValidator):
@@ -345,25 +354,33 @@ class TestConstraintValidation:
         assert result.valid is False
 
     def test_enum_constraint(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test enum constraint validation."""
         schema_validator.register_schema("calculator", calculator_schema)
 
         # Valid enum value
-        result = schema_validator.validate("calculator", {
-            "operation": "add",
-            "a": 1,
-            "b": 2,
-        })
+        result = schema_validator.validate(
+            "calculator",
+            {
+                "operation": "add",
+                "a": 1,
+                "b": 2,
+            },
+        )
         assert result.valid is True
 
         # Invalid enum value
-        result = schema_validator.validate("calculator", {
-            "operation": "modulo",  # Not in enum
-            "a": 1,
-            "b": 2,
-        })
+        result = schema_validator.validate(
+            "calculator",
+            {
+                "operation": "modulo",  # Not in enum
+                "a": 1,
+                "b": 2,
+            },
+        )
         assert result.valid is False
 
     def test_pattern_constraint(self, schema_validator: SchemaValidator):
@@ -446,7 +463,9 @@ class TestSecurityValidations:
     """Tests for security-focused validations."""
 
     def test_path_traversal_detection(
-        self, schema_validator: SchemaValidator, file_read_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        file_read_schema: ToolSchema,
     ):
         """Test detection of path traversal attempts."""
         schema_validator.register_schema("file_read", file_read_schema)
@@ -509,17 +528,15 @@ class TestSecurityValidations:
         schema_validator.register_schema("get_document", schema)
 
         # Valid UUID
-        result = schema_validator.validate("get_document", {
-            "document_id": "123e4567-e89b-12d3-a456-426614174000"
-        })
+        result = schema_validator.validate(
+            "get_document", {"document_id": "123e4567-e89b-12d3-a456-426614174000"}
+        )
         assert result.valid is True
 
         # Invalid UUID format - id_format constraint not yet implemented
         # Both pass basic str type check; advanced format validation
         # would require custom constraint implementation
-        result = schema_validator.validate("get_document", {
-            "document_id": "not-a-uuid"
-        })
+        result = schema_validator.validate("get_document", {"document_id": "not-a-uuid"})
         # Current implementation only validates type, not format patterns
         assert result.valid is True  # Format validation not implemented
 
@@ -528,29 +545,39 @@ class TestValidationResult:
     """Tests for ValidationResult structure."""
 
     def test_validation_result_valid(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test ValidationResult for valid input."""
         schema_validator.register_schema("calculator", calculator_schema)
-        result = schema_validator.validate("calculator", {
-            "operation": "add",
-            "a": 5,
-            "b": 3,
-        })
+        result = schema_validator.validate(
+            "calculator",
+            {
+                "operation": "add",
+                "a": 5,
+                "b": 3,
+            },
+        )
 
         assert isinstance(result, ValidationResult)
         assert result.valid is True
         assert len(result.errors) == 0
 
     def test_validation_result_invalid(
-        self, schema_validator: SchemaValidator, calculator_schema: ToolSchema,
+        self,
+        schema_validator: SchemaValidator,
+        calculator_schema: ToolSchema,
     ):
         """Test ValidationResult for invalid input."""
         schema_validator.register_schema("calculator", calculator_schema)
-        result = schema_validator.validate("calculator", {
-            "operation": "invalid",
-            "a": "not a number",
-        })
+        result = schema_validator.validate(
+            "calculator",
+            {
+                "operation": "invalid",
+                "a": "not a number",
+            },
+        )
 
         assert isinstance(result, ValidationResult)
         assert result.valid is False
@@ -570,10 +597,13 @@ class TestValidationResult:
         )
         schema_validator.register_schema("test", schema)
 
-        result = schema_validator.validate("test", {
-            "a": -1,  # Violates min constraint
-            "b": "hi",  # Violates min_length
-        })
+        result = schema_validator.validate(
+            "test",
+            {
+                "a": -1,  # Violates min constraint
+                "b": "hi",  # Violates min_length
+            },
+        )
 
         assert result.valid is False
         assert len(result.errors) >= 2
@@ -589,6 +619,5 @@ class TestUnknownSchema:
         # Check that warning is present instead of error
         assert result.valid is True
         assert any(
-            "unknown" in str(w).lower() or "no schema" in str(w).lower()
-            for w in result.warnings
+            "unknown" in str(w).lower() or "no schema" in str(w).lower() for w in result.warnings
         )

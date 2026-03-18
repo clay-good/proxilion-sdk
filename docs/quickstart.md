@@ -206,8 +206,170 @@ async def main():
 asyncio.run(main())
 ```
 
+## Decorator-Based API
+
+Proxilion provides standalone decorators for quick integration without full Proxilion setup.
+
+### @authorize_tool_call
+
+Automatically authorize tool calls based on a policy:
+
+```python
+from proxilion.decorators import authorize_tool_call
+from proxilion import UserContext
+from proxilion.policies import RoleBasedPolicy
+
+# Create a simple role-based policy
+policy = RoleBasedPolicy(
+    role_permissions={
+        "admin": ["read", "write", "delete"],
+        "user": ["read"],
+    }
+)
+
+@authorize_tool_call(policy)
+def delete_user(user_id: str, user_context: UserContext):
+    """Delete a user - admin only."""
+    # Policy automatically checks if user has 'admin' role
+    return db.delete_user(user_id)
+
+# Usage
+admin = UserContext(user_id="alice", roles=["admin"])
+delete_user("bob", user_context=admin)  # Allowed
+
+user = UserContext(user_id="bob", roles=["user"])
+delete_user("alice", user_context=user)  # Raises AuthorizationDenied
+```
+
+### @rate_limited
+
+Apply rate limiting to any function:
+
+```python
+from proxilion.decorators import rate_limited
+from proxilion.security import TokenBucketRateLimiter
+
+# Create rate limiter (100 requests, 10/sec refill)
+limiter = TokenBucketRateLimiter(capacity=100, refill_rate=10)
+
+@rate_limited(limiter, key_func=lambda user_id, **kw: user_id)
+def expensive_operation(user_id: str, data: dict) -> dict:
+    """Rate limited per user."""
+    return process_data(data)
+
+# Usage
+result = expensive_operation("alice", {"query": "..."})  # OK
+# After 100 calls in quick succession:
+# expensive_operation("alice", {"query": "..."})  # Raises RateLimitExceeded
+```
+
+### @circuit_protected
+
+Protect against cascading failures:
+
+```python
+from proxilion.decorators import circuit_protected
+
+@circuit_protected(
+    failure_threshold=5,      # Open circuit after 5 failures
+    reset_timeout=30.0,       # Try again after 30 seconds
+)
+def call_external_api(endpoint: str) -> dict:
+    """Call external API with circuit breaker protection."""
+    response = requests.get(endpoint)
+    response.raise_for_status()
+    return response.json()
+
+# If API fails 5 times, circuit opens
+# Further calls raise CircuitOpenError immediately
+# After 30 seconds, circuit tries again (half-open state)
+```
+
+### @require_approval
+
+Require human approval before execution:
+
+```python
+from proxilion.decorators import require_approval
+
+def slack_approval_prompt(tool_name: str, arguments: dict) -> bool:
+    """Send approval request to Slack."""
+    message = f"Approve {tool_name}({arguments})? (yes/no)"
+    response = slack.send_message(channel="approvals", text=message)
+    return response.lower() == "yes"
+
+@require_approval(approval_func=slack_approval_prompt)
+def delete_production_database(db_name: str):
+    """Delete production database - requires approval."""
+    return db.drop_database(db_name)
+
+# Usage
+delete_production_database("users")
+# Sends Slack message, waits for response
+# If approved: executes
+# If denied: raises ApprovalDenied
+```
+
+### Combining Decorators
+
+Stack decorators for multi-layered protection:
+
+```python
+from proxilion.decorators import authorize_tool_call, rate_limited, circuit_protected
+from proxilion.policies import RoleBasedPolicy
+from proxilion.security import TokenBucketRateLimiter
+
+policy = RoleBasedPolicy(role_permissions={"admin": ["execute"]})
+limiter = TokenBucketRateLimiter(capacity=10, refill_rate=1)
+
+@circuit_protected(failure_threshold=3, reset_timeout=60)
+@rate_limited(limiter, key_func=lambda user_ctx, **kw: user_ctx.user_id)
+@authorize_tool_call(policy)
+def critical_operation(user_context: UserContext, data: dict):
+    """
+    Critical operation with:
+    1. Authorization check (admin role required)
+    2. Rate limiting (10 calls, 1/sec refill per user)
+    3. Circuit breaker (opens after 3 failures)
+    """
+    return execute_critical_task(data)
+```
+
+### Custom Decorator Parameters
+
+All decorators support additional configuration:
+
+```python
+# Rate limiter with custom cost function
+@rate_limited(
+    limiter,
+    key_func=lambda user_id, **kw: user_id,
+    cost_func=lambda **kw: kw.get("complexity", 1),  # Variable cost
+)
+def query_database(user_id: str, query: str, complexity: int = 1):
+    """Complex queries cost more tokens."""
+    return db.execute(query)
+
+# Circuit breaker with excluded exceptions
+@circuit_protected(
+    failure_threshold=5,
+    reset_timeout=30.0,
+    excluded_exceptions=(ValidationError, KeyError),  # Don't count these
+)
+def process_request(data: dict):
+    """Validation errors don't trip the circuit."""
+    validate(data)  # ValidationError doesn't count as failure
+    return external_api.call(data)  # But network errors do
+```
+
 ## Next Steps
 
 - [Core Concepts](./concepts.md) - Understand deterministic vs probabilistic security
 - [Security Model](./security.md) - Deep dive into the security architecture
 - [Features Guide](./features/README.md) - Detailed feature documentation
+- [Input Guards](./features/input-guards.md) - Prompt injection protection
+- [Output Guards](./features/output-guards.md) - Data leakage prevention
+- [Rate Limiting](./features/rate-limiting.md) - Request throttling
+- [Security Controls](./features/security-controls.md) - IDOR, circuit breaker, drift detection
+- [Audit Logging](./features/audit-logging.md) - Compliance and tamper-evident logs
+- [Observability](./features/observability.md) - Metrics, costs, and alerts

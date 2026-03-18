@@ -24,12 +24,14 @@ def user() -> UserContext:
 
 @pytest.fixture()
 def engine() -> OPAPolicyEngine:
-    return OPAPolicyEngine({
-        "opa_url": "http://localhost:8181",
-        "policy_path": "v1/data/proxilion/authz",
-        "retry_count": 1,
-        "retry_delay": 0.0,
-    })
+    return OPAPolicyEngine(
+        {
+            "opa_url": "http://localhost:8181",
+            "policy_path": "v1/data/proxilion/authz",
+            "retry_count": 1,
+            "retry_delay": 0.0,
+        }
+    )
 
 
 class TestOPAEngineInit:
@@ -45,12 +47,14 @@ class TestOPAEngineInit:
         assert eng.is_initialized()
 
     def test_custom_config(self):
-        eng = OPAPolicyEngine({
-            "opa_url": "http://opa:9999",
-            "policy_path": "v1/data/myapp",
-            "timeout": 10.0,
-            "fallback_allow": True,
-        })
+        eng = OPAPolicyEngine(
+            {
+                "opa_url": "http://opa:9999",
+                "policy_path": "v1/data/myapp",
+                "timeout": 10.0,
+                "fallback_allow": True,
+            }
+        )
         assert eng.opa_url == "http://opa:9999"
         assert eng.timeout == 10.0
         assert eng.fallback_allow is True
@@ -76,9 +80,7 @@ class TestOPAEngineBuildInput:
         assert inp["resource"] == "document"
         assert inp["context"] == {}
 
-    def test_build_input_with_context(
-        self, engine: OPAPolicyEngine, user: UserContext
-    ):
+    def test_build_input_with_context(self, engine: OPAPolicyEngine, user: UserContext):
         ctx = {"ip": "10.0.0.1"}
         input_doc = engine._build_input(user, "write", "db", ctx)
         assert input_doc["input"]["context"] == {"ip": "10.0.0.1"}
@@ -88,50 +90,42 @@ class TestOPAEngineParseResponse:
     """Test OPA response parsing."""
 
     def test_boolean_true(self, engine: OPAPolicyEngine, user: UserContext):
-        result = engine._parse_opa_response(
-            {"result": True}, user, "read", "doc"
-        )
+        result = engine._parse_opa_response({"result": True}, user, "read", "doc")
         assert result.allowed is True
         assert "allowed" in result.reason
 
     def test_boolean_false(self, engine: OPAPolicyEngine, user: UserContext):
-        result = engine._parse_opa_response(
-            {"result": False}, user, "write", "doc"
-        )
+        result = engine._parse_opa_response({"result": False}, user, "write", "doc")
         assert result.allowed is False
 
     def test_dict_allow(self, engine: OPAPolicyEngine, user: UserContext):
         result = engine._parse_opa_response(
             {"result": {"allow": True, "reason": "Role match"}},
-            user, "read", "doc",
+            user,
+            "read",
+            "doc",
         )
         assert result.allowed is True
         assert result.reason == "Role match"
 
-    def test_dict_deny_with_reasons(
-        self, engine: OPAPolicyEngine, user: UserContext
-    ):
+    def test_dict_deny_with_reasons(self, engine: OPAPolicyEngine, user: UserContext):
         result = engine._parse_opa_response(
             {"result": {"allow": False, "deny": ["no role", "no scope"]}},
-            user, "write", "doc",
+            user,
+            "write",
+            "doc",
         )
         assert result.allowed is False
         assert "no role" in result.reason
         assert "no scope" in result.reason
 
     def test_none_result(self, engine: OPAPolicyEngine, user: UserContext):
-        result = engine._parse_opa_response(
-            {}, user, "read", "doc"
-        )
+        result = engine._parse_opa_response({}, user, "read", "doc")
         assert result.allowed is False
         assert "undefined" in result.reason
 
-    def test_unexpected_format(
-        self, engine: OPAPolicyEngine, user: UserContext
-    ):
-        result = engine._parse_opa_response(
-            {"result": 42}, user, "read", "doc"
-        )
+    def test_unexpected_format(self, engine: OPAPolicyEngine, user: UserContext):
+        result = engine._parse_opa_response({"result": 42}, user, "read", "doc")
         assert result.allowed is False
         assert "Unexpected" in result.reason
 
@@ -139,13 +133,9 @@ class TestOPAEngineParseResponse:
 class TestOPAEngineEvaluate:
     """Test OPA evaluation with mocked HTTP."""
 
-    def test_evaluate_success(
-        self, engine: OPAPolicyEngine, user: UserContext
-    ):
+    def test_evaluate_success(self, engine: OPAPolicyEngine, user: UserContext):
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            {"result": True}
-        ).encode()
+        mock_response.read.return_value = json.dumps({"result": True}).encode()
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_response.status = 200
@@ -154,9 +144,7 @@ class TestOPAEngineEvaluate:
             result = engine.evaluate(user, "read", "document")
         assert result.allowed is True
 
-    def test_evaluate_failure_raises(
-        self, engine: OPAPolicyEngine, user: UserContext
-    ):
+    def test_evaluate_failure_raises(self, engine: OPAPolicyEngine, user: UserContext):
         import urllib.error
 
         error = urllib.error.URLError("Connection refused")
@@ -168,12 +156,15 @@ class TestOPAEngineEvaluate:
             engine.evaluate(user, "read", "document")
 
     def test_evaluate_fallback_allow(self, user: UserContext):
-        eng = OPAPolicyEngine({
-            "fallback_allow": True,
-            "retry_count": 1,
-            "retry_delay": 0.0,
-        })
+        eng = OPAPolicyEngine(
+            {
+                "fallback_allow": True,
+                "retry_count": 1,
+                "retry_delay": 0.0,
+            }
+        )
         import urllib.error
+
         error = urllib.error.URLError("Connection refused")
 
         with patch("urllib.request.urlopen", side_effect=error):
@@ -195,7 +186,5 @@ class TestOPAEngineEvaluate:
             assert engine.health_check() is False
 
     def test_get_decision_id(self, engine: OPAPolicyEngine):
-        assert engine.get_decision_id(
-            {"decision_id": "abc-123"}
-        ) == "abc-123"
+        assert engine.get_decision_id({"decision_id": "abc-123"}) == "abc-123"
         assert engine.get_decision_id({}) is None

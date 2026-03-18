@@ -22,6 +22,34 @@ from proxilion.security.rate_limiter import SlidingWindowRateLimiter, TokenBucke
 from proxilion.types import ToolCallRequest
 from proxilion.validation.schema import ParameterSchema, SchemaValidator, ToolSchema
 
+# Check if pytest-asyncio is available
+try:
+    import pytest_asyncio  # noqa: F401
+
+    HAS_PYTEST_ASYNCIO = True
+except ImportError:
+    HAS_PYTEST_ASYNCIO = False
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers",
+        "asyncio: mark test as async (requires pytest-asyncio)",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip async tests if pytest-asyncio is not installed."""
+    if HAS_PYTEST_ASYNCIO:
+        return
+
+    skip_asyncio = pytest.mark.skip(reason="pytest-asyncio not installed")
+    for item in items:
+        if "asyncio" in item.keywords:
+            item.add_marker(skip_asyncio)
+
+
 # ============================================================================
 # User Context Fixtures
 # ============================================================================

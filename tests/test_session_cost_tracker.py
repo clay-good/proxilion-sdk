@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from proxilion.observability.cost_tracker import BudgetPolicy, CostTracker
 from proxilion.observability.session_cost_tracker import (
     AgentCostProfile,
-    AlertCallback,
     AlertSeverity,
     AlertType,
     CostAlert,
@@ -795,7 +794,7 @@ class TestExpireSession:
 
 class TestGetStats:
     def test_comprehensive_stats(self, tracker: SessionCostTracker):
-        s1 = tracker.start_session(user_id="u1")
+        tracker.start_session(user_id="u1")
         s2 = tracker.start_session(user_id="u2")
         tracker.end_session(s2.session_id)
         stats = tracker.get_stats()

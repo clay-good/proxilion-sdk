@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,14 +24,14 @@ from proxilion.providers.adapter import (
     detect_provider,
     detect_provider_safe,
 )
-from proxilion.providers.openai_adapter import OpenAIAdapter
 from proxilion.providers.anthropic_adapter import AnthropicAdapter
 from proxilion.providers.gemini_adapter import GeminiAdapter
-
+from proxilion.providers.openai_adapter import OpenAIAdapter
 
 # ---------------------------------------------------------------------------
 # Helpers & Fixtures
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class FakeFunction:
@@ -151,8 +151,8 @@ def _make_unified_call(id_="tc_1", name="my_tool", args=None):
 # UnifiedToolCall additional edge-case tests
 # ---------------------------------------------------------------------------
 
-class TestUnifiedToolCallEdgeCases:
 
+class TestUnifiedToolCallEdgeCases:
     def test_from_openai_object_no_function(self):
         obj = MagicMock(spec=[])
         call = UnifiedToolCall.from_openai(obj)
@@ -197,6 +197,7 @@ class TestUnifiedToolCallEdgeCases:
         class BadArgs:
             def __iter__(self):
                 raise TypeError("not iterable")
+
         obj = MagicMock(spec=["name", "args"])
         obj.name = "fn"
         obj.args = BadArgs()
@@ -221,7 +222,6 @@ class TestUnifiedToolCallEdgeCases:
 
 
 class TestUnifiedToolResult:
-
     def test_to_dict_success(self):
         r = UnifiedToolResult(tool_call_id="tc1", result={"ok": True})
         d = r.to_dict()
@@ -230,16 +230,13 @@ class TestUnifiedToolResult:
         assert d["error_message"] is None
 
     def test_to_dict_error(self):
-        r = UnifiedToolResult(
-            tool_call_id="tc2", result=None, is_error=True, error_message="boom"
-        )
+        r = UnifiedToolResult(tool_call_id="tc2", result=None, is_error=True, error_message="boom")
         d = r.to_dict()
         assert d["is_error"] is True
         assert d["error_message"] == "boom"
 
 
 class TestUnifiedResponseExtra:
-
     def test_empty_response_defaults(self):
         r = UnifiedResponse()
         assert r.content is None
@@ -259,8 +256,8 @@ class TestUnifiedResponseExtra:
 # OpenAIAdapter
 # ---------------------------------------------------------------------------
 
-class TestOpenAIAdapterExtended:
 
+class TestOpenAIAdapterExtended:
     def test_extract_tool_calls_object_form(self, openai_adapter):
         fn = FakeFunction(name="greet", arguments='{"name":"World"}')
         tc = FakeToolCall(id="c1", function=fn)
@@ -319,9 +316,7 @@ class TestOpenAIAdapterExtended:
         assert unified.finish_reason is None
 
     def test_extract_response_dict_no_usage(self, openai_adapter):
-        resp = {
-            "choices": [{"message": {"content": "yo"}, "finish_reason": "stop"}]
-        }
+        resp = {"choices": [{"message": {"content": "yo"}, "finish_reason": "stop"}]}
         unified = openai_adapter.extract_response(resp)
         assert unified.usage["input_tokens"] == 0
 
@@ -395,15 +390,17 @@ class TestOpenAIAdapterExtended:
 
     def test_extract_parallel_tool_calls_dict(self, openai_adapter):
         response = {
-            "choices": [{
-                "message": {
-                    "tool_calls": [
-                        {"id": "c1", "function": {"name": "a", "arguments": "{}"}},
-                        {"id": "c2", "function": {"name": "b", "arguments": "{}"}},
-                        {"id": "c3", "function": {"name": "c", "arguments": "{}"}},
-                    ]
+            "choices": [
+                {
+                    "message": {
+                        "tool_calls": [
+                            {"id": "c1", "function": {"name": "a", "arguments": "{}"}},
+                            {"id": "c2", "function": {"name": "b", "arguments": "{}"}},
+                            {"id": "c3", "function": {"name": "c", "arguments": "{}"}},
+                        ]
+                    }
                 }
-            }]
+            ]
         }
         calls = openai_adapter.extract_tool_calls(response)
         assert len(calls) == 3
@@ -414,8 +411,8 @@ class TestOpenAIAdapterExtended:
 # AnthropicAdapter
 # ---------------------------------------------------------------------------
 
-class TestAnthropicAdapterExtended:
 
+class TestAnthropicAdapterExtended:
     def test_extract_tool_calls_object_form(self, anthropic_adapter):
         text_block = FakeContentBlock(type="text", text="I will search.")
         tool_block = FakeContentBlock(
@@ -471,9 +468,7 @@ class TestAnthropicAdapterExtended:
 
     def test_extract_response_dict_no_text(self, anthropic_adapter):
         response = {
-            "content": [
-                {"type": "tool_use", "id": "t1", "name": "x", "input": {}}
-            ],
+            "content": [{"type": "tool_use", "id": "t1", "name": "x", "input": {}}],
             "stop_reason": "tool_use",
             "usage": {"input_tokens": 5, "output_tokens": 2},
         }
@@ -505,7 +500,9 @@ class TestAnthropicAdapterExtended:
     def test_format_tools_with_to_anthropic_format(self, anthropic_adapter):
         tool = MagicMock()
         tool.to_anthropic_format.return_value = {
-            "name": "x", "description": "d", "input_schema": {}
+            "name": "x",
+            "description": "d",
+            "input_schema": {},
         }
         formatted = anthropic_adapter.format_tools([tool])
         assert formatted[0]["name"] == "x"
@@ -585,8 +582,8 @@ class TestAnthropicAdapterExtended:
 # GeminiAdapter
 # ---------------------------------------------------------------------------
 
-class TestGeminiAdapterExtended:
 
+class TestGeminiAdapterExtended:
     def test_extract_tool_calls_object_form(self, gemini_adapter):
         fc = FakeGeminiFunctionCall(name="lookup", args={"id": "42"})
         part = FakePart(function_call=fc)
@@ -631,13 +628,9 @@ class TestGeminiAdapterExtended:
 
     def test_extract_tool_calls_dict_snake_case(self, gemini_adapter):
         response = {
-            "candidates": [{
-                "content": {
-                    "parts": [{
-                        "function_call": {"name": "fn", "args": {"k": "v"}}
-                    }]
-                }
-            }]
+            "candidates": [
+                {"content": {"parts": [{"function_call": {"name": "fn", "args": {"k": "v"}}}]}}
+            ]
         }
         calls = gemini_adapter.extract_tool_calls(response)
         assert len(calls) == 1
@@ -645,13 +638,9 @@ class TestGeminiAdapterExtended:
 
     def test_extract_tool_calls_dict_camel_case(self, gemini_adapter):
         response = {
-            "candidates": [{
-                "content": {
-                    "parts": [{
-                        "functionCall": {"name": "fn2", "args": {"a": 1}}
-                    }]
-                }
-            }]
+            "candidates": [
+                {"content": {"parts": [{"functionCall": {"name": "fn2", "args": {"a": 1}}}]}}
+            ]
         }
         calls = gemini_adapter.extract_tool_calls(response)
         assert len(calls) == 1
@@ -659,15 +648,17 @@ class TestGeminiAdapterExtended:
 
     def test_extract_tool_calls_dict_multiple_parts(self, gemini_adapter):
         response = {
-            "candidates": [{
-                "content": {
-                    "parts": [
-                        {"functionCall": {"name": "a", "args": {}}},
-                        {"text": "some text"},
-                        {"functionCall": {"name": "b", "args": {"x": 1}}},
-                    ]
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"functionCall": {"name": "a", "args": {}}},
+                            {"text": "some text"},
+                            {"functionCall": {"name": "b", "args": {"x": 1}}},
+                        ]
+                    }
                 }
-            }]
+            ]
         }
         calls = gemini_adapter.extract_tool_calls(response)
         assert len(calls) == 2
@@ -699,10 +690,12 @@ class TestGeminiAdapterExtended:
 
     def test_extract_response_dict_with_text(self, gemini_adapter):
         response = {
-            "candidates": [{
-                "content": {"parts": [{"text": "yes"}]},
-                "finishReason": "STOP",
-            }],
+            "candidates": [
+                {
+                    "content": {"parts": [{"text": "yes"}]},
+                    "finishReason": "STOP",
+                }
+            ],
             "usageMetadata": {
                 "promptTokenCount": 5,
                 "candidatesTokenCount": 1,
@@ -818,8 +811,8 @@ class TestGeminiAdapterExtended:
 # BaseAdapter._serialize_result
 # ---------------------------------------------------------------------------
 
-class TestBaseAdapterSerialize:
 
+class TestBaseAdapterSerialize:
     def test_serialize_string(self, openai_adapter):
         assert openai_adapter._serialize_result("hello") == "hello"
 
@@ -842,8 +835,8 @@ class TestBaseAdapterSerialize:
 # ProviderAdapter protocol compliance
 # ---------------------------------------------------------------------------
 
-class TestProtocolCompliance:
 
+class TestProtocolCompliance:
     def test_openai_adapter_is_provider_adapter(self):
         assert isinstance(OpenAIAdapter(), ProviderAdapter)
 
@@ -863,8 +856,8 @@ class TestProtocolCompliance:
 # detect_provider additional paths
 # ---------------------------------------------------------------------------
 
-class TestDetectProviderExtra:
 
+class TestDetectProviderExtra:
     def test_detect_google_generativeai_module(self):
         resp = MagicMock()
         resp.__class__.__module__ = "google.generativeai.types"
@@ -880,6 +873,7 @@ class TestDetectProviderExtra:
     def test_detect_by_candidates_attribute(self):
         class Resp:
             candidates = []
+
         resp = Resp()
         resp.__class__.__module__ = "unknown"
         resp.__class__.__name__ = "Resp"
@@ -888,6 +882,7 @@ class TestDetectProviderExtra:
     def test_detect_by_stop_reason_attribute(self):
         class Resp:
             stop_reason = "end_turn"
+
         resp = Resp()
         resp.__class__.__module__ = "unknown"
         resp.__class__.__name__ = "Resp"
@@ -902,5 +897,6 @@ class TestDetectProviderExtra:
     def test_detect_provider_safe_returns_unknown(self):
         class Plain:
             pass
+
         obj = Plain()
         assert detect_provider_safe(obj) == Provider.UNKNOWN

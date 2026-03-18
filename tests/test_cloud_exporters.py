@@ -440,6 +440,7 @@ class TestGCSExporter:
         # Patch both HAS_GCS and inject gcs into module namespace
         with patch("proxilion.audit.exporters.gcp_storage.HAS_GCS", True):
             import proxilion.audit.exporters.gcp_storage as gcp_module
+
             original_gcs = getattr(gcp_module, "gcs", None)
             gcp_module.gcs = mock_gcs_module
 
@@ -637,6 +638,7 @@ class TestMultiCloudExporter:
 
     def test_multi_exporter_parallel_execution(self, sample_audit_event: AuditEventV2):
         """Test multi-exporter parallel execution."""
+
         # Create exporters with slight delay
         def slow_export(*args, **kwargs):
             time.sleep(0.1)
@@ -687,11 +689,13 @@ class TestMultiCloudExporter:
             parallel=True,
         )
 
-        multi.configure({
-            "strategy": "require_all",
-            "parallel": False,
-            "max_retries": 5,
-        })
+        multi.configure(
+            {
+                "strategy": "require_all",
+                "parallel": False,
+                "max_retries": 5,
+            }
+        )
 
         assert multi.strategy == FailureStrategy.REQUIRE_ALL
         assert multi.parallel is False

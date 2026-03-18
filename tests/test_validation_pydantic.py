@@ -9,16 +9,17 @@ from __future__ import annotations
 
 import pytest
 
-from pydantic import BaseModel, Field
+from proxilion.validation.pydantic_schema import HAS_PYDANTIC
 
-from proxilion.validation.pydantic_schema import (
-    HAS_PYDANTIC,
+if not HAS_PYDANTIC:
+    pytest.skip("pydantic not installed", allow_module_level=True)
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+from proxilion.validation.pydantic_schema import (  # noqa: E402
     PydanticSchemaValidator,
     create_pydantic_validator,
 )
-
-pytestmark = pytest.mark.skipif(not HAS_PYDANTIC, reason="pydantic not installed")
-
 
 # =============================================================================
 # Test Models
@@ -95,9 +96,7 @@ class TestModelRegistration:
     def test_register_model_with_risk_level(self) -> None:
         """Test registering with risk level."""
         validator = PydanticSchemaValidator()
-        validator.register_pydantic_model(
-            "query", QueryInput, risk_level="high"
-        )
+        validator.register_pydantic_model("query", QueryInput, risk_level="high")
 
         result = validator.validate("query", {"query": "SELECT 1"})
         assert result.valid
@@ -105,13 +104,9 @@ class TestModelRegistration:
     def test_register_model_with_sensitive_fields(self) -> None:
         """Test registering with sensitive field marking."""
         validator = PydanticSchemaValidator()
-        validator.register_pydantic_model(
-            "user", UserInput, sensitive_fields=["email"]
-        )
+        validator.register_pydantic_model("user", UserInput, sensitive_fields=["email"])
 
-        result = validator.validate(
-            "user", {"name": "Alice", "email": "alice@example.com"}
-        )
+        result = validator.validate("user", {"name": "Alice", "email": "alice@example.com"})
         assert result.valid
 
     def test_register_multiple_models(self) -> None:
@@ -139,9 +134,7 @@ class TestValidation:
         validator = PydanticSchemaValidator()
         validator.register_pydantic_model("calculator", CalculatorInput)
 
-        result = validator.validate(
-            "calculator", {"operation": "multiply", "a": 3.14, "b": 2.0}
-        )
+        result = validator.validate("calculator", {"operation": "multiply", "a": 3.14, "b": 2.0})
         assert result.valid
         assert result.sanitized_arguments is not None
         assert result.sanitized_arguments["operation"] == "multiply"
@@ -160,9 +153,7 @@ class TestValidation:
         validator = PydanticSchemaValidator()
         validator.register_pydantic_model("calculator", CalculatorInput)
 
-        result = validator.validate(
-            "calculator", {"operation": "add", "a": "not_a_number", "b": 3}
-        )
+        result = validator.validate("calculator", {"operation": "add", "a": "not_a_number", "b": 3})
         assert not result.valid
 
     def test_type_coercion(self) -> None:
@@ -170,9 +161,7 @@ class TestValidation:
         validator = PydanticSchemaValidator()
         validator.register_pydantic_model("calculator", CalculatorInput)
 
-        result = validator.validate(
-            "calculator", {"operation": "add", "a": 5, "b": 3}
-        )
+        result = validator.validate("calculator", {"operation": "add", "a": 5, "b": 3})
         assert result.valid
         assert result.sanitized_arguments["a"] == 5.0
 
@@ -191,9 +180,7 @@ class TestValidation:
         validator = PydanticSchemaValidator()
         validator.register_pydantic_model("user", UserInput)
 
-        result = validator.validate(
-            "user", {"name": "Alice", "email": "a@a.com", "age": None}
-        )
+        result = validator.validate("user", {"name": "Alice", "email": "a@a.com", "age": None})
         assert result.valid
         assert result.sanitized_arguments["age"] is None
 
@@ -221,9 +208,7 @@ class TestValidation:
         validator.register_pydantic_model("user", UserInput)
 
         # Empty name should fail (min_length=1)
-        result = validator.validate(
-            "user", {"name": "", "email": "a@a.com"}
-        )
+        result = validator.validate("user", {"name": "", "email": "a@a.com"})
         assert not result.valid
 
     def test_list_field(self) -> None:
@@ -312,12 +297,8 @@ class TestDynamicModelCreation:
             name="test_tool",
             description="A test tool",
             parameters={
-                "name": ParameterSchema(
-                    name="name", type="str", required=True
-                ),
-                "count": ParameterSchema(
-                    name="count", type="int", required=False, default=10
-                ),
+                "name": ParameterSchema(name="name", type="str", required=True),
+                "count": ParameterSchema(name="count", type="int", required=False, default=10),
             },
             required_parameters=["name"],
         )
@@ -341,9 +322,7 @@ class TestDynamicModelCreation:
             name="search",
             description="Search tool",
             parameters={
-                "query": ParameterSchema(
-                    name="query", type="str", required=True
-                ),
+                "query": ParameterSchema(name="query", type="str", required=True),
                 "max_results": ParameterSchema(
                     name="max_results", type="int", required=False, default=20
                 ),

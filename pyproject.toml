@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proxilion"
-version = "0.0.6"
+version = "0.0.7"
 description = "Application-layer security SDK for LLM tool call authorization"
 readme = "README.md"
 license = "MIT"
@@ -31,6 +31,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
@@ -71,6 +72,7 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "cryptography.*"

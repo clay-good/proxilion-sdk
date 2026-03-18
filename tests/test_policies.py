@@ -43,6 +43,7 @@ class TestPolicyBaseClass:
 
     def test_custom_policy_methods(self, basic_user: UserContext):
         """Test custom policy method implementation."""
+
         class CustomPolicy(BasePolicy):
             def can_custom_action(self, context: dict) -> bool:
                 return context.get("allow_custom", False)
@@ -54,6 +55,7 @@ class TestPolicyBaseClass:
 
     def test_policy_accesses_user_attributes(self, admin_user: UserContext):
         """Test that policy can access user attributes."""
+
         class AttributePolicy(BasePolicy):
             def can_execute(self, context: dict) -> bool:
                 return self.user.attributes.get("clearance") == "high"
@@ -63,6 +65,7 @@ class TestPolicyBaseClass:
 
     def test_policy_accesses_resource(self, basic_user: UserContext):
         """Test that policy can access resource object."""
+
         class ResourcePolicy(BasePolicy):
             def can_read(self, context: dict) -> bool:
                 if self.resource is None:
@@ -86,6 +89,7 @@ class TestPolicyRegistry:
 
     def test_register_policy(self, policy_registry: PolicyRegistry):
         """Test registering a policy class."""
+
         class TestPolicy(BasePolicy):
             def can_execute(self, context: dict) -> bool:
                 return True
@@ -96,6 +100,7 @@ class TestPolicyRegistry:
 
     def test_register_policy_decorator(self, policy_registry: PolicyRegistry):
         """Test registering policy via decorator."""
+
         @policy_registry.policy("decorated_resource")
         class DecoratedPolicy(BasePolicy):
             def can_execute(self, context: dict) -> bool:
@@ -111,6 +116,7 @@ class TestPolicyRegistry:
 
     def test_policy_overwrite(self, policy_registry: PolicyRegistry):
         """Test that registering same resource overwrites previous policy."""
+
         class PolicyV1(BasePolicy):
             version = 1
 
@@ -125,6 +131,7 @@ class TestPolicyRegistry:
 
     def test_list_policies(self, policy_registry: PolicyRegistry):
         """Test listing all registered policies."""
+
         class PolicyA(BasePolicy):
             pass
 
@@ -140,6 +147,7 @@ class TestPolicyRegistry:
 
     def test_has_policy(self, policy_registry: PolicyRegistry):
         """Test checking if policy exists."""
+
         class ExistingPolicy(BasePolicy):
             pass
 
@@ -150,6 +158,7 @@ class TestPolicyRegistry:
 
     def test_unregister_policy(self, policy_registry: PolicyRegistry):
         """Test unregistering a policy."""
+
         class RemovablePolicy(BasePolicy):
             pass
 
@@ -218,6 +227,7 @@ class TestRoleBasedPolicy:
 
     def test_role_based_with_matching_role(self, admin_user: UserContext):
         """Test RoleBasedPolicy allows when role matches."""
+
         class AdminPolicy(RoleBasedPolicy):
             allowed_roles = {
                 "execute": ["admin"],
@@ -230,6 +240,7 @@ class TestRoleBasedPolicy:
 
     def test_role_based_without_matching_role(self, basic_user: UserContext):
         """Test RoleBasedPolicy denies when role doesn't match."""
+
         class AdminPolicy(RoleBasedPolicy):
             allowed_roles = {
                 "execute": ["admin"],
@@ -242,6 +253,7 @@ class TestRoleBasedPolicy:
 
     def test_role_based_multiple_roles(self, analyst_user: UserContext):
         """Test RoleBasedPolicy with multiple allowed roles."""
+
         class DataPolicy(RoleBasedPolicy):
             allowed_roles = {
                 "read": ["user", "analyst", "admin"],
@@ -256,6 +268,7 @@ class TestRoleBasedPolicy:
 
     def test_role_based_undefined_action(self, admin_user: UserContext):
         """Test RoleBasedPolicy denies undefined actions."""
+
         class LimitedPolicy(RoleBasedPolicy):
             allowed_roles = {
                 "read": ["admin"],
@@ -268,6 +281,7 @@ class TestRoleBasedPolicy:
 
     def test_role_based_empty_roles(self, guest_user: UserContext):
         """Test RoleBasedPolicy with user having no matching roles."""
+
         class StrictPolicy(RoleBasedPolicy):
             allowed_roles = {
                 "execute": ["admin", "user"],
@@ -283,6 +297,7 @@ class TestPolicyInheritance:
 
     def test_policy_inheritance(self, basic_user: UserContext):
         """Test that policy classes can be inherited."""
+
         class BaseResourcePolicy(BasePolicy):
             def can_read(self, context: dict) -> bool:
                 return True
@@ -297,6 +312,7 @@ class TestPolicyInheritance:
 
     def test_policy_method_override(self, basic_user: UserContext):
         """Test that policy methods can be overridden."""
+
         class ParentPolicy(BasePolicy):
             def can_execute(self, context: dict) -> bool:
                 return False
@@ -313,6 +329,7 @@ class TestPolicyInheritance:
 
     def test_policy_super_call(self, admin_user: UserContext):
         """Test calling super() in policy methods."""
+
         class BaseResourcePolicy(BasePolicy):
             def can_execute(self, context: dict) -> bool:
                 return "user" in self.user.roles
@@ -332,6 +349,7 @@ class TestPolicyScope:
 
     def test_scope_class_filters_resources(self, basic_user: UserContext):
         """Test that Scope class can filter resource collections."""
+
         class DocumentPolicy(BasePolicy):
             class Scope:
                 def __init__(self, user: UserContext, resources: list):
@@ -340,10 +358,7 @@ class TestPolicyScope:
 
                 def resolve(self) -> list:
                     # Filter to only user's documents
-                    return [
-                        r for r in self.resources
-                        if r.get("owner_id") == self.user.user_id
-                    ]
+                    return [r for r in self.resources if r.get("owner_id") == self.user.user_id]
 
         documents = [
             {"id": "1", "owner_id": "user_123"},
@@ -359,6 +374,7 @@ class TestPolicyScope:
 
     def test_scope_with_admin_sees_all(self, admin_user: UserContext):
         """Test that admin Scope sees all resources."""
+
         class DocumentPolicy(BasePolicy):
             class Scope:
                 def __init__(self, user: UserContext, resources: list):
@@ -368,10 +384,7 @@ class TestPolicyScope:
                 def resolve(self) -> list:
                     if "admin" in self.user.roles:
                         return self.resources
-                    return [
-                        r for r in self.resources
-                        if r.get("owner_id") == self.user.user_id
-                    ]
+                    return [r for r in self.resources if r.get("owner_id") == self.user.user_id]
 
         documents = [
             {"id": "1", "owner_id": "user_123"},

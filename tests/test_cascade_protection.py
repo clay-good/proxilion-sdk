@@ -547,7 +547,8 @@ class TestCascadeIntegration:
         # Check states
         assert protector.check_cascade_health("main_db") == CascadeState.FAILING
         assert protector.check_cascade_health("inventory_service") in (
-            CascadeState.DEGRADED, CascadeState.FAILING
+            CascadeState.DEGRADED,
+            CascadeState.FAILING,
         )
 
         # API gateway should still be healthy (different dependency chain)

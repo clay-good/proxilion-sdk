@@ -551,11 +551,15 @@ class RateLimiterMiddleware:
         # Check global limit
         if self.global_limit and not self.global_limit.allow_request("global", cost):
             retry_after = self.global_limit.get_retry_after("global", cost)
+            global_remaining = self.global_limit.get_remaining("global")
             raise RateLimitExceeded(
                 limit_type="global",
                 limit_key="global",
                 limit_value=self.global_limit.capacity,
                 retry_after=retry_after,
+                user_id=user_id,
+                limit=self.global_limit.capacity,
+                current_count=self.global_limit.capacity - global_remaining,
             )
 
         # Check user limit
@@ -566,6 +570,9 @@ class RateLimiterMiddleware:
                 limit_key=user_id,
                 limit_value=self.user_limit.capacity,
                 retry_after=retry_after,
+                user_id=user_id,
+                limit=self.user_limit.capacity,
+                current_count=self.user_limit.capacity - self.user_limit.get_remaining(user_id),
             )
 
         # Check tool-specific limit
@@ -579,6 +586,9 @@ class RateLimiterMiddleware:
                     limit_key=key,
                     limit_value=tool_limiter.capacity,
                     retry_after=retry_after,
+                    user_id=user_id,
+                    limit=tool_limiter.capacity,
+                    current_count=tool_limiter.capacity - tool_limiter.get_remaining(key),
                 )
 
     def get_headers(

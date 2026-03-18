@@ -230,6 +230,7 @@ class TestSummarizeOldStrategy:
 
     def test_empty_messages(self):
         """Empty messages returns empty list."""
+
         def summarize(msgs):
             return "Summary"
 
@@ -239,6 +240,7 @@ class TestSummarizeOldStrategy:
 
     def test_all_messages_fit(self):
         """No summarization needed when all fit."""
+
         def summarize(msgs):
             return "Should not be called"
 
@@ -251,6 +253,7 @@ class TestSummarizeOldStrategy:
 
     def test_summarizes_old_messages(self):
         """Old messages are summarized."""
+
         def summarize(msgs):
             return f"Summary of {len(msgs)} messages"
 
@@ -274,6 +277,7 @@ class TestSummarizeOldStrategy:
 
     def test_not_enough_messages_to_summarize(self):
         """Fewer messages than keep_recent uses sliding window."""
+
         def summarize(msgs):
             return "Summary"
 
@@ -490,16 +494,20 @@ class TestContextWindowIntegration:
 
         # Simulate a conversation
         for i in range(20):
-            messages.append(create_message(
-                f"User question {i} about Python programming",
-                role=MessageRole.USER,
-                tokens=100,
-            ))
-            messages.append(create_message(
-                f"Here's the answer to question {i} with detailed explanation",
-                role=MessageRole.ASSISTANT,
-                tokens=150,
-            ))
+            messages.append(
+                create_message(
+                    f"User question {i} about Python programming",
+                    role=MessageRole.USER,
+                    tokens=100,
+                )
+            )
+            messages.append(
+                create_message(
+                    f"Here's the answer to question {i} with detailed explanation",
+                    role=MessageRole.ASSISTANT,
+                    tokens=150,
+                )
+            )
 
         # Fit to context window
         result = window.fit_messages(messages)

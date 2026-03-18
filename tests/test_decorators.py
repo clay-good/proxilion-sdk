@@ -9,7 +9,7 @@ with both sync and async functions.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -35,10 +35,10 @@ from proxilion.exceptions import (
 )
 from proxilion.types import UserContext
 
-
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def make_user(user_id: str = "alice", roles: list[str] | None = None) -> UserContext:
     return UserContext(user_id=user_id, roles=roles or ["user"])
@@ -75,7 +75,9 @@ class TestAlwaysDenyStrategy:
 
 class TestCallbackApprovalStrategy:
     def test_sync_callback(self) -> None:
-        cb = lambda u, a, r, c: u.user_id == "admin"
+        def cb(u, a, r, c):
+            return u.user_id == "admin"
+
         strategy = CallbackApprovalStrategy(cb)
         assert strategy.request_approval(make_user("admin"), "execute", "tool", {}) is True
         assert strategy.request_approval(make_user("alice"), "execute", "tool", {}) is False
@@ -83,7 +85,10 @@ class TestCallbackApprovalStrategy:
     @pytest.mark.asyncio
     async def test_async_callback_fallback(self) -> None:
         """Async falls back to sync callback when no async_callback provided."""
-        cb = lambda u, a, r, c: True
+
+        def cb(u, a, r, c):
+            return True
+
         strategy = CallbackApprovalStrategy(cb)
         result = await strategy.request_approval_async(make_user(), "execute", "tool", {})
         assert result is True
@@ -91,12 +96,20 @@ class TestCallbackApprovalStrategy:
     @pytest.mark.asyncio
     async def test_async_callback_explicit(self) -> None:
         """Uses explicit async callback when provided."""
+
         async def async_cb(u, a, r, c):
             return u.user_id == "bob"
 
-        strategy = CallbackApprovalStrategy(lambda u, a, r, c: False, async_callback=async_cb)
-        assert await strategy.request_approval_async(make_user("bob"), "execute", "tool", {}) is True
-        assert await strategy.request_approval_async(make_user("alice"), "execute", "tool", {}) is False
+        def sync_cb(u, a, r, c):
+            return False
+
+        strategy = CallbackApprovalStrategy(sync_cb, async_callback=async_cb)
+        bob_result = await strategy.request_approval_async(make_user("bob"), "execute", "tool", {})
+        alice_result = await strategy.request_approval_async(
+            make_user("alice"), "execute", "tool", {}
+        )
+        assert bob_result is True
+        assert alice_result is False
 
 
 class TestQueueApprovalStrategy:
@@ -216,6 +229,7 @@ class TestRequireApproval:
 
     def test_default_strategy_denies(self) -> None:
         """Default strategy (AlwaysDenyStrategy) should deny."""
+
         @require_approval()
         def do_thing(user=None):
             return "done"
@@ -231,9 +245,7 @@ class TestRequireApproval:
         assert my_function.__name__ == "my_function"
 
     def test_callback_strategy(self) -> None:
-        strategy = CallbackApprovalStrategy(
-            lambda u, a, r, c: u.user_id == "admin"
-        )
+        strategy = CallbackApprovalStrategy(lambda u, a, r, c: u.user_id == "admin")
 
         @require_approval(strategy=strategy)
         def do_thing(user=None):
@@ -680,10 +692,12 @@ class TestScopedTool:
 
 
 class TestCostLimited:
-    def _make_cost_limiter(self, allowed=True):
+    def _make_cost_limiter(self, allowed=True, current_spend=0.50, limit=1.00):
         limiter = MagicMock()
         result_mock = MagicMock()
         result_mock.allowed = allowed
+        result_mock.current_spend = current_spend
+        result_mock.limit = limit
         limiter.check_limit.return_value = result_mock
         limiter.record_spend = MagicMock()
         # Remove allow_request to use CostLimiter path

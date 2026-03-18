@@ -233,7 +233,8 @@ class IDORProtector:
                     logger.error(f"Scope loader configuration error: {e}")
                     return False
                 except Exception as e:
-                    # Temporary failure - let caller handle retry
+                    # Catch-all: user-provided scope loader may raise any exception
+                    logger.warning("Scope loader %r raised: %s", resource_type, e)
                     raise ScopeLoaderError(resource_type, user_id, e) from e
 
             if scope is None:
@@ -260,7 +261,8 @@ class IDORProtector:
                     # Permanent configuration error - deny access
                     logger.error(f"Dynamic scope loader configuration error: {e}")
                 except Exception as e:
-                    # Temporary failure - let caller handle retry
+                    # Catch-all: user-provided scope loader may raise any exception
+                    logger.warning("Dynamic scope loader %r raised: %s", resource_type, e)
                     raise ScopeLoaderError(resource_type, user_id, e) from e
 
             return False
@@ -337,7 +339,9 @@ class IDORProtector:
         if pattern.extractor:
             try:
                 return pattern.extractor(value)
-            except Exception:
+            except Exception as e:
+                # Catch-all: user-provided extractor may raise any exception
+                logger.warning("ID extractor %r raised: %s", pattern.extractor, e)
                 return []
 
         # Default extraction logic

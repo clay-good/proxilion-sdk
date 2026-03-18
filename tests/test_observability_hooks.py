@@ -841,16 +841,24 @@ class TestCustomHook:
                 self.metrics.append({"type": "gauge", "name": name, "value": value, "tags": tags})
 
             def histogram(self, name: str, value: float, tags: dict | None = None) -> None:
-                self.metrics.append({
-                    "type": "histogram", "name": name,
-                    "value": value, "tags": tags,
-                })
+                self.metrics.append(
+                    {
+                        "type": "histogram",
+                        "name": name,
+                        "value": value,
+                        "tags": tags,
+                    }
+                )
 
             def timing(self, name: str, duration_ms: float, tags: dict | None = None) -> None:
-                self.metrics.append({
-                    "type": "timing", "name": name,
-                    "value": duration_ms, "tags": tags,
-                })
+                self.metrics.append(
+                    {
+                        "type": "timing",
+                        "name": name,
+                        "value": duration_ms,
+                        "tags": tags,
+                    }
+                )
 
         hooks = ObservabilityHooks.get_instance()
         custom_hook = CustomHook()

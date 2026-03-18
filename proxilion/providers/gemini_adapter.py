@@ -352,7 +352,7 @@ class GeminiAdapter(BaseAdapter):
             ImportError: If vertexai is not installed.
         """
         try:
-            from vertexai.generative_models import (  # type: ignore[import-not-found]
+            from vertexai.generative_models import (
                 FunctionDeclaration,
                 Tool,
             )

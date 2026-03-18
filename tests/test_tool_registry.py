@@ -927,7 +927,7 @@ class TestRegisterTool:
         registry = ToolRegistry()
 
         def compute(value: float) -> float:
-            return value ** 2
+            return value**2
 
         tool_def = register_tool(
             compute,

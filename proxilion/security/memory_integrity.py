@@ -50,7 +50,24 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from proxilion.exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
+
+_PLACEHOLDER_PATTERNS = ("your-", "changeme", "example", "placeholder", "secret-key", "TODO")
+
+
+def _validate_secret_key(secret_key: str | bytes) -> None:
+    """Validate secret key length and warn on placeholder patterns."""
+    key_str = secret_key.decode() if isinstance(secret_key, bytes) else secret_key
+    if len(key_str) < 16:
+        raise ConfigurationError("secret_key must be at least 16 characters for HMAC security")
+    lower = key_str.lower()
+    is_placeholder = (
+        any(pat.lower() in lower for pat in _PLACEHOLDER_PATTERNS) or len(set(key_str)) == 1
+    )
+    if is_placeholder:
+        logger.warning("secret_key looks like a placeholder; use a random key in production.")
 
 
 class IntegrityViolationType(Enum):
@@ -287,6 +304,7 @@ class MemoryIntegrityGuard:
             enable_rag_scan: Enable RAG poisoning detection.
             custom_rag_patterns: Additional RAG poisoning patterns.
         """
+        _validate_secret_key(secret_key)
         if isinstance(secret_key, str):
             secret_key = secret_key.encode()
 

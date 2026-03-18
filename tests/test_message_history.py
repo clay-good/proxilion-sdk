@@ -176,10 +176,12 @@ class TestMessageHistory:
 
         # Add messages until limit is exceeded
         for i in range(10):
-            history.append(Message(
-                role=MessageRole.USER,
-                content=f"This is message number {i} with some content",
-            ))
+            history.append(
+                Message(
+                    role=MessageRole.USER,
+                    content=f"This is message number {i} with some content",
+                )
+            )
 
         # Should have enforced token limit
         total = history.get_total_tokens()
@@ -323,11 +325,13 @@ class TestMessageHistoryLLMFormat:
     def test_openai_format_tool_call(self):
         """OpenAI format with tool calls."""
         history = MessageHistory()
-        history.append(Message(
-            role=MessageRole.TOOL_CALL,
-            content="",
-            metadata={"tool_calls": [{"id": "call_1", "function": {"name": "search"}}]},
-        ))
+        history.append(
+            Message(
+                role=MessageRole.TOOL_CALL,
+                content="",
+                metadata={"tool_calls": [{"id": "call_1", "function": {"name": "search"}}]},
+            )
+        )
 
         result = history.to_llm_format("openai")
         assert result[0]["role"] == "assistant"
@@ -336,11 +340,13 @@ class TestMessageHistoryLLMFormat:
     def test_openai_format_tool_result(self):
         """OpenAI format with tool results."""
         history = MessageHistory()
-        history.append(Message(
-            role=MessageRole.TOOL_RESULT,
-            content="Search result",
-            metadata={"tool_call_id": "call_1"},
-        ))
+        history.append(
+            Message(
+                role=MessageRole.TOOL_RESULT,
+                content="Search result",
+                metadata={"tool_call_id": "call_1"},
+            )
+        )
 
         result = history.to_llm_format("openai")
         assert result[0]["role"] == "tool"
@@ -407,15 +413,19 @@ class TestMessageHistorySerialization:
     def test_round_trip(self):
         """Full round-trip serialization."""
         history = MessageHistory()
-        history.append(Message(
-            role=MessageRole.USER,
-            content="Hello",
-            metadata={"key": "value"},
-        ))
-        history.append(Message(
-            role=MessageRole.ASSISTANT,
-            content="Hi there!",
-        ))
+        history.append(
+            Message(
+                role=MessageRole.USER,
+                content="Hello",
+                metadata={"key": "value"},
+            )
+        )
+        history.append(
+            Message(
+                role=MessageRole.ASSISTANT,
+                content="Hi there!",
+            )
+        )
 
         data = history.to_dict()
         restored = MessageHistory.from_dict(data)

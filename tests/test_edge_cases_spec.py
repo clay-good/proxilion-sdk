@@ -15,14 +15,11 @@ Covers:
 from __future__ import annotations
 
 import threading
-import time
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
 
 import pytest
 
 from proxilion.context.context_window import (
-    SlidingWindowStrategy,
     SummarizeOldStrategy,
 )
 from proxilion.context.message_history import Message, MessageRole
@@ -39,7 +36,6 @@ from proxilion.security.cascade_protection import (
 from proxilion.streaming.detector import PartialToolCall, StreamingToolCallDetector
 from proxilion.validation.schema import SchemaValidator
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -55,7 +51,6 @@ def _make_message(content: str, tokens: int | None = None) -> Message:
 
 
 class TestSchedulerPauseResume:
-
     def test_resume_event_exists(self):
         """Scheduler should use a threading.Event for pause/resume."""
         scheduler = RequestScheduler(handler=lambda x: x)
@@ -100,7 +95,6 @@ class TestSchedulerPauseResume:
 
 
 class TestCascadeProtectionBounded:
-
     def test_events_use_deque(self):
         """Events should be stored in a deque, not a plain list."""
         from collections import deque
@@ -118,7 +112,7 @@ class TestCascadeProtectionBounded:
         graph.add_dependency("svc_a", "db")
         protector = CascadeProtector(graph, max_events=10)
 
-        for i in range(25):
+        for _i in range(25):
             protector.propagate_failure("db")
 
         assert len(protector._events) <= 10
@@ -141,7 +135,6 @@ class TestCascadeProtectionBounded:
 
 
 class TestStreamingDetectorStaleCleanup:
-
     def test_stale_timeout_attribute_exists(self):
         """Detector should have a stale timeout attribute."""
         detector = StreamingToolCallDetector(provider="openai")
@@ -191,7 +184,6 @@ class TestStreamingDetectorStaleCleanup:
 
 
 class TestParameterValidation:
-
     def test_cascade_protector_rejects_zero_thresholds(self):
         """CascadeProtector should reject thresholds < 1."""
         graph = DependencyGraph()
@@ -252,7 +244,6 @@ class TestParameterValidation:
 
 
 class TestPathTraversalDetection:
-
     @pytest.fixture
     def validator(self):
         return SchemaValidator()
@@ -260,15 +251,15 @@ class TestPathTraversalDetection:
     @pytest.mark.parametrize(
         "payload",
         [
-            "..\\windows\\system32",           # Backslash traversal
-            "%2e%2e%5cwindows",                # URL-encoded backslash
-            "%2e%2e%2fetc%2fpasswd",           # URL-encoded forward slash
-            "file\x00.txt",                    # Literal null byte
-            "file%00.txt",                     # URL-encoded null byte
-            "../etc/passwd",                   # Classic forward slash
-            "%2e%2e/etc/passwd",               # URL-encoded dots
-            "%252e%252e/secret",               # Double-encoded
-            "\uff0e\uff0e/secret",             # Unicode full-width dots
+            "..\\windows\\system32",  # Backslash traversal
+            "%2e%2e%5cwindows",  # URL-encoded backslash
+            "%2e%2e%2fetc%2fpasswd",  # URL-encoded forward slash
+            "file\x00.txt",  # Literal null byte
+            "file%00.txt",  # URL-encoded null byte
+            "../etc/passwd",  # Classic forward slash
+            "%2e%2e/etc/passwd",  # URL-encoded dots
+            "%252e%252e/secret",  # Double-encoded
+            "\uff0e\uff0e/secret",  # Unicode full-width dots
         ],
     )
     def test_detects_traversal_variants(self, validator, payload):
@@ -288,7 +279,6 @@ class TestPathTraversalDetection:
 
 
 class TestFallbackErrorReporting:
-
     def test_raise_on_failure_raises_exhausted_error(self):
         """raise_on_failure() should raise FallbackExhaustedError."""
         result: FallbackResult[str] = FallbackResult(
@@ -334,9 +324,7 @@ class TestFallbackErrorReporting:
 
     def test_raise_on_failure_noop_when_no_exceptions(self):
         """raise_on_failure() should not raise when there are no exceptions."""
-        result: FallbackResult[str] = FallbackResult(
-            success=False, attempts=0, exceptions=[]
-        )
+        result: FallbackResult[str] = FallbackResult(success=False, attempts=0, exceptions=[])
         result.raise_on_failure()  # Should not raise
 
 
@@ -346,7 +334,6 @@ class TestFallbackErrorReporting:
 
 
 class TestSummarizeCallbackFailover:
-
     def test_callback_failure_falls_back_to_sliding_window(self):
         """When summarize callback raises, should fall back to truncation."""
 
@@ -391,7 +378,6 @@ class TestSummarizeCallbackFailover:
 
 
 class TestRetryDelayClamped:
-
     def test_delay_never_exceeds_max(self):
         """Even at high attempts, delay should never exceed max_delay."""
         policy = RetryPolicy(

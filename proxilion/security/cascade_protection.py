@@ -758,7 +758,8 @@ class CascadeProtector:
             try:
                 listener(tool, old_state, new_state)
             except Exception as e:
-                logger.error(f"Error in state listener: {e}")
+                # Catch-all: user-provided state listener may raise any exception
+                logger.warning("State listener %r raised: %s", listener, e)
 
     def get_cascade_events(self, limit: int = 100) -> list[CascadeEvent]:
         """
