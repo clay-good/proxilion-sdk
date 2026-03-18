@@ -24,7 +24,7 @@
 | 8 | ✅ | Add integration test for full authorization pipeline |
 | 9 | ✅ | Add performance benchmark suite |
 | 10 | ✅ | Add negative test cases for input guard bypass |
-| 11 | ⏳ | Harden input guard against case-insensitive evasion |
+| 11 | ✅ | Harden input guard against case-insensitive evasion |
 | 12 | ⏳ | Add sample data generator script |
 | 13 | ⏳ | Add comprehensive docstrings to public API |
 | 14 | ⏳ | Update quickstart to cover all 9 decorators |
