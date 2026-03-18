@@ -5,10 +5,33 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.7 |
-| Tests passing | 2,403 passed, 107 skipped |
+| Tests passing | 2,428 passed, 108 skipped |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
+
+## Spec-v2 Progress
+
+| Step | Status | Description |
+|------|--------|-------------|
+| 1 | ✅ | Fix mypy errors in pydantic_schema.py |
+| 2 | ✅ | Narrow broad exception catches in security modules |
+| 3 | ✅ | Fix documentation reference error |
+| 4 | ✅ | Add Python 3.13 classifier |
+| 5 | ✅ | Add structured context to security exceptions |
+| 6 | ✅ | Add tests for structured exception context |
+| 7 | ✅ | Wire structured context to raise sites |
+| 8 | ✅ | Add integration test for full authorization pipeline |
+| 9 | ⏳ | Add performance benchmark suite |
+| 10 | ⏳ | Add negative test cases for input guard bypass |
+| 11 | ⏳ | Harden input guard against case-insensitive evasion |
+| 12 | ⏳ | Add sample data generator script |
+| 13 | ⏳ | Add comprehensive docstrings to public API |
+| 14 | ⏳ | Update quickstart to cover all 9 decorators |
+| 15 | ⏳ | Add decorator combination tests |
+| 16 | ⏳ | Lint and type-check all test files |
+| 17 | ⏳ | Update CHANGELOG, version, and documentation |
+| 18 | ⏳ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
 
