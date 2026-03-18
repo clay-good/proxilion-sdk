@@ -35,31 +35,31 @@
 
 ## Verification Summary
 
-**Pass 1/3 — 2026-03-17**
+**Pass 1/3 — 2026-03-17** (Post spec-v2 step 8)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,403 passed, 107 skipped (async + OPA deps) |
+| Tests | ✅ PASS | 2,428 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 152 files formatted |
+| Format | ✅ PASS | 153 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 2/3 — 2026-03-17**
+**Pass 2/3 — 2026-03-17** (Post spec-v2 step 8)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,403 passed, 107 skipped |
+| Tests | ✅ PASS | 2,428 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 152 files formatted |
+| Format | ✅ PASS | 153 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 3/3 — 2026-03-17**
+**Pass 3/3 — 2026-03-17** (Post spec-v2 step 8)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,403 passed, 107 skipped |
+| Tests | ✅ PASS | 2,428 passed, 108 skipped |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 152 files formatted |
+| Format | ✅ PASS | 153 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
 ---
