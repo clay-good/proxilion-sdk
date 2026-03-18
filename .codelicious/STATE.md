@@ -35,31 +35,31 @@
 
 ## Verification Summary
 
-**Pass 1/3 — 2026-03-17** (Post spec-v2 step 9)
+**Pass 1/3 — 2026-03-18** (Post spec-v2 step 10)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,442 passed, 108 skipped |
+| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 154 files formatted |
+| Format | ✅ PASS | 155 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 2/3 — 2026-03-17** (Post spec-v2 step 9)
+**Pass 2/3 — 2026-03-18** (Post spec-v2 step 10)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,442 passed, 108 skipped |
+| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 154 files formatted |
+| Format | ✅ PASS | 155 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
-**Pass 3/3 — 2026-03-17** (Post spec-v2 step 9)
+**Pass 3/3 — 2026-03-18** (Post spec-v2 step 10)
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,442 passed, 108 skipped |
+| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 154 files formatted |
+| Format | ✅ PASS | 155 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
 ---
@@ -183,3 +183,10 @@
 - Sequence counter race condition in hash chain (events.py:82-91)
 - MD5 checksum in cloud exporters (cloud_base.py:331-341)
 - JSON parsing without size limits (openai.py:274, adapter.py:95)
+
+**Review (2026-03-18):** Parallel reviewer agents completed 5-module deep review confirming:
+- Guards: Word separator bypass (P1), homoglyph bypass (P1), password "is" variant missed (P1)
+- Rate limiter: TOCTOU in MultiDim (P2), unbounded SlidingWindow memory (P2), cleanup DoS (P2)
+- Audit: TOCTOU in rotation (P1), missing fsync (P1), no cross-file chain (P2)
+- Crypto: Nonce memory exhaustion (P1), weak key validation (P2), wildcard ReDoS (P2)
+- Correct: hmac.compare_digest used everywhere, proper RLock usage, UUID v4 nonces
