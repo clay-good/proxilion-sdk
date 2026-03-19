@@ -5,7 +5,7 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.7 |
-| Tests passing | 2,465 passed, 108 skipped, 29 xfailed |
+| Tests passing | 2,490 passed, 108 skipped, 29 xfailed |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
@@ -25,7 +25,7 @@
 | 9 | ✅ | Add performance benchmark suite |
 | 10 | ✅ | Add negative test cases for input guard bypass |
 | 11 | ✅ | Harden input guard against case-insensitive evasion |
-| 12 | ⏳ | Add sample data generator script |
+| 12 | ✅ | Add sample data generator script |
 | 13 | ⏳ | Add comprehensive docstrings to public API |
 | 14 | ⏳ | Update quickstart to cover all 9 decorators |
 | 15 | ⏳ | Add decorator combination tests |
@@ -157,7 +157,7 @@
 
 ## Last Updated
 
-2026-03-17 — Deep security review complete. 8 P1, 14 P2, 19 P3 findings documented. Build verification passes 3/3. Codebase is production-ready for non-adversarial environments; P1 findings should be addressed before high-security deployment.
+2026-03-19 — Spec-v2 step 12 complete. Added deterministic sample data generators (generators.py) with 25 verification tests. All 2,490 tests pass.
 
 **Latest Review (2026-03-17):** Parallel reviewer agents confirmed existing findings. Additional details documented for:
 - ReDoS patterns in input/output guards (input_guard.py:138-234, output_guard.py:217-246)
