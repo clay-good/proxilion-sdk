@@ -5,8 +5,15 @@ This package provides reusable fixtures for creating test data:
 - users.py: User context fixtures
 - tool_calls.py: Tool call request fixtures
 - provider_responses.py: Provider response fixtures
+- generators.py: Bulk data generators for load testing and benchmarks
 """
 
+from tests.fixtures.generators import (
+    generate_audit_event_stream,
+    generate_provider_response_batch,
+    generate_tool_call_sequence,
+    generate_user_population,
+)
 from tests.fixtures.provider_responses import (
     make_anthropic_response,
     make_gemini_response,
@@ -50,4 +57,9 @@ __all__ = [
     "make_openai_response",
     "make_anthropic_response",
     "make_gemini_response",
+    # Generators
+    "generate_user_population",
+    "generate_tool_call_sequence",
+    "generate_audit_event_stream",
+    "generate_provider_response_batch",
 ]
