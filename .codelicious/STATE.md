@@ -27,13 +27,40 @@
 | 11 | ✅ | Harden input guard against case-insensitive evasion |
 | 12 | ✅ | Add sample data generator script |
 | 13 | ✅ | Add comprehensive docstrings to public API |
-| 14 | ⏳ | Update quickstart to cover all 9 decorators |
+| 14 | ✅ | Update quickstart to cover all 9 decorators |
 | 15 | ⏳ | Add decorator combination tests |
 | 16 | ⏳ | Lint and type-check all test files |
 | 17 | ⏳ | Update CHANGELOG, version, and documentation |
 | 18 | ⏳ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
+
+**Verification Pass 3/3 — 2026-03-19** (Post spec-v2 step 13) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Verification Pass 2/3 — 2026-03-19** (Post spec-v2 step 13)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Verification Pass 1/3 — 2026-03-19** (Post spec-v2 step 13)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
 
 **Pass 4/4 — 2026-03-19** (Post spec-v2 step 13)
 
@@ -213,6 +240,8 @@
 ---
 
 ## Last Updated
+
+2026-03-20 — Spec-v2 step 14 complete. Updated quickstart.md to document all 9 decorators: added @cost_limited, @enforce_scope, @sequence_validated, @scoped_tool, and @authorize (alias) with usage examples. All 2,490 tests pass.
 
 2026-03-19 — Spec-v2 step 13 complete. Added comprehensive Google-style docstrings to public API surface: UserContext, AgentContext, ToolCallRequest, AuthorizationResult, AuditEvent in types.py; all 8 decorator functions in decorators.py now have Args, Returns, Raises, and Example sections. All 2,490 tests pass.
 
