@@ -32,27 +32,34 @@ def _utc_now() -> datetime:
 
 @dataclass(frozen=True)
 class UserContext:
-    """
-    Represents the authenticated user making a tool call request.
+    """Represents the authenticated user making a tool call request.
+
+    This is a frozen dataclass. Instances are immutable after creation.
 
     This context travels through the agent to the tool, ensuring that
     authorization decisions are made based on the actual user's identity
     and permissions, not the agent's service account.
 
-    Attributes:
+    Args:
         user_id: Unique identifier for the user (e.g., from your auth system).
         roles: List of role names assigned to the user (e.g., ["analyst", "viewer"]).
+            Defaults to empty list.
         session_id: Optional session identifier for tracking request context.
+            Defaults to None.
         attributes: Additional custom attributes for policy decisions
             (e.g., {"department": "engineering", "clearance_level": 3}).
+            Defaults to empty dict.
 
     Example:
+        >>> from proxilion import UserContext
         >>> user = UserContext(
         ...     user_id="user_123",
         ...     roles=["analyst", "viewer"],
         ...     session_id="sess_abc",
         ...     attributes={"department": "engineering"}
         ... )
+        >>> user.has_role("analyst")
+        True
     """
 
     user_id: str
@@ -88,25 +95,33 @@ class UserContext:
 
 @dataclass(frozen=True)
 class AgentContext:
-    """
-    Represents the AI agent making tool calls on behalf of a user.
+    """Represents the AI agent making tool calls on behalf of a user.
+
+    This is a frozen dataclass. Instances are immutable after creation.
 
     The agent context helps track which agent is operating and can be used
     to implement agent-level security policies (e.g., limiting which agents
     can use sensitive tools).
 
-    Attributes:
+    Args:
         agent_id: Unique identifier for the agent instance.
         capabilities: List of capability names the agent is allowed to use.
-        trust_score: Float between 0-1 indicating agent trust level.
-            Lower scores may trigger additional verification.
+            Defaults to empty list.
+        trust_score: Float between 0.0 and 1.0 indicating agent trust level.
+            Lower scores may trigger additional verification. Defaults to 1.0.
+
+    Raises:
+        ValueError: If trust_score is not between 0.0 and 1.0.
 
     Example:
+        >>> from proxilion import AgentContext
         >>> agent = AgentContext(
         ...     agent_id="agent_openai_gpt4",
         ...     capabilities=["read_files", "search"],
         ...     trust_score=0.8
         ... )
+        >>> agent.has_capability("read_files")
+        True
     """
 
     agent_id: str
@@ -137,22 +152,28 @@ class AgentContext:
 
 @dataclass(frozen=True)
 class ToolCallRequest:
-    """
-    Represents a request to execute a tool.
+    """Represents a request to execute a tool.
+
+    This is a frozen dataclass. Instances are immutable after creation.
 
     This captures all the information about what tool is being called
     and with what arguments, enabling validation and authorization checks.
 
-    Attributes:
+    Args:
         tool_name: Name of the tool being invoked.
         arguments: Dictionary of arguments passed to the tool.
+            Defaults to empty dict.
         timestamp: When the request was made (UTC).
+            Defaults to current UTC time.
 
     Example:
+        >>> from proxilion import ToolCallRequest
         >>> request = ToolCallRequest(
         ...     tool_name="database_query",
         ...     arguments={"query": "SELECT * FROM users", "limit": 100}
         ... )
+        >>> request.get_argument("limit")
+        100
     """
 
     tool_name: str
@@ -174,25 +195,31 @@ class ToolCallRequest:
 
 @dataclass(frozen=True)
 class AuthorizationResult:
-    """
-    Result of an authorization check.
+    """Result of an authorization check.
+
+    This is a frozen dataclass. Instances are immutable after creation.
 
     Captures whether the action was allowed, the reason for the decision,
     and which policies were evaluated to reach the decision.
 
-    Attributes:
+    Args:
         allowed: Whether the action is authorized.
-        reason: Human-readable explanation of the decision.
+        reason: Human-readable explanation of the decision. Defaults to None.
         policies_evaluated: List of policy names that were checked.
+            Defaults to empty list.
         metadata: Additional information about the decision
-            (e.g., rate limit remaining, matched rules).
+            (e.g., rate limit remaining, matched rules). Defaults to empty dict.
 
     Example:
-        >>> result = AuthorizationResult(
-        ...     allowed=True,
+        >>> from proxilion import AuthorizationResult
+        >>> result = AuthorizationResult.allow(
         ...     reason="User has 'analyst' role",
-        ...     policies_evaluated=["DatabaseQueryPolicy"]
+        ...     policies=["DatabaseQueryPolicy"]
         ... )
+        >>> result.allowed
+        True
+        >>> # Or create a denial
+        >>> denied = AuthorizationResult.deny(reason="Insufficient permissions")
     """
 
     allowed: bool
@@ -239,26 +266,34 @@ class AuthorizationResult:
 
 @dataclass
 class AuditEvent:
-    """
-    A tamper-evident audit log entry for a tool call authorization decision.
+    """A tamper-evident audit log entry for a tool call authorization decision.
+
+    This is a mutable dataclass (NOT frozen) because the event_hash field
+    is computed after creation via the compute_hash() method.
 
     Each event is linked to the previous event via a hash chain, providing
     cryptographic proof of log integrity. Any modification to historical
     events will break the hash chain and be detectable.
 
-    Attributes:
-        event_id: Unique identifier for this event.
-        timestamp: When the event occurred (UTC).
-        sequence_number: Monotonically increasing counter for ordering.
+    Args:
         user_context: The user who initiated the tool call.
-        agent_context: The agent that made the request (optional).
         tool_call: The tool call request details.
         authorization_result: The authorization decision.
-        execution_result: Summary of tool execution (optional, no sensitive data).
+        sequence_number: Monotonically increasing counter for ordering.
         previous_hash: Hash of the previous event in the chain.
+        event_id: Unique identifier for this event. Defaults to UUID v4.
+        timestamp: When the event occurred (UTC). Defaults to current time.
+        agent_context: The agent that made the request. Defaults to None.
+        execution_result: Summary of tool execution (no sensitive data).
+            Defaults to None.
         event_hash: Hash of this event (computed after creation).
+            Defaults to empty string until compute_hash() is called.
 
     Example:
+        >>> from proxilion import AuditEvent, UserContext, ToolCallRequest, AuthorizationResult
+        >>> user = UserContext(user_id="alice", roles=["analyst"])
+        >>> request = ToolCallRequest(tool_name="search", arguments={"q": "test"})
+        >>> result = AuthorizationResult.allow(reason="Has analyst role")
         >>> event = AuditEvent(
         ...     user_context=user,
         ...     tool_call=request,
@@ -266,7 +301,9 @@ class AuditEvent:
         ...     sequence_number=1,
         ...     previous_hash="GENESIS"
         ... )
-        >>> event.compute_hash()
+        >>> event.compute_hash()  # Returns the SHA-256 hash
+        >>> event.verify_hash()   # Returns True if hash is valid
+        True
     """
 
     user_context: UserContext

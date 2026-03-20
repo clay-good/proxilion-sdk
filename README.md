@@ -1376,3 +1376,115 @@ sequenceDiagram
     CP-->>Caller: return result
 ```
 
+---
+
+## Architecture Diagrams
+
+### Authorization Flow
+
+The complete authorization pipeline from request to response, showing the deterministic security gate ordering and exception paths at each stage.
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{Input Guard}
+    B -->|pass| C{Rate Limiter}
+    B -->|fail| B1[InputGuardViolation]
+    C -->|pass| D{IDOR Check}
+    C -->|fail| C1[RateLimitExceeded]
+    D -->|pass| E{Schema Validation}
+    D -->|fail| D1[IDORViolationError]
+    E -->|pass| F{Policy Engine}
+    E -->|fail| E1[SchemaValidationError]
+    F -->|pass| G{Output Guard}
+    F -->|fail| F1[PolicyViolation]
+    G -->|pass| H[Authorized Response]
+    G -->|fail| G1[OutputGuardViolation]
+
+    style A fill:#e3f2fd
+    style H fill:#c8e6c9
+    style B1 fill:#ffcdd2
+    style C1 fill:#ffcdd2
+    style D1 fill:#ffcdd2
+    style E1 fill:#ffcdd2
+    style F1 fill:#ffcdd2
+    style G1 fill:#ffcdd2
+```
+
+### Module Dependency Architecture
+
+Package-level dependency graph showing how the SDK layers compose. Core orchestrates all security modules; contrib and streaming build on top.
+
+```mermaid
+graph LR
+    core[core.py] --> engines[engines/]
+    core --> policies[policies/]
+    core --> security[security/]
+    core --> guards[guards/]
+    core --> audit[audit/]
+    core --> providers[providers/]
+    core --> resilience[resilience/]
+    core --> context[context/]
+    core --> validation[validation/]
+    core --> observability[observability/]
+
+    contrib[contrib/] --> core
+    contrib --> providers
+    contrib --> guards
+
+    streaming[streaming/] --> core
+    caching[caching/] --> core
+    scheduling[scheduling/] --> core
+    timeouts[timeouts/] --> core
+    decorators[decorators.py] --> core
+    decorators --> security
+    decorators --> guards
+
+    security --> types[types.py]
+    guards --> types
+    audit --> types
+    core --> types
+    core --> exceptions[exceptions.py]
+
+    style core fill:#e3f2fd
+    style types fill:#fff3e0
+    style exceptions fill:#fff3e0
+    style security fill:#ffecb3
+    style guards fill:#ffecb3
+    style audit fill:#ffecb3
+```
+
+### Exception Hierarchy
+
+All exceptions inherit from ProxilionError. Each maps to a specific security gate failure, enabling precise error handling by consumers.
+
+```mermaid
+classDiagram
+    class ProxilionError {
+        +str message
+        +Optional~str~ session_id
+        +Optional~str~ timestamp
+        +dict context
+    }
+    class AuthorizationError
+    class RateLimitExceeded
+    class CircuitOpenError
+    class InputGuardViolation
+    class OutputGuardViolation
+    class PolicyViolation
+    class PolicyNotFoundError
+    class SchemaValidationError
+    class IDORViolationError
+    class ApprovalRequiredError
+
+    ProxilionError <|-- AuthorizationError
+    ProxilionError <|-- RateLimitExceeded
+    ProxilionError <|-- CircuitOpenError
+    ProxilionError <|-- InputGuardViolation
+    ProxilionError <|-- OutputGuardViolation
+    ProxilionError <|-- PolicyViolation
+    ProxilionError <|-- PolicyNotFoundError
+    ProxilionError <|-- SchemaValidationError
+    ProxilionError <|-- IDORViolationError
+    ProxilionError <|-- ApprovalRequiredError
+```
+
