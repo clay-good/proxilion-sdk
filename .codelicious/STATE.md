@@ -5,7 +5,7 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.7 |
-| Tests passing | 2,490 passed, 108 skipped, 29 xfailed |
+| Tests passing | 2,517 passed, 122 skipped, 29 xfailed |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
@@ -28,7 +28,7 @@
 | 12 | ✅ | Add sample data generator script |
 | 13 | ✅ | Add comprehensive docstrings to public API |
 | 14 | ✅ | Update quickstart to cover all 9 decorators |
-| 15 | ⏳ | Add decorator combination tests |
+| 15 | ✅ | Add decorator combination tests |
 | 16 | ⏳ | Lint and type-check all test files |
 | 17 | ⏳ | Update CHANGELOG, version, and documentation |
 | 18 | ⏳ | Final validation and README mermaid diagrams |
@@ -310,6 +310,8 @@ Parallel reviewer agents completed comprehensive code review across 5 module gro
 ---
 
 ## Last Updated
+
+2026-03-21 — Spec-v2 step 15 complete. Added tests/test_decorator_combinations.py with 41 test cases covering decorator stacking patterns (@require_approval + @rate_limited, @require_approval + @circuit_protected, triple stacks, async decorator chains, metadata preservation, argument passing). All 2,517 tests pass.
 
 2026-03-20 — Spec-v2 step 14 complete. Updated quickstart.md to document all 9 decorators: added @cost_limited, @enforce_scope, @sequence_validated, @scoped_tool, and @authorize (alias) with usage examples. All 2,490 tests pass.
 
