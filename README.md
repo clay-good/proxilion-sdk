@@ -1671,3 +1671,124 @@ sequenceDiagram
     Proxilion-->>Caller: AuthorizationResult(allowed=True)
 ```
 
+### Security Decision Pipeline (Deterministic)
+
+Every security decision follows this deterministic pipeline. Zero LLM inference. Zero ML models. Same input always produces same output.
+
+```mermaid
+flowchart LR
+    subgraph InputPhase[Input Phase]
+        A[Tool Call Request] --> B[Input Guard]
+        B --> B1{Prompt Injection?}
+        B1 -->|Yes| DENY1[DENY + Audit]
+        B1 -->|No| C[Schema Validation]
+        C --> C1{Path Traversal?}
+        C1 -->|Yes| DENY2[DENY + Audit]
+        C1 -->|No| C2{SQL Injection?}
+        C2 -->|Yes| DENY3[DENY + Audit]
+        C2 -->|No| D[Rate Limiter]
+    end
+
+    subgraph AuthPhase[Authorization Phase]
+        D --> D1{Token Bucket?}
+        D1 -->|Exhausted| DENY4[DENY + Audit]
+        D1 -->|Available| E[Policy Engine]
+        E --> E1{Role Check}
+        E1 -->|Denied| DENY5[DENY + Audit]
+        E1 -->|Allowed| F[IDOR Protection]
+        F --> F1{Ownership?}
+        F1 -->|Violation| DENY6[DENY + Audit]
+        F1 -->|Valid| G[Circuit Breaker]
+    end
+
+    subgraph ExecutionPhase[Execution Phase]
+        G --> G1{Circuit State}
+        G1 -->|Open| DENY7[DENY + Audit]
+        G1 -->|Closed| H[Scope Enforcement]
+        H --> H1{In Scope?}
+        H1 -->|No| DENY8[DENY + Audit]
+        H1 -->|Yes| I[Intent Capsule]
+        I --> I1{HMAC Valid?}
+        I1 -->|No| DENY9[DENY + Audit]
+        I1 -->|Yes| J[Execute Tool]
+    end
+
+    subgraph OutputPhase[Output Phase]
+        J --> K[Output Guard]
+        K --> K1{Credential Leak?}
+        K1 -->|Yes| L[Redact + Audit]
+        K1 -->|No| M[Return Result]
+        L --> M
+        M --> N[Audit Log + Hash Chain]
+    end
+```
+
+### Complete Module Inventory (89 source files, 54,375 lines)
+
+```mermaid
+graph TB
+    subgraph CoreLayer[Core Layer - 4 modules]
+        CORE[core.py<br/>3,126 lines]
+        TYPES[types.py<br/>392 lines]
+        EXCEPT[exceptions.py<br/>1,065 lines]
+        DECOR[decorators.py<br/>1,140 lines]
+    end
+
+    subgraph SecurityLayer[Security Layer - 14 modules]
+        RATE[rate_limiter.py]
+        CB[circuit_breaker.py]
+        IDOR[idor_protection.py]
+        SEQ[sequence_validator.py]
+        INTENT[intent_capsule.py]
+        MEM[memory_integrity.py]
+        AGENT[agent_trust.py]
+        DRIFT[behavioral_drift.py]
+        CASCADE[cascade_protection.py]
+        SCOPE[scope_enforcement.py]
+        COST_LIM[cost_limiter.py]
+        KEY[_key_utils.py]
+    end
+
+    subgraph GuardLayer[Guard Layer - 2 modules]
+        INGUARD[input_guard.py<br/>Prompt Injection]
+        OUTGUARD[output_guard.py<br/>Data Leakage]
+    end
+
+    subgraph AuditLayer[Audit Layer - 17 modules]
+        LOGGER[logger.py]
+        HASH[hash_chain.py]
+        COMPLY[compliance/]
+        EXPORT[exporters/<br/>S3, Azure, GCP]
+    end
+
+    subgraph EngineLayer[Engine Layer - 3 modules]
+        SIMPLE[simple.py]
+        CASBIN[casbin_engine.py]
+        OPA[opa_engine.py]
+    end
+
+    subgraph IntegrationLayer[Integration Layer - 11 modules]
+        PROV[providers/<br/>OpenAI, Anthropic, Gemini]
+        CONTRIB[contrib/<br/>OpenAI, Anthropic,<br/>Google, LangChain, MCP]
+    end
+
+    subgraph InfraLayer[Infrastructure Layer - 12 modules]
+        RESIL[resilience/<br/>retry, fallback,<br/>degradation]
+        STREAM[streaming/<br/>transformer, detector]
+        CTX[context/<br/>session, window]
+        CACHE[caching/<br/>LRU, LFU, FIFO]
+        VALID[validation/<br/>schema, pydantic]
+        TIMEOUT[timeouts/]
+        SCHED[scheduling/]
+        OBS[observability/<br/>cost, metrics,<br/>hooks, session]
+    end
+
+    CORE --> SecurityLayer
+    CORE --> GuardLayer
+    CORE --> AuditLayer
+    CORE --> EngineLayer
+    DECOR --> SecurityLayer
+    IntegrationLayer --> CORE
+    InfraLayer --> CORE
+```
+
