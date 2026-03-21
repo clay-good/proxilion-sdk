@@ -1488,3 +1488,186 @@ classDiagram
     ProxilionError <|-- ApprovalRequiredError
 ```
 
+### Agent Secret Derivation (On-Demand)
+
+Agent secrets are derived on demand from the master key and agent ID using HMAC-SHA256. No agent secret is stored in memory, reducing the blast radius of a memory dump.
+
+```mermaid
+flowchart TD
+    A[Master Secret Key] --> B[HMAC-SHA256]
+    C[Agent ID] --> B
+    B --> D[Derived Agent Secret]
+    D --> E{Operation}
+    E -->|Sign message| F[HMAC-SHA256 Signature]
+    E -->|Create token| G[Delegation Token]
+    E -->|Verify| H[Signature Check]
+
+    I[AgentCredential] -.->|"_secret field REMOVED"| J[No stored secrets]
+
+    style A fill:#ffecb3
+    style D fill:#e1f5fe
+    style J fill:#c8e6c9
+    style I fill:#ffcdd2
+```
+
+### Data Leakage Prevention: Match Truncation Pipeline
+
+Both InputGuard and OutputGuard truncate matched text before returning results, preventing sensitive data from leaking into application logs, monitoring systems, or error responses.
+
+```mermaid
+flowchart LR
+    A[Raw Match Text] --> B{Length}
+    B -->|"<= 4 chars"| C["[REDACTED]"]
+    B -->|"5-8 chars"| D["ab...z<br/>(reveal max 3 chars)"]
+    B -->|"9-20 chars"| E["ab...z<br/>(reveal max 3 chars)"]
+    B -->|"> 20 chars"| F["abcd...yz<br/>(reveal max 6 chars)"]
+
+    G[GuardResult.matches] --> H[Application Logs]
+    G --> I[Monitoring / SIEM]
+    G --> J[Error Responses]
+
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+
+    style C fill:#c8e6c9
+    style D fill:#c8e6c9
+    style E fill:#c8e6c9
+    style F fill:#c8e6c9
+    style A fill:#ffcdd2
+```
+
+### Thread Safety: QueueApprovalStrategy Lock Protocol
+
+All shared state mutations in QueueApprovalStrategy are protected by a threading.Lock. The lock is held only during counter increment and dict mutations, never during external callbacks.
+
+```mermaid
+sequenceDiagram
+    participant T1 as Thread 1
+    participant T2 as Thread 2
+    participant QA as QueueApprovalStrategy
+    participant Lock as self._lock
+
+    T1->>QA: request_approval()
+    T1->>Lock: acquire()
+    Note over QA: counter++ -> req_1<br/>_pending[req_1] = ...
+    T1->>Lock: release()
+
+    T2->>QA: request_approval()
+    T2->>Lock: acquire()
+    Note over QA: counter++ -> req_2<br/>_pending[req_2] = ...
+    T2->>Lock: release()
+
+    Note over T1,T2: Both threads get unique IDs
+```
+
+---
+
+## Architecture Diagrams
+
+### Authorization Flow
+
+```mermaid
+flowchart TD
+    A[Tool Call Request] --> B[InputGuard.check]
+    B --> C{Injection Detected?}
+    C -- Yes --> D[DENY + AuditEvent]
+    C -- No --> E[RateLimiter.allow_request]
+    E --> F{Rate Limit Exceeded?}
+    F -- Yes --> G[DENY + AuditEvent]
+    F -- No --> H[PolicyEngine.evaluate]
+    H --> I{Policy Denied?}
+    I -- Yes --> J[DENY + AuditEvent]
+    I -- No --> K[Execute Tool Call]
+    K --> L[OutputGuard.check]
+    L --> M{Leakage Detected?}
+    M -- Yes --> N[DENY + AuditEvent]
+    M -- No --> O[ALLOW + AuditEvent]
+```
+
+### Module Dependency Graph
+
+```mermaid
+graph TD
+    core[core.py] --> engines[engines/]
+    core --> policies[policies/]
+    core --> security[security/]
+    core --> guards[guards/]
+    core --> audit[audit/]
+    core --> types[types.py]
+    core --> exceptions[exceptions.py]
+
+    decorators[decorators.py] --> core
+    decorators --> types
+
+    contrib[contrib/] --> core
+    contrib --> types
+    contrib --> providers[providers/]
+
+    guards --> types
+    audit --> types
+    audit --> exceptions
+
+    security --> types
+    security --> exceptions
+
+    streaming[streaming/] --> guards
+    streaming --> types
+
+    validation[validation/] --> types
+    validation --> exceptions
+
+    observability[observability/] --> types
+    observability --> audit
+```
+
+### Security Decision Pipeline
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Proxilion
+    participant InputGuard
+    participant RateLimiter
+    participant PolicyEngine
+    participant OutputGuard
+    participant AuditLogger
+
+    Caller->>Proxilion: authorize_tool_call(user, agent, request)
+    Proxilion->>InputGuard: check(request.parameters)
+    InputGuard-->>Proxilion: GuardResult
+
+    alt Injection Detected
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>RateLimiter: allow_request(user_id)
+    RateLimiter-->>Proxilion: allowed / denied
+
+    alt Rate Limit Exceeded
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>PolicyEngine: evaluate(user, request)
+    PolicyEngine-->>Proxilion: PolicyResult
+
+    alt Policy Denied
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>OutputGuard: check(response)
+    OutputGuard-->>Proxilion: GuardResult
+
+    alt Leakage Detected
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>AuditLogger: log(allow_event)
+    Proxilion-->>Caller: AuthorizationResult(allowed=True)
+```
+
