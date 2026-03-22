@@ -31,7 +31,7 @@
 | 15 | ✅ | Add decorator combination tests |
 | 16 | ✅ | Lint and type-check all test files |
 | 17 | ✅ | Update CHANGELOG, version, and documentation |
-| 18 | ⏳ | Final validation and README mermaid diagrams |
+| 18 | ✅ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
 
@@ -468,6 +468,8 @@ Key P1 findings (confirmed existing):
 ---
 
 ## Last Updated
+
+2026-03-22 — Spec-v2 step 18 complete (FINAL). Final validation passed: ruff lint 0 violations, ruff format 158 files, mypy 0 errors, pytest 2,517 passed. README.md exception hierarchy diagram already present from step 17 preparation. All 18 spec-v2 steps complete. Version 0.0.8 ready for release.
 
 2026-03-22 — Spec-v2 step 17 complete. Updated version to 0.0.8 across pyproject.toml, __init__.py, and CHANGELOG.md. Added comprehensive [0.0.8] changelog entry documenting all spec-v2 improvements. Updated CLAUDE.md test count to 2,667.
 
