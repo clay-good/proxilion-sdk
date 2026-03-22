@@ -55,11 +55,11 @@ Runtime security SDK for LLM-powered applications. Deterministic pattern matchin
 - `tests/test_decorators.py` - Decorator tests
 - `tests/test_edge_cases_spec.py` - Edge case tests from spec.md
 - `tests/test_integrations/` - Provider integration tests (OpenAI, Anthropic, LangChain, MCP)
-- 2,386 tests total, 1 pre-existing skip, asyncio_mode=auto
+- 2,667 tests total, asyncio_mode=auto
 
 ## Version
 
-Current: 0.0.7 (synchronized across pyproject.toml and __init__.py)
+Current: 0.0.8 (synchronized across pyproject.toml and __init__.py)
 
 
 <!-- proxilion-build:start -->

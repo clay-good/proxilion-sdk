@@ -4,7 +4,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | 0.0.7 |
+| Version | 0.0.8 |
 | Tests passing | 2,517 passed, 122 skipped, 29 xfailed |
 | Ruff violations | 0 |
 | Format issues | 0 |
@@ -30,7 +30,7 @@
 | 14 | ✅ | Update quickstart to cover all 9 decorators |
 | 15 | ✅ | Add decorator combination tests |
 | 16 | ✅ | Lint and type-check all test files |
-| 17 | ⏳ | Update CHANGELOG, version, and documentation |
+| 17 | ✅ | Update CHANGELOG, version, and documentation |
 | 18 | ⏳ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
@@ -396,6 +396,8 @@ Key P1 findings (confirmed existing):
 ---
 
 ## Last Updated
+
+2026-03-22 — Spec-v2 step 17 complete. Updated version to 0.0.8 across pyproject.toml, __init__.py, and CHANGELOG.md. Added comprehensive [0.0.8] changelog entry documenting all spec-v2 improvements. Updated CLAUDE.md test count to 2,667.
 
 2026-03-21 — Spec-v2 step 15 complete. Added tests/test_decorator_combinations.py with 41 test cases covering decorator stacking patterns (@require_approval + @rate_limited, @require_approval + @circuit_protected, triple stacks, async decorator chains, metadata preservation, argument passing). All 2,517 tests pass.
 
