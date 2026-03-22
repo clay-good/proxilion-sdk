@@ -29,7 +29,7 @@
 | 13 | ✅ | Add comprehensive docstrings to public API |
 | 14 | ✅ | Update quickstart to cover all 9 decorators |
 | 15 | ✅ | Add decorator combination tests |
-| 16 | ⏳ | Lint and type-check all test files |
+| 16 | ✅ | Lint and type-check all test files |
 | 17 | ⏳ | Update CHANGELOG, version, and documentation |
 | 18 | ⏳ | Final validation and README mermaid diagrams |
 
