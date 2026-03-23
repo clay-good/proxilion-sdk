@@ -17,7 +17,7 @@
 | 1 | ✅ | Fix ObservabilityHooks singleton thread-safety race |
 | 2 | ✅ | Bound unbounded collections in security modules |
 | 3 | ✅ | Fix Google Gemini handler unbounded execution history |
-| 4 | ⏳ | Add protobuf recursion depth limit in Google Gemini handler |
+| 4 | ✅ | Add protobuf recursion depth limit in Google Gemini handler |
 | 5 | ⏳ | Fix audit log rotation race condition |
 | 6 | ⏳ | Add delegation chain depth limit to agent trust manager |
 | 7 | ⏳ | Fix cost tracker record trimming performance |
@@ -636,6 +636,8 @@ Key P1 findings (confirmed existing):
 ---
 
 ## Last Updated
+
+2026-03-23 — Spec-v3 step 4 complete. Added protobuf recursion depth limit (MAX_PROTOBUF_DEPTH=64) to _convert_protobuf_value() in Google Gemini handler. Raises ConfigurationError if nesting exceeds limit to prevent stack overflow from malicious responses. All 2,518 tests pass.
 
 2026-03-23 — Spec-v3 step 3 complete. Fixed Google Gemini handler unbounded execution history by changing _execution_history from list to deque(maxlen=10000). Added warning docstring to standalone extract_function_calls() noting results are not authorized. All 2,518 tests pass.
 

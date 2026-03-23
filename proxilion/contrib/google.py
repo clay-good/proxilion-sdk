@@ -66,12 +66,15 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, TypeVar
 
-from proxilion.exceptions import ProxilionError
+from proxilion.exceptions import ConfigurationError, ProxilionError
 from proxilion.types import AgentContext, UserContext
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+# Maximum recursion depth for protobuf value conversion to prevent stack overflow
+MAX_PROTOBUF_DEPTH = 64
 
 
 class GoogleIntegrationError(ProxilionError):
@@ -559,16 +562,25 @@ class ProxilionVertexHandler:
 
         return calls
 
-    def _convert_protobuf_value(self, value: Any) -> Any:
+    def _convert_protobuf_value(self, value: Any, _depth: int = 0) -> Any:
         """Convert protobuf Value to Python native type.
 
         Handles standard protobuf Value kinds (null, bool, number, string,
         list, struct) as well as common Python types that may appear when
         protobuf objects are partially converted.
 
+        Args:
+            value: The protobuf Value or Python type to convert.
+            _depth: Current recursion depth (internal use only).
+
         Raises:
+            ConfigurationError: If recursion depth exceeds MAX_PROTOBUF_DEPTH.
             TypeError: If the value type is not supported.
         """
+        if _depth > MAX_PROTOBUF_DEPTH:
+            raise ConfigurationError(
+                f"Protobuf value exceeds maximum nesting depth ({MAX_PROTOBUF_DEPTH})"
+            )
         if value is None:
             return None
         # Protobuf Value attributes — check in the same order as the original
@@ -581,10 +593,14 @@ class ProxilionVertexHandler:
             return value.bool_value
         if hasattr(value, "struct_value"):
             return {
-                k: self._convert_protobuf_value(v) for k, v in value.struct_value.fields.items()
+                k: self._convert_protobuf_value(v, _depth=_depth + 1)
+                for k, v in value.struct_value.fields.items()
             }
         if hasattr(value, "list_value"):
-            return [self._convert_protobuf_value(v) for v in value.list_value.values]
+            return [
+                self._convert_protobuf_value(v, _depth=_depth + 1)
+                for v in value.list_value.values
+            ]
         # Protobuf NullValue (null_value attribute with no other Value kind)
         if hasattr(value, "null_value"):
             return None
@@ -596,9 +612,11 @@ class ProxilionVertexHandler:
         if isinstance(value, datetime):
             return value.isoformat()
         if isinstance(value, dict):
-            return {k: self._convert_protobuf_value(v) for k, v in value.items()}
+            return {
+                k: self._convert_protobuf_value(v, _depth=_depth + 1) for k, v in value.items()
+            }
         if isinstance(value, (list, tuple)):
-            return [self._convert_protobuf_value(v) for v in value]
+            return [self._convert_protobuf_value(v, _depth=_depth + 1) for v in value]
         raise TypeError(
             f"Unsupported protobuf value type: {type(value).__name__}. "
             f"Cannot convert to a native Python type."
