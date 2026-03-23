@@ -251,10 +251,15 @@ class StreamTransformer:
         Yields:
             Filtered string chunks.
         """
+        # Copy lists under lock to iterate safely
+        with self._lock:
+            validators = list(self._validators)
+            filters = list(self._filters)
+
         async for chunk in stream:
             # Apply validators
             valid = True
-            for validator in self._validators:
+            for validator in validators:
                 if not validator(chunk):
                     valid = False
                     break
@@ -264,7 +269,7 @@ class StreamTransformer:
 
             # Apply filters
             result: str | None = chunk
-            for filter_fn in self._filters:
+            for filter_fn in filters:
                 if result is None:
                     break
                 result = filter_fn(result)
@@ -285,10 +290,15 @@ class StreamTransformer:
         Yields:
             Filtered string chunks.
         """
+        # Copy lists under lock to iterate safely
+        with self._lock:
+            validators = list(self._validators)
+            filters = list(self._filters)
+
         for chunk in stream:
             # Apply validators
             valid = True
-            for validator in self._validators:
+            for validator in validators:
                 if not validator(chunk):
                     valid = False
                     break
@@ -298,7 +308,7 @@ class StreamTransformer:
 
             # Apply filters
             result: str | None = chunk
-            for filter_fn in self._filters:
+            for filter_fn in filters:
                 if result is None:
                     break
                 result = filter_fn(result)
@@ -321,9 +331,15 @@ class StreamTransformer:
         Yields:
             Transformed StreamEvent objects.
         """
+        # Copy lists under lock to iterate safely
+        with self._lock:
+            validators = list(self._validators)
+            filters = list(self._filters)
+            callbacks = list(self._event_callbacks)
+
         async for event in stream:
             # Invoke callbacks
-            for callback in self._event_callbacks:
+            for callback in callbacks:
                 callback(event)
 
             if event.type == StreamEventType.TEXT:
@@ -331,7 +347,7 @@ class StreamTransformer:
                 content = event.content or ""
 
                 valid = True
-                for validator in self._validators:
+                for validator in validators:
                     if not validator(content):
                         valid = False
                         break
@@ -340,7 +356,7 @@ class StreamTransformer:
                     return  # Stop stream
 
                 result: str | None = content
-                for filter_fn in self._filters:
+                for filter_fn in filters:
                     if result is None:
                         break
                     result = filter_fn(result)

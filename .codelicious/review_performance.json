@@ -1,0 +1,98 @@
+[
+  {
+    "severity": "P2",
+    "file": "proxilion/caching/tool_cache.py",
+    "line": 455,
+    "title": "O(n) LFU eviction algorithm",
+    "description": "LFU eviction iterates through all cache entries to find the entry with minimum hits. For a cache with n entries, each eviction requires O(n) time, and batch evictions become O(n²).",
+    "fix": "Use a min-heap (heapq) keyed by hit count, or maintain a sorted structure like sortedcontainers.SortedDict to enable O(log n) eviction."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/observability/hooks.py",
+    "line": 280,
+    "title": "Unbounded histogram and timing lists in InMemoryMetricHook",
+    "description": "InMemoryMetricHook stores histograms and timings as unbounded lists: `self.histograms: dict[str, list[float]]` and `self.timings: dict[str, list[float]]`. In long-running processes, these lists grow without limit, causing memory exhaustion.",
+    "fix": "Use collections.deque with maxlen to bound the number of samples, or periodically aggregate/summarize old data and discard raw samples."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/audit/logger.py",
+    "line": 507,
+    "title": "Unbounded _events list in InMemoryAuditLogger",
+    "description": "InMemoryAuditLogger stores all audit events in `self._events: list[AuditEventV2]` without any size limit. In production systems with high audit volume, this will cause unbounded memory growth.",
+    "fix": "Add a max_events parameter and implement FIFO eviction when the limit is reached, or use deque(maxlen=N)."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/observability/session_cost_tracker.py",
+    "line": 413,
+    "title": "Unbounded _session_records dictionary",
+    "description": "SessionCostTracker stores usage records per session in `self._session_records: dict[str, list[UsageRecord]]` without cleanup. Completed or expired sessions are never removed, causing memory to grow indefinitely.",
+    "fix": "Implement session expiration with periodic cleanup, or use a TTL-based cache like cachetools.TTLCache for session records."
+  },
+  {
+    "severity": "P1",
+    "file": "proxilion/observability/session_cost_tracker.py",
+    "line": 808,
+    "title": "O(n²) peak rate calculation algorithm",
+    "description": "The peak rate calculation uses nested loops iterating over all records: `for i in range(len(records) - 1): for j in range(i, len(records)):`. For sessions with many usage records, this becomes O(n²) which can cause significant latency.",
+    "fix": "Use a sliding window algorithm with two pointers, or maintain a running sum as the window slides. This reduces complexity to O(n)."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/context/message_history.py",
+    "line": 240,
+    "title": "O(n²) message limit enforcement",
+    "description": "MessageHistory._enforce_limits() uses nested loops: the outer while loop runs up to (messages - max_messages) times, and each iteration scans the list to find a non-system message. Worst case is O(n²) when many messages need removal.",
+    "fix": "Partition messages into system and non-system lists, then truncate the non-system list directly. Alternatively, use a deque for non-system messages."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/context/session.py",
+    "line": 241,
+    "title": "O(n²) session limit enforcement in SessionManager",
+    "description": "SessionManager._enforce_limits() has the same pattern as MessageHistory: nested loops that repeatedly scan the list to find removable items. This causes O(n²) behavior when enforcing limits on large session lists.",
+    "fix": "Track sessions in separate data structures by type, or use indexed collections that allow O(1) removal of the oldest non-protected session."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/observability/cost_tracker.py",
+    "line": 353,
+    "title": "Unbounded user spend tracking dictionaries",
+    "description": "CostTracker maintains `_user_daily_spend` and `_user_hourly_spend` as nested dicts that grow without cleanup. Old date keys are never removed, causing memory growth proportional to (users × days) or (users × hours).",
+    "fix": "Implement periodic cleanup of old date/hour keys, or use a TTL-based structure. Consider keeping only the current day/hour and previous period for comparison."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/guards/input_guard.py",
+    "line": 138,
+    "title": "Potential ReDoS in complex regex patterns",
+    "description": "Several compiled regex patterns use nested quantifiers and alternations that could cause catastrophic backtracking on malicious input. Patterns like those detecting prompt injection may be vulnerable to specially crafted strings.",
+    "fix": "Audit each pattern for ReDoS vulnerability using tools like safe-regex or regex-static-analysis. Consider using possessive quantifiers, atomic groups, or refactoring to avoid nested quantifiers."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/guards/output_guard.py",
+    "line": 150,
+    "title": "Potential ReDoS in data leakage detection patterns",
+    "description": "OutputGuard regex patterns for detecting sensitive data (SSNs, credit cards, API keys) use multiple alternations and quantifiers. While less likely to be exploited than input patterns, they still warrant review.",
+    "fix": "Review patterns for catastrophic backtracking. Consider using non-backtracking engines (like re2) for security-critical pattern matching, or add input length limits before regex matching."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/contrib/google.py",
+    "line": 287,
+    "title": "Large maxlen for execution_history deque",
+    "description": "ProxilionVertexHandler uses `deque(maxlen=10000)` for execution_history. While bounded, storing 10,000 execution records per handler instance can consume significant memory in systems with many concurrent handlers.",
+    "fix": "Consider reducing maxlen based on actual usage patterns, or implementing a sampling strategy for long-running sessions."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/audit/logger.py",
+    "line": 245,
+    "title": "Synchronous file I/O in audit logging hot path",
+    "description": "AuditLogger.log() performs synchronous file writes with JSON serialization on every audit event. In high-throughput scenarios, this blocks the calling thread and can become a bottleneck.",
+    "fix": "Implement asynchronous logging with a background writer thread and bounded queue, or batch writes at configurable intervals."
+  }
+]

@@ -435,6 +435,7 @@ class ObservabilityHooks:
     def __init__(self) -> None:
         """Initialize the observability hooks registry."""
         self._metric_hooks: list[MetricHook] = []
+        self._hooks_lock = threading.RLock()
 
     @classmethod
     def get_instance(cls) -> ObservabilityHooks:
@@ -472,7 +473,8 @@ class ObservabilityHooks:
         Args:
             hook: The metric hook to register.
         """
-        self._metric_hooks.append(hook)
+        with self._hooks_lock:
+            self._metric_hooks.append(hook)
 
     def remove_metric_hook(self, hook: MetricHook) -> bool:
         """
@@ -484,20 +486,23 @@ class ObservabilityHooks:
         Returns:
             True if the hook was removed, False if not found.
         """
-        try:
-            self._metric_hooks.remove(hook)
-            return True
-        except ValueError:
-            return False
+        with self._hooks_lock:
+            try:
+                self._metric_hooks.remove(hook)
+                return True
+            except ValueError:
+                return False
 
     def clear_metric_hooks(self) -> None:
         """Remove all registered metric hooks."""
-        self._metric_hooks.clear()
+        with self._hooks_lock:
+            self._metric_hooks.clear()
 
     @property
     def metric_hooks(self) -> list[MetricHook]:
         """Get a copy of the registered metric hooks."""
-        return list(self._metric_hooks)
+        with self._hooks_lock:
+            return list(self._metric_hooks)
 
     def emit_metric(
         self,
@@ -515,7 +520,10 @@ class ObservabilityHooks:
             value: The metric value.
             tags: Optional tags/labels for the metric.
         """
-        for hook in self._metric_hooks:
+        # Copy hooks list under lock to iterate safely
+        with self._hooks_lock:
+            hooks = list(self._metric_hooks)
+        for hook in hooks:
             if metric_type == MetricType.COUNTER:
                 hook.increment(name, value, tags)
             elif metric_type == MetricType.GAUGE:

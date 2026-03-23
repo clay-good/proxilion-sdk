@@ -802,21 +802,28 @@ class SessionCostTracker:
             session.end_time = datetime.now(timezone.utc)
             self._sessions_terminated += 1
 
-            # Calculate peak spend rate
+            # Calculate peak spend rate using O(n) sliding window algorithm
             peak_rate = 0.0
             records = self._session_records.get(session_id, [])
             if len(records) >= 2:
-                # Calculate rolling 1-minute windows
-                for i in range(len(records) - 1):
-                    window_cost = 0.0
-                    window_start = records[i].timestamp
+                # Sliding window: two pointers tracking 1-minute windows
+                window_cost = 0.0
+                left = 0
 
-                    for j in range(i, len(records)):
-                        if (records[j].timestamp - window_start).total_seconds() <= 60:
-                            window_cost += records[j].cost_usd
-                        else:
-                            break
+                for right in range(len(records)):
+                    # Add current record to window
+                    window_cost += records[right].cost_usd
 
+                    # Shrink window from left until it fits within 60 seconds
+                    while (
+                        left < right
+                        and (records[right].timestamp - records[left].timestamp).total_seconds()
+                        > 60
+                    ):
+                        window_cost -= records[left].cost_usd
+                        left += 1
+
+                    # Update peak if current window is larger
                     if window_cost > peak_rate:
                         peak_rate = window_cost
 

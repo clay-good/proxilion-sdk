@@ -1,0 +1,122 @@
+[
+  {
+    "severity": "P2",
+    "file": "proxilion/observability/hooks.py",
+    "line": 468,
+    "title": "Thread-unsafe list modification in metric hooks",
+    "description": "The add_metric_hook, remove_metric_hook, and clear_metric_hooks methods modify _metric_hooks list without holding a lock. Concurrent calls from multiple threads can cause race conditions. While the singleton get_instance() method is properly double-checked locked, the hook list operations are not protected. If one thread iterates _metric_hooks in emit_metric (line 518) while another modifies it, a RuntimeError can occur.",
+    "fix": "Add a threading.RLock to ObservabilityHooks and protect all list operations (_metric_hooks append, remove, clear, and iteration in emit_metric)."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/streaming/transformer.py",
+    "line": 254,
+    "title": "Filter/validator list read without lock during iteration",
+    "description": "In the transform() async generator method (and similar methods like transform_sync), the code iterates self._filters and self._validators without holding self._lock. If another thread calls add_filter/add_validator/clear_filters while the async iteration is in progress, RuntimeError can occur due to list mutation during iteration. The lists are only locked during modification, not during read.",
+    "fix": "Copy the filter/validator lists under the lock at the start of transform() methods (similar to how wrap() at line 406 creates copies), or hold the lock during iteration."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/scheduling/scheduler.py",
+    "line": 206,
+    "title": "Event loop created per async handler call without reuse",
+    "description": "In _process_request, when _async_handler is set, a new event loop is created and closed for every request via asyncio.new_event_loop(). This is inefficient and can cause resource exhaustion under high load. Additionally, if the handler spawns tasks that outlive the call, they will be cancelled abruptly when loop.close() is called.",
+    "fix": "Use a shared event loop managed at the scheduler level, or use asyncio.run() which properly handles cleanup. Consider using a dedicated asyncio thread with its own persistent event loop."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/contrib/google.py",
+    "line": 266,
+    "title": "Unbounded execution history deque grows to 10000 entries",
+    "description": "The _execution_history deque has maxlen=10000, which can consume significant memory in long-running applications. Each GeminiToolResult contains result data that could be large. This was recently noted in commit history but the fix may only have addressed a different handler. The memory impact should be bounded more aggressively or configurable.",
+    "fix": "Make maxlen configurable via constructor parameter, or reduce default to a smaller value (e.g., 100-500). Consider allowing users to disable history entirely."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/audit/logger.py",
+    "line": 304,
+    "title": "File handle leak on rotation failure",
+    "description": "In _ensure_file_open(), if the open() call succeeds but a subsequent operation fails (e.g., directory permission change between close and open), the old file handle assigned to self._file would have been closed but the new handle remains unassigned, leaving _file as None. While this is recoverable, repeated failures during rotation could accumulate closed handles. The file locking with fcntl also doesn't handle cases where the file was deleted/moved between lock acquisition.",
+    "fix": "Use try/finally to ensure proper cleanup. Consider using a with statement pattern or context manager for file operations."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/caching/tool_cache.py",
+    "line": 455,
+    "title": "LFU eviction scans entire cache on each eviction",
+    "description": "The _evict_one method for LFU policy iterates through all cache entries to find the minimum hit count. For caches near max_size, this O(n) scan happens on every new entry insertion, degrading performance. With max_size=1000 and frequent cache churn, this becomes a bottleneck.",
+    "fix": "Use a min-heap or indexed priority queue to track entries by hit count for O(log n) eviction. Alternatively, use an approximate LFU algorithm."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/timeouts/manager.py",
+    "line": 248,
+    "title": "Race condition between is_expired check and remaining calculation",
+    "description": "The remaining() method acquires _lock but performs two separate time checks (line 248 subtraction, then comparison at 249). While the lock prevents concurrent deadline modifications, the monotonic time moves between operations. More critically, the is_expired() method at line 293 doesn't hold the lock at all, creating a TOCTOU window where is_expired() returns False but remaining() subsequently raises TimeoutError.",
+    "fix": "Make is_expired() acquire the lock and share implementation with remaining(). Or simply delegate is_expired to checking remaining() result."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/security/behavioral_drift.py",
+    "line": 468,
+    "title": "Drift callback exceptions logged but may mask important errors",
+    "description": "In check_drift(), exceptions from drift callbacks are caught and only logged as warnings. If a critical callback (like one that sends alerts) fails, the failure is silently swallowed. Similarly in KillSwitch.activate() at line 604. This could mask important operational issues.",
+    "fix": "Consider allowing callbacks to be registered with a 'critical' flag where exceptions are re-raised after all callbacks complete. Or collect exceptions and raise a composite exception."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/audit/exporters/cloud_base.py",
+    "line": 375,
+    "title": "Exponential backoff in with_retry has no jitter",
+    "description": "The with_retry method uses pure exponential backoff (delay *= 2) without jitter. When multiple exporters retry simultaneously (e.g., after a cloud service recovers), they will all retry at the same intervals causing thundering herd problems that can re-overwhelm the service.",
+    "fix": "Add jitter to the retry delay calculation, e.g., delay = delay * 2 * (0.5 + random.random())."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/audit/exporters/aws_s3.py",
+    "line": 252,
+    "title": "urllib request timeout only applies to read, not connect",
+    "description": "The urllib.request.urlopen call uses timeout=self.config.read_timeout but this timeout value is used for both connection and read operations combined, not separately. The config has separate connection_timeout and read_timeout fields, but only read_timeout is used with urllib. Connection to unresponsive endpoints could hang.",
+    "fix": "When using urllib fallback, pass a socket timeout that accounts for both, or document that connection_timeout only applies when boto3 is available."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/context/session.py",
+    "line": 333,
+    "title": "get_remaining_duration calls get_duration without lock",
+    "description": "The get_remaining_duration method acquires _lock at line 330, then calls self.get_duration() at line 333. However, get_duration() (line 308) also acquires _lock. Since RLock is used, this works, but get_duration performs its own time calculation. The elapsed time computed in get_duration vs the check at line 334 can differ slightly, potentially returning negative or incorrect values in edge cases.",
+    "fix": "Inline the duration calculation within get_remaining_duration to ensure atomic operation, or restructure to avoid nested lock acquisition."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/scheduling/scheduler.py",
+    "line": 373,
+    "title": "Shutdown with wait=True can block indefinitely",
+    "description": "The shutdown method with wait=True calls worker.join(timeout=remaining) for each worker. However, if a worker is blocked on _queue.dequeue() with block=True (line 182), it may not exit promptly even after _state is set to SHUTTING_DOWN because dequeue timeout is worker_idle_timeout (default 1.0s). With multiple workers, the timeout budget is consumed sequentially, and the final workers may not get any timeout budget.",
+    "fix": "Signal the queue to unblock all waiters on shutdown (e.g., by using a threading.Event or putting sentinel values). Or use the provided timeout parameter in shutdown() to compute remaining time across workers."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/resilience/retry.py",
+    "line": 169,
+    "title": "RetryStats exceptions list grows unbounded",
+    "description": "The RetryStats dataclass at line 153 stores all exceptions encountered in a list (line 169). If retries happen frequently over the lifetime of a long-running process, this list grows without bound, potentially causing memory issues. The record_attempt method appends exceptions but never removes them.",
+    "fix": "Bound the exceptions list (e.g., keep only last N exceptions), or store only exception type/message instead of full exception objects which may hold references to large tracebacks."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/streaming/transformer.py",
+    "line": 652,
+    "title": "StreamAggregator uses deprecated asyncio.get_event_loop().time()",
+    "description": "The aggregate method uses asyncio.get_event_loop().time() for timing. In Python 3.10+, get_event_loop() is deprecated when called outside of an async context. While this is inside an async method, it's better practice to use asyncio.get_running_loop().time() or time.monotonic() for consistency.",
+    "fix": "Replace asyncio.get_event_loop().time() with asyncio.get_running_loop().time() or time.monotonic()."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/security/rate_limiter.py",
+    "line": 492,
+    "title": "get_most_restrictive not thread-safe across limiters",
+    "description": "MultiDimensionalRateLimiter.get_most_restrictive iterates through limiters and calls get_remaining on each without holding a unified lock. While individual limiters are thread-safe, the aggregate view can be inconsistent if tokens are consumed between calls, leading to incorrect rate limit decisions when used for adaptive throttling.",
+    "fix": "This is informational - document that the result is a point-in-time snapshot. Or acquire self._lock during the entire iteration (though this adds contention)."
+  }
+]

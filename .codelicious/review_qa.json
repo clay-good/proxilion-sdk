@@ -1,0 +1,130 @@
+[
+  {
+    "severity": "P1",
+    "file": "tests/test_benchmarks.py",
+    "line": 134,
+    "title": "Flaky benchmark test - non-deterministic timing",
+    "description": "test_output_guard_longer_response fails intermittently with 'OutputGuard.check() (long) took 3.840ms/call, budget is 3.0ms'. The 3x budget multiplier (3ms) is too tight for longer strings with ~4500 chars. Test execution is timing-dependent and fails on slower machines or under load.",
+    "fix": "Increase the budget multiplier from 3x to 5x for consistency with test_input_guard_longer_string (line 90-91), or use @pytest.mark.skip_ci for this test."
+  },
+  {
+    "severity": "P2",
+    "file": "tests/test_security/test_intent_validator.py",
+    "line": 348,
+    "title": "Non-meaningful assertion - 'assert True'",
+    "description": "test_unique_resources_exceeded uses 'assert True' which provides no verification. The comment says 'If we got here, at least we didn't crash.' but the test should verify that after exceeding the threshold, subsequent validations return SUSPICIOUS.",
+    "fix": "Replace 'assert True' with an actual assertion: after the loop, call validator.validate() once more and assert the result equals ValidationResult.SUSPICIOUS."
+  },
+  {
+    "severity": "P2",
+    "file": "tests/test_thread_safety.py",
+    "line": 248,
+    "title": "Timing-dependent test may be flaky",
+    "description": "test_half_open_concurrency uses time.sleep(0.15) to transition circuit breaker to HALF_OPEN state. This timing dependency could cause intermittent failures on slow CI runners or under heavy load.",
+    "fix": "Consider using a mock or polling mechanism instead of fixed sleep. Alternatively, increase the sleep duration to provide more margin (e.g., 0.25 seconds)."
+  },
+  {
+    "severity": "P2",
+    "file": "tests/test_caching.py",
+    "line": 164,
+    "title": "Multiple time.sleep(1.1) calls make tests slow and flaky",
+    "description": "Several tests in test_caching.py use time.sleep(1.1) to test TTL expiration. These fixed sleeps make tests slow (4+ seconds total) and could be flaky if system clock is imprecise.",
+    "fix": "Use time mocking (freezegun or unittest.mock.patch) to control time passage instead of actual sleeps. This makes tests faster and deterministic."
+  },
+  {
+    "severity": "P2",
+    "file": "tests/test_decorators.py",
+    "line": 411,
+    "title": "Mock doesn't fully match real Proxilion interface",
+    "description": "TestSequenceValidated._make_proxilion_mock creates a MagicMock that only defines validate_sequence and record_tool_call. If the real Proxilion interface changes or has additional required methods, tests won't catch the incompatibility.",
+    "fix": "Consider using spec=Proxilion in the MagicMock or create a proper test fixture that validates the mock matches the actual interface."
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/security/rate_limiter.py",
+    "line": 74,
+    "title": "Constructor validation not tested for refill_rate=0",
+    "description": "TokenBucketRateLimiter validates that refill_rate > 0, but tests/test_security/test_rate_limiter.py doesn't test this boundary condition explicitly. A test passing refill_rate=0 would verify the ValueError is raised.",
+    "fix": "Add test: def test_zero_refill_rate_raises(): with pytest.raises(ValueError): TokenBucketRateLimiter(capacity=10, refill_rate=0)"
+  },
+  {
+    "severity": "P2",
+    "file": "proxilion/security/rate_limiter.py",
+    "line": 127,
+    "title": "Missing test for cost=0 in allow_request",
+    "description": "TokenBucketRateLimiter.allow_request validates cost > 0 and raises ValueError, but this edge case isn't explicitly tested in test_security/test_rate_limiter.py.",
+    "fix": "Add test: def test_zero_cost_raises(): limiter = TokenBucketRateLimiter(10, 1); with pytest.raises(ValueError): limiter.allow_request('key', cost=0)"
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_google_integration.py",
+    "line": 1292,
+    "title": "Incomplete protobuf value conversion test",
+    "description": "test_protobuf_value_conversion only tests string_value and number_value attributes. The _convert_protobuf_value method handles many more cases (bool_value, struct_value, list_value, null_value, bytes, datetime, nested dicts/lists) that aren't tested.",
+    "fix": "Add additional test cases for: bool_value, struct_value with nested fields, list_value, null_value, datetime values, and bytes conversion."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/contrib/google.py",
+    "line": 602,
+    "title": "TypeError case in _convert_protobuf_value not tested",
+    "description": "The _convert_protobuf_value method raises TypeError for unsupported types (line 602-605), but no test verifies this error path is exercised correctly.",
+    "fix": "Add test: def test_unsupported_protobuf_value_raises(): handler = ProxilionVertexHandler(...); with pytest.raises(TypeError): handler._convert_protobuf_value(object())"
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_thread_safety.py",
+    "line": 285,
+    "title": "Assertion may not detect race conditions reliably",
+    "description": "test_half_open_concurrency asserts 'rejected_count > 0' but this depends on timing. With high success_threshold=5, the circuit may close before all threads complete, making the assertion non-deterministic.",
+    "fix": "Use a barrier or countdown latch to ensure all threads start simultaneously, or increase the number of threads to make rejection more likely."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/observability/hooks.py",
+    "line": 468,
+    "title": "ObservabilityHooks._metric_hooks list not thread-safe",
+    "description": "add_metric_hook and emit_* methods access _metric_hooks list without locking. Concurrent add/remove while iterating could cause RuntimeError or missed metrics.",
+    "fix": "Use threading.Lock to protect _metric_hooks mutations, or use a thread-safe list implementation."
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_security/test_rate_limiter.py",
+    "line": 60,
+    "title": "Timing-dependent test uses fixed sleep",
+    "description": "test_tokens_refill_over_time uses time.sleep(0.2) to test token refill. This is timing-sensitive and could fail on slow systems where the actual elapsed time is less than expected.",
+    "fix": "Use time mocking or increase sleep duration with wider assertion tolerance."
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_guards.py",
+    "line": 305,
+    "title": "Test assertion uses 'or' which may pass incorrectly",
+    "description": "test_threshold_high_allows_low_severity asserts 'result.passed or result.risk_score < 0.95'. This OR condition means the test passes if either condition is true, but doesn't verify the expected behavior clearly.",
+    "fix": "Split into two separate assertions or clarify which behavior is expected. If high threshold should allow low-severity matches, assert result.passed directly."
+  },
+  {
+    "severity": "P3",
+    "file": "proxilion/contrib/google.py",
+    "line": 266,
+    "title": "_execution_history deque could be tested at boundary",
+    "description": "ProxilionVertexHandler uses deque(maxlen=10000) for execution history, but no test verifies the maxlen boundary behavior - that oldest entries are dropped when capacity is exceeded.",
+    "fix": "Add test that executes 10001 calls and verifies len(handler.execution_history) == 10000 and oldest entry is removed."
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_benchmarks.py",
+    "line": 33,
+    "title": "pytest.mark.benchmark not registered",
+    "description": "pytestmark = pytest.mark.benchmark generates PytestUnknownMarkWarning because the 'benchmark' mark isn't registered in conftest.py.",
+    "fix": "Add to conftest.py pytest_configure: config.addinivalue_line('markers', 'benchmark: mark test as a benchmark test')"
+  },
+  {
+    "severity": "P3",
+    "file": "tests/test_core.py",
+    "line": 403,
+    "title": "Audit log verification incomplete",
+    "description": "test_audit_logs_authorization_check only verifies that _audit_logger is not None, but doesn't verify that events were actually logged. The audit log file contents should be verified.",
+    "fix": "After the check, read the audit log file and verify it contains an event with the expected user_id, action, and resource."
+  }
+]

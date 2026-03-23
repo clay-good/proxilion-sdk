@@ -1,0 +1,210 @@
+{
+  "audit_metadata": {
+    "date": "2026-03-23",
+    "auditor": "Security Engineer (automated)",
+    "scope": "proxilion-sdk codebase",
+    "methodology": "OWASP Top 10, hardcoded secrets scan, crypto review, injection analysis",
+    "files_reviewed": 25
+  },
+  "summary": {
+    "total_findings": 3,
+    "p1_critical": 0,
+    "p2_high": 0,
+    "p3_medium": 3,
+    "notes": "Codebase demonstrates strong security practices overall. No critical vulnerabilities found. Three medium-severity informational findings identified."
+  },
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "P3",
+      "category": "Information Disclosure",
+      "title": "Exception messages may leak internal paths in scope loader errors",
+      "file": "proxilion/security/idor_protection.py",
+      "line": 259,
+      "description": "When a user-provided scope_loader raises an exception, the ScopeLoaderError includes the original exception message which could contain internal file paths or database details.",
+      "attack_scenario": "An attacker who can trigger custom scope loader errors could potentially extract internal system paths or database schema information from error messages.",
+      "code_snippet": "raise ScopeLoaderError(resource_type, user_id, e) from e",
+      "recommendation": "Consider sanitizing or wrapping the original exception message before including in ScopeLoaderError. Log full details server-side but return generic error to clients.",
+      "mitigating_factors": [
+        "The scope_loader is user-provided code, not attacker-controlled input",
+        "Error is logged, not typically returned to end users",
+        "Production deployments should have error sanitization at API boundaries"
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "severity": "P3",
+      "category": "Denial of Service",
+      "title": "Unbounded regex compilation in allowed_patterns",
+      "file": "proxilion/security/idor_protection.py",
+      "line": 272,
+      "description": "The allowed_patterns list is iterated and each pattern is compiled with re.match on every validate_access call. Malicious patterns could cause ReDoS.",
+      "attack_scenario": "If an application allows users to configure their own allowed_patterns, a carefully crafted regex could cause exponential backtracking leading to CPU exhaustion.",
+      "code_snippet": "for pattern in scope.allowed_patterns: if re.match(pattern, object_id): return True",
+      "recommendation": "Pre-compile patterns at registration time. Consider adding regex complexity limits or timeout for pattern matching. Add validation to reject known ReDoS-vulnerable patterns.",
+      "mitigating_factors": [
+        "Patterns are typically configured by application developers, not end users",
+        "Most deployments use static patterns defined at startup",
+        "The object_id being matched is typically short (UUID or similar)"
+      ]
+    },
+    {
+      "id": "SEC-003",
+      "severity": "P3",
+      "category": "Resource Exhaustion",
+      "title": "Execution history deque could consume memory in long-running processes",
+      "file": "proxilion/contrib/anthropic.py",
+      "line": 203,
+      "description": "The _execution_history deque has maxlen=10000. In long-running processes with high tool call volume, each ToolUseResult object includes the full result data which could be large.",
+      "attack_scenario": "In a high-throughput application, attackers could flood the system with tool calls that return large results, causing memory pressure from the 10000-entry history buffer.",
+      "code_snippet": "self._execution_history: deque[ToolUseResult] = deque(maxlen=10000)",
+      "recommendation": "Consider making maxlen configurable. Store only metadata in history, not full results. Implement result size limits before adding to history.",
+      "mitigating_factors": [
+        "Bounded by maxlen=10000 so cannot grow indefinitely",
+        "Most tool results are small JSON objects",
+        "Memory is reclaimed as old entries are evicted"
+      ]
+    }
+  ],
+  "positive_security_observations": [
+    {
+      "category": "Cryptography",
+      "observation": "Strong cryptographic primitives used throughout",
+      "details": [
+        "HMAC-SHA256 for intent capsules, agent trust, and memory integrity",
+        "SHA-256 for hash chains in audit logging",
+        "hmac.compare_digest() used for timing-safe comparisons",
+        "Secret key validation requires minimum 16 characters"
+      ]
+    },
+    {
+      "category": "Injection Prevention",
+      "observation": "No dangerous code execution patterns found",
+      "details": [
+        "No eval(), exec(), or compile() with user input",
+        "No pickle deserialization",
+        "No subprocess with shell=True",
+        "No __import__ with user-controlled values",
+        "OPA engine uses urllib REST calls, not eval"
+      ]
+    },
+    {
+      "category": "Path Traversal",
+      "observation": "Comprehensive path traversal detection",
+      "details": [
+        "Checks for .., ..\\, URL-encoded variants (%2e%2e)",
+        "Double-encoding detection",
+        "Unicode normalization bypass detection",
+        "Null byte injection detection"
+      ],
+      "file": "proxilion/validation/schema.py"
+    },
+    {
+      "category": "Thread Safety",
+      "observation": "Consistent use of thread-safe constructs",
+      "details": [
+        "threading.RLock used for all mutable shared state",
+        "Double-checked locking for singletons (ObservabilityHooks)",
+        "Atomic operations where needed"
+      ]
+    },
+    {
+      "category": "Resource Limits",
+      "observation": "Bounded collections prevent memory exhaustion",
+      "details": [
+        "max_objects_per_scope limits IDOR scope sizes",
+        "maxlen on deques throughout codebase",
+        "Automatic cleanup in rate limiters",
+        "max_history limits on execution records"
+      ]
+    },
+    {
+      "category": "Credential Handling",
+      "observation": "No hardcoded secrets in source code",
+      "details": [
+        "AWS credentials loaded from environment or credential files",
+        "Azure credentials from environment or MSI",
+        "GCP credentials from environment or service account files",
+        "All secret examples in docstrings are clearly placeholder values"
+      ]
+    },
+    {
+      "category": "Input Validation",
+      "observation": "Comprehensive input guards for prompt injection",
+      "details": [
+        "14+ regex patterns for prompt injection detection",
+        "Categories: instruction_override, role_switch, jailbreak, delimiter_escape",
+        "Output guards detect API keys, bearer tokens, PII leakage"
+      ]
+    },
+    {
+      "category": "Error Handling",
+      "observation": "Safe error handling with safe_errors mode",
+      "details": [
+        "Tool handlers have safe_errors=True by default",
+        "Internal errors not exposed to callers",
+        "Detailed logging server-side for debugging"
+      ]
+    }
+  ],
+  "owasp_top_10_assessment": {
+    "A01_broken_access_control": {
+      "status": "PASS",
+      "notes": "IDOR protection module validates object access. Role-based and ownership policies enforced."
+    },
+    "A02_cryptographic_failures": {
+      "status": "PASS",
+      "notes": "HMAC-SHA256 throughout. No weak algorithms. Secret key minimums enforced."
+    },
+    "A03_injection": {
+      "status": "PASS",
+      "notes": "No eval/exec/subprocess.shell patterns. JSON parsing only with json.loads."
+    },
+    "A04_insecure_design": {
+      "status": "PASS",
+      "notes": "Defense in depth: input guards, output guards, rate limiting, circuit breakers."
+    },
+    "A05_security_misconfiguration": {
+      "status": "PASS",
+      "notes": "Secure defaults. Safe error messages. No debug modes exposed."
+    },
+    "A06_vulnerable_components": {
+      "status": "N/A",
+      "notes": "Dependency analysis not in scope. Recommend regular pip-audit scans."
+    },
+    "A07_auth_failures": {
+      "status": "PASS",
+      "notes": "Strong HMAC-based authentication for agent trust and intent capsules."
+    },
+    "A08_integrity_failures": {
+      "status": "PASS",
+      "notes": "SHA-256 hash chains for audit logs. Merkle tree verification available."
+    },
+    "A09_logging_failures": {
+      "status": "PASS",
+      "notes": "Comprehensive audit logging with tamper-evident chains."
+    },
+    "A10_ssrf": {
+      "status": "PASS",
+      "notes": "OPA engine connects to configured server only. No user-controlled URLs."
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "Low",
+      "recommendation": "Add pre-compilation of regex patterns in IDOR protection to prevent potential ReDoS"
+    },
+    {
+      "priority": "Low",
+      "recommendation": "Consider making execution_history maxlen configurable"
+    },
+    {
+      "priority": "Low",
+      "recommendation": "Add integration with pip-audit or safety for dependency vulnerability scanning"
+    },
+    {
+      "priority": "Info",
+      "recommendation": "Document security configuration best practices for production deployments"
+    }
+  ]
+}

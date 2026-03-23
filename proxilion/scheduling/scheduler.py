@@ -203,12 +203,9 @@ class RequestScheduler:
             if self._handler:
                 result = self._handler(request.payload)
             elif self._async_handler:
-                # Run async handler in event loop
-                loop = asyncio.new_event_loop()
-                try:
-                    result = loop.run_until_complete(self._async_handler(request.payload))
-                finally:
-                    loop.close()
+                # Run async handler using asyncio.run() which properly manages
+                # event loop lifecycle including cancelling pending tasks
+                result = asyncio.run(self._async_handler(request.payload))
             else:
                 # No handler, just return the payload
                 result = request.payload
