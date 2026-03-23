@@ -159,19 +159,23 @@ class IntentCapsule:
     def record_tool_call(
         self,
         tool_name: str,
-        arguments: dict[str, Any],
+        arguments: dict[str, Any] | None = None,
         result: Any = None,
     ) -> None:
-        """Record a tool call for tracking."""
+        """
+        Record a tool call for tracking.
+
+        Note: Only tool_name and timestamp are stored to minimize memory usage.
+        Full arguments should be logged to the audit log instead.
+        """
         if len(self.tool_calls) >= self._max_tool_calls:
             # Remove oldest to prevent unbounded growth
             self.tool_calls = self.tool_calls[-self._max_tool_calls + 1 :]
 
+        # Store only minimal data to reduce memory usage per entry
         self.tool_calls.append(
             {
                 "tool_name": tool_name,
-                "arguments": arguments,
-                "result_type": type(result).__name__ if result else None,
                 "timestamp": time.time(),
             }
         )

@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from proxilion.exceptions import IDORViolationError, ScopeLoaderError
+from proxilion.exceptions import ConfigurationError, IDORViolationError, ScopeLoaderError
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +82,21 @@ class IDORProtector:
     NUMERIC_PATTERN = re.compile(r"^\d+$")
     ALPHANUMERIC_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
-    def __init__(self) -> None:
-        """Initialize the IDOR protector."""
+    def __init__(self, max_objects_per_scope: int = 100000) -> None:
+        """
+        Initialize the IDOR protector.
+
+        Args:
+            max_objects_per_scope: Maximum allowed objects per user/resource_type scope.
+                Default is 100,000. Must be >= 1.
+
+        Raises:
+            ConfigurationError: If max_objects_per_scope < 1.
+        """
+        if max_objects_per_scope < 1:
+            raise ConfigurationError("max_objects_per_scope must be >= 1")
+
+        self._max_objects_per_scope = max_objects_per_scope
         self._scopes: dict[str, dict[str, ResourceScope]] = {}
         self._patterns: dict[str, IDPattern] = {}
         self._resource_patterns: dict[str, list[IDPattern]] = {}
@@ -121,15 +134,23 @@ class IDORProtector:
             if user_id not in self._scopes:
                 self._scopes[user_id] = {}
 
+            # Check that allowed_ids doesn't exceed max_objects_per_scope
+            ids_to_register = allowed_ids or set()
+            if len(ids_to_register) > self._max_objects_per_scope:
+                raise ConfigurationError(
+                    f"Scope for user '{user_id}' resource '{resource_type}' would exceed "
+                    f"max_objects_per_scope ({self._max_objects_per_scope})"
+                )
+
             self._scopes[user_id][resource_type] = ResourceScope(
-                allowed_ids=allowed_ids or set(),
+                allowed_ids=ids_to_register,
                 allowed_patterns=allowed_patterns or [],
                 scope_loader=scope_loader,
             )
 
             logger.debug(
                 f"Registered scope for user={user_id}, "
-                f"resource_type={resource_type}, ids={len(allowed_ids or set())}"
+                f"resource_type={resource_type}, ids={len(ids_to_register)}"
             )
 
     def register_scope_loader(
@@ -432,6 +453,9 @@ class IDORProtector:
             user_id: The user's ID.
             resource_type: The resource type.
             object_ids: IDs to add.
+
+        Raises:
+            ConfigurationError: If adding would exceed max_objects_per_scope.
         """
         with self._lock:
             if user_id not in self._scopes:
@@ -440,7 +464,17 @@ class IDORProtector:
             if resource_type not in self._scopes[user_id]:
                 self._scopes[user_id][resource_type] = ResourceScope()
 
-            self._scopes[user_id][resource_type].allowed_ids.update(object_ids)
+            current_scope = self._scopes[user_id][resource_type]
+            # Check that adding these IDs won't exceed the limit
+            new_ids = object_ids - current_scope.allowed_ids  # Only count truly new IDs
+            new_total = len(current_scope.allowed_ids) + len(new_ids)
+            if new_total > self._max_objects_per_scope:
+                raise ConfigurationError(
+                    f"Scope for user '{user_id}' resource '{resource_type}' would exceed "
+                    f"max_objects_per_scope ({self._max_objects_per_scope})"
+                )
+
+            current_scope.allowed_ids.update(object_ids)
 
     def remove_from_scope(
         self,

@@ -197,13 +197,28 @@ class TestMemoryIntegrityGuardContextVerification:
         assert has_chain_break
 
     def test_context_overflow_detected(self):
+        """Test that sign_message enforces max_context_size."""
         guard = MemoryIntegrityGuard(secret_key=SECRET_KEY, max_context_size=2)
+        # Can sign messages up to the limit
+        guard.sign_message("system", "sys")
+        guard.sign_message("user", "u")
+        # Third message should raise ContextIntegrityError
+        with pytest.raises(ContextIntegrityError) as exc_info:
+            guard.sign_message("assistant", "a")
+        assert "max_context_size" in str(exc_info.value)
+
+    def test_context_overflow_in_verify(self):
+        """Test that verify_context also detects overflow for externally-created contexts."""
+        # Create a guard that can sign messages
+        guard_for_signing = MemoryIntegrityGuard(secret_key=SECRET_KEY, max_context_size=1000)
         context = [
-            guard.sign_message("system", "sys"),
-            guard.sign_message("user", "u"),
-            guard.sign_message("assistant", "a"),
+            guard_for_signing.sign_message("system", "sys"),
+            guard_for_signing.sign_message("user", "u"),
+            guard_for_signing.sign_message("assistant", "a"),
         ]
-        result = guard.verify_context(context)
+        # Create a guard with a smaller max_context_size for verification
+        guard_for_verify = MemoryIntegrityGuard(secret_key=SECRET_KEY, max_context_size=2)
+        result = guard_for_verify.verify_context(context)
         assert result.valid is False
         has_overflow = any(
             v.violation_type == IntegrityViolationType.CONTEXT_OVERFLOW for v in result.violations

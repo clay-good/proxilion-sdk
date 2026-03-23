@@ -366,7 +366,9 @@ class TestIntentCapsuleToolCalls:
         capsule.record_tool_call("search", {"query": "python"})
         assert len(capsule.tool_calls) == 1
         assert capsule.tool_calls[0]["tool_name"] == "search"
-        assert capsule.tool_calls[0]["arguments"] == {"query": "python"}
+        # Note: arguments are no longer stored to minimize memory usage
+        assert "arguments" not in capsule.tool_calls[0]
+        assert "timestamp" in capsule.tool_calls[0]
 
     def test_record_tool_call_with_result(self):
         capsule = IntentCapsule.create(
@@ -376,7 +378,9 @@ class TestIntentCapsuleToolCalls:
             secret_key=SECRET_KEY,
         )
         capsule.record_tool_call("search", {"query": "python"}, result=[1, 2, 3])
-        assert capsule.tool_calls[0]["result_type"] == "list"
+        # result_type is no longer stored to minimize memory usage
+        assert "result_type" not in capsule.tool_calls[0]
+        assert capsule.tool_calls[0]["tool_name"] == "search"
 
     def test_record_tool_call_none_result(self):
         capsule = IntentCapsule.create(
@@ -386,7 +390,9 @@ class TestIntentCapsuleToolCalls:
             secret_key=SECRET_KEY,
         )
         capsule.record_tool_call("search", {"query": "python"}, result=None)
-        assert capsule.tool_calls[0]["result_type"] is None
+        # result_type is no longer stored to minimize memory usage
+        assert "result_type" not in capsule.tool_calls[0]
+        assert capsule.tool_calls[0]["tool_name"] == "search"
 
     def test_max_tool_calls_enforced(self):
         capsule = IntentCapsule.create(
@@ -409,7 +415,12 @@ class TestIntentCapsuleToolCalls:
         for i in range(105):
             capsule.record_tool_call("search", {"i": i})
         # The first 5 calls (i=0..4) should have been dropped
-        assert capsule.tool_calls[0]["arguments"]["i"] == 5
+        # Since arguments are no longer stored, we verify that:
+        # - 100 calls are kept (max is 100)
+        assert len(capsule.tool_calls) == 100
+        # - All remaining calls have tool_name and timestamp
+        assert capsule.tool_calls[0]["tool_name"] == "search"
+        assert "timestamp" in capsule.tool_calls[0]
 
 
 class TestIntentCapsuleToDict:
