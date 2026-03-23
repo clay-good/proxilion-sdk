@@ -83,6 +83,7 @@ Integration with OpenTelemetry:
 from __future__ import annotations
 
 import logging
+import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -429,6 +430,7 @@ class ObservabilityHooks:
     """
 
     _instance: ObservabilityHooks | None = None
+    _lock: threading.Lock = threading.Lock()
 
     def __init__(self) -> None:
         """Initialize the observability hooks registry."""
@@ -439,12 +441,20 @@ class ObservabilityHooks:
         """
         Get the global ObservabilityHooks instance.
 
+        Thread-safe via double-checked locking. The lock is only contested
+        during first creation; subsequent calls take the fast path.
+
         Returns:
             The singleton instance.
         """
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+        # Fast path: instance already exists (no lock needed)
+        if cls._instance is not None:
+            return cls._instance
+        # Slow path: acquire lock and check again
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            return cls._instance
 
     @classmethod
     def reset_instance(cls) -> None:

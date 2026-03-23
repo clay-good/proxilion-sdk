@@ -10,6 +10,31 @@
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
 
+## Spec-v3 Progress
+
+| Step | Status | Description |
+|------|--------|-------------|
+| 1 | ✅ | Fix ObservabilityHooks singleton thread-safety race |
+| 2 | ⏳ | Bound unbounded collections in security modules |
+| 3 | ⏳ | Fix Google Gemini handler unbounded execution history |
+| 4 | ⏳ | Add protobuf recursion depth limit in Google Gemini handler |
+| 5 | ⏳ | Fix audit log rotation race condition |
+| 6 | ⏳ | Add delegation chain depth limit to agent trust manager |
+| 7 | ⏳ | Fix cost tracker record trimming performance |
+| 8 | ⏳ | Fix metrics collector assertion in production code |
+| 9 | ⏳ | Fix PrometheusExporter private attribute access |
+| 10 | ⏳ | Add tests for bounded collection limits |
+| 11 | ⏳ | Add MCP client validation warning |
+| 12 | ⏳ | Add provider adapter from_dict error handling |
+| 13 | ⏳ | Add hash chain timestamp validation |
+| 14 | ⏳ | Add tests for audit log rotation under concurrency |
+| 15 | ⏳ | Harden circuit breaker half-open timeout |
+| 16 | ⏳ | Add input validation for UserContext and ToolCallRequest |
+| 17 | ⏳ | Add tests for input validation on data types |
+| 18 | ⏳ | Update CHANGELOG, version, and documentation |
+| 19 | ⏳ | Update README.md with stabilization architecture diagrams |
+| 20 | ⏳ | Final validation and memory update |
+
 ## Spec-v2 Progress
 
 | Step | Status | Description |
