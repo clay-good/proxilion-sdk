@@ -16,7 +16,7 @@
 |------|--------|-------------|
 | 1 | ✅ | Fix ObservabilityHooks singleton thread-safety race |
 | 2 | ✅ | Bound unbounded collections in security modules |
-| 3 | ⏳ | Fix Google Gemini handler unbounded execution history |
+| 3 | ✅ | Fix Google Gemini handler unbounded execution history |
 | 4 | ⏳ | Add protobuf recursion depth limit in Google Gemini handler |
 | 5 | ⏳ | Fix audit log rotation race condition |
 | 6 | ⏳ | Add delegation chain depth limit to agent trust manager |
@@ -59,6 +59,75 @@
 | 18 | ✅ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
+
+**Deep Security Review — 2026-03-23** (Post spec-v3 step 2) ✅ CONFIRMED
+
+Parallel reviewer agents completed comprehensive code review across 4 module groups:
+
+| Module Group | P1 | P2 | P3 | Total |
+|--------------|----|----|-----|-------|
+| security/ (idor, intent_capsule, memory_integrity, behavioral_drift) | 1 | 6 | 11 | 18 |
+| core.py, guards/, decorators.py | 1 | 3 | 4 | 8 |
+| audit/ (logger, hash_chain), observability/ (cost_tracker, metrics) | 6 | 8 | 10 | 24 |
+| contrib/ (google, openai, anthropic, mcp) | 2 | 5 | 4 | 11 |
+| **Total** | **10** | **22** | **29** | **61** |
+
+### Key P1 Critical Findings (Known Limitations)
+
+| # | File:Line | Description |
+|---|-----------|-------------|
+| 1 | intent_capsule.py:366 | Mutable allowed_tools/allowed_actions defeat signature verification |
+| 2 | core.py:1668-1688 | TOCTOU race in circuit breaker check-then-act |
+| 3 | logger.py:344-349 | TOCTOU in size-based rotation (symlink attack vector) |
+| 4 | logger.py:357-362 | Symlink attack in file rotation rename |
+| 5 | logger.py:398-422 | Missing fsync() for batch markers |
+| 6 | metrics.py:810-822 | PrometheusExporter private attribute access race |
+| 7 | metrics.py:711 | Assertion in production code (disabled with -O) |
+| 8 | cost_tracker.py:467-469 | O(n) list trimming performance |
+| 9 | google.py:265 | Unbounded execution_history list |
+| 10 | google.py:561-604 | Unbounded recursion in protobuf conversion |
+
+### Positive Security Practices Confirmed
+
+- ✅ HMAC-SHA256 for all cryptographic signing
+- ✅ SHA-256 hash chains for tamper-evident audit
+- ✅ `hmac.compare_digest()` for timing-safe comparison
+- ✅ Frozen dataclasses for immutable types (UserContext, etc.)
+- ✅ No eval/exec/pickle/yaml.load
+- ✅ Proper exception hierarchy (ProxilionError base)
+- ✅ RLock usage for thread safety (most modules)
+- ✅ Bounded collections in security modules (spec-v3 step 2)
+
+---
+
+**Verification Pass 3/3 — 2026-03-23** (Post spec-v3 step 2) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-23** (Post spec-v3 step 2) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-23** (Post spec-v3 step 2) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
 
 **Verification Pass 3/3 — 2026-03-22** (Post spec-v3 step 1) ✅ FINAL
 
@@ -567,6 +636,8 @@ Key P1 findings (confirmed existing):
 ---
 
 ## Last Updated
+
+2026-03-23 — Spec-v3 step 3 complete. Fixed Google Gemini handler unbounded execution history by changing _execution_history from list to deque(maxlen=10000). Added warning docstring to standalone extract_function_calls() noting results are not authorized. All 2,518 tests pass.
 
 2026-03-23 — Spec-v3 step 2 complete. Bounded unbounded collections in security modules: idor_protection.py (max_objects_per_scope=100000), intent_capsule.py (record_tool_call stores only tool_name+timestamp), memory_integrity.py (sign_message enforces max_context_size). All 2,518 tests pass.
 

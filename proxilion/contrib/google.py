@@ -60,6 +60,7 @@ import asyncio
 import contextlib
 import inspect
 import logging
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -262,7 +263,7 @@ class ProxilionVertexHandler:
         self.safe_errors = safe_errors
 
         self._tools: dict[str, RegisteredGeminiTool] = {}
-        self._execution_history: list[GeminiToolResult] = []
+        self._execution_history: deque[GeminiToolResult] = deque(maxlen=10000)
 
     @property
     def tools(self) -> list[RegisteredGeminiTool]:
@@ -978,8 +979,9 @@ class ProxilionVertexHandler:
 
 
 def extract_function_calls(response: Any) -> list[GeminiFunctionCall]:
-    """
-    Extract function calls from a Gemini response.
+    """Extract function calls from a Gemini response.
+
+    Results are not authorized -- pass through a handler for policy enforcement.
 
     Standalone function for quick extraction without handler.
 
