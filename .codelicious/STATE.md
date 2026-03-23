@@ -5,7 +5,7 @@
 | Metric | Value |
 |--------|-------|
 | Version | 0.0.8 |
-| Tests passing | 2,517 passed, 122 skipped, 29 xfailed |
+| Tests passing | 2,518 passed, 122 skipped, 29 xfailed |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
@@ -15,7 +15,7 @@
 | Step | Status | Description |
 |------|--------|-------------|
 | 1 | ✅ | Fix ObservabilityHooks singleton thread-safety race |
-| 2 | ⏳ | Bound unbounded collections in security modules |
+| 2 | ✅ | Bound unbounded collections in security modules |
 | 3 | ⏳ | Fix Google Gemini handler unbounded execution history |
 | 4 | ⏳ | Add protobuf recursion depth limit in Google Gemini handler |
 | 5 | ⏳ | Fix audit log rotation race condition |
@@ -567,6 +567,10 @@ Key P1 findings (confirmed existing):
 ---
 
 ## Last Updated
+
+2026-03-23 — Spec-v3 step 2 complete. Bounded unbounded collections in security modules: idor_protection.py (max_objects_per_scope=100000), intent_capsule.py (record_tool_call stores only tool_name+timestamp), memory_integrity.py (sign_message enforces max_context_size). All 2,518 tests pass.
+
+2026-03-22 — Spec-v3 step 1 complete. Fixed ObservabilityHooks singleton thread-safety race using double-checked locking.
 
 2026-03-22 — Spec-v2 step 18 complete (FINAL). Final validation passed: ruff lint 0 violations, ruff format 158 files, mypy 0 errors, pytest 2,517 passed. README.md exception hierarchy diagram already present from step 17 preparation. All 18 spec-v2 steps complete. Version 0.0.8 ready for release.
 
