@@ -598,8 +598,7 @@ class ProxilionVertexHandler:
             }
         if hasattr(value, "list_value"):
             return [
-                self._convert_protobuf_value(v, _depth=_depth + 1)
-                for v in value.list_value.values
+                self._convert_protobuf_value(v, _depth=_depth + 1) for v in value.list_value.values
             ]
         # Protobuf NullValue (null_value attribute with no other Value kind)
         if hasattr(value, "null_value"):
@@ -612,9 +611,7 @@ class ProxilionVertexHandler:
         if isinstance(value, datetime):
             return value.isoformat()
         if isinstance(value, dict):
-            return {
-                k: self._convert_protobuf_value(v, _depth=_depth + 1) for k, v in value.items()
-            }
+            return {k: self._convert_protobuf_value(v, _depth=_depth + 1) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
             return [self._convert_protobuf_value(v, _depth=_depth + 1) for v in value]
         raise TypeError(
