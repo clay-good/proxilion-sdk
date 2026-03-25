@@ -4,11 +4,36 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | 0.0.7 |
-| Tests passing | 2,465 passed, 108 skipped, 29 xfailed |
+| Version | 0.0.8 |
+| Tests passing | 2,518 passed, 122 skipped, 29 xfailed |
 | Ruff violations | 0 |
 | Format issues | 0 |
 | Security review | Complete (see findings below) |
+
+## Spec-v3 Progress
+
+| Step | Status | Description |
+|------|--------|-------------|
+| 1 | ✅ | Fix ObservabilityHooks singleton thread-safety race |
+| 2 | ✅ | Bound unbounded collections in security modules |
+| 3 | ✅ | Fix Google Gemini handler unbounded execution history |
+| 4 | ✅ | Add protobuf recursion depth limit in Google Gemini handler |
+| 5 | ⏳ | Fix audit log rotation race condition |
+| 6 | ⏳ | Add delegation chain depth limit to agent trust manager |
+| 7 | ⏳ | Fix cost tracker record trimming performance |
+| 8 | ⏳ | Fix metrics collector assertion in production code |
+| 9 | ⏳ | Fix PrometheusExporter private attribute access |
+| 10 | ⏳ | Add tests for bounded collection limits |
+| 11 | ⏳ | Add MCP client validation warning |
+| 12 | ⏳ | Add provider adapter from_dict error handling |
+| 13 | ⏳ | Add hash chain timestamp validation |
+| 14 | ⏳ | Add tests for audit log rotation under concurrency |
+| 15 | ⏳ | Harden circuit breaker half-open timeout |
+| 16 | ⏳ | Add input validation for UserContext and ToolCallRequest |
+| 17 | ⏳ | Add tests for input validation on data types |
+| 18 | ⏳ | Update CHANGELOG, version, and documentation |
+| 19 | ⏳ | Update README.md with stabilization architecture diagrams |
+| 20 | ⏳ | Final validation and memory update |
 
 ## Spec-v2 Progress
 
@@ -25,23 +50,448 @@
 | 9 | ✅ | Add performance benchmark suite |
 | 10 | ✅ | Add negative test cases for input guard bypass |
 | 11 | ✅ | Harden input guard against case-insensitive evasion |
-| 12 | ⏳ | Add sample data generator script |
-| 13 | ⏳ | Add comprehensive docstrings to public API |
-| 14 | ⏳ | Update quickstart to cover all 9 decorators |
-| 15 | ⏳ | Add decorator combination tests |
-| 16 | ⏳ | Lint and type-check all test files |
-| 17 | ⏳ | Update CHANGELOG, version, and documentation |
-| 18 | ⏳ | Final validation and README mermaid diagrams |
+| 12 | ✅ | Add sample data generator script |
+| 13 | ✅ | Add comprehensive docstrings to public API |
+| 14 | ✅ | Update quickstart to cover all 9 decorators |
+| 15 | ✅ | Add decorator combination tests |
+| 16 | ✅ | Lint and type-check all test files |
+| 17 | ✅ | Update CHANGELOG, version, and documentation |
+| 18 | ✅ | Final validation and README mermaid diagrams |
 
 ## Verification Summary
 
-**Pass 1/3 — 2026-03-18** (Post spec-v2 step 11)
+**Deep Security Review — 2026-03-23** (Post spec-v3 step 2) ✅ CONFIRMED
+
+Parallel reviewer agents completed comprehensive code review across 4 module groups:
+
+| Module Group | P1 | P2 | P3 | Total |
+|--------------|----|----|-----|-------|
+| security/ (idor, intent_capsule, memory_integrity, behavioral_drift) | 1 | 6 | 11 | 18 |
+| core.py, guards/, decorators.py | 1 | 3 | 4 | 8 |
+| audit/ (logger, hash_chain), observability/ (cost_tracker, metrics) | 6 | 8 | 10 | 24 |
+| contrib/ (google, openai, anthropic, mcp) | 2 | 5 | 4 | 11 |
+| **Total** | **10** | **22** | **29** | **61** |
+
+### Key P1 Critical Findings (Known Limitations)
+
+| # | File:Line | Description |
+|---|-----------|-------------|
+| 1 | intent_capsule.py:366 | Mutable allowed_tools/allowed_actions defeat signature verification |
+| 2 | core.py:1668-1688 | TOCTOU race in circuit breaker check-then-act |
+| 3 | logger.py:344-349 | TOCTOU in size-based rotation (symlink attack vector) |
+| 4 | logger.py:357-362 | Symlink attack in file rotation rename |
+| 5 | logger.py:398-422 | Missing fsync() for batch markers |
+| 6 | metrics.py:810-822 | PrometheusExporter private attribute access race |
+| 7 | metrics.py:711 | Assertion in production code (disabled with -O) |
+| 8 | cost_tracker.py:467-469 | O(n) list trimming performance |
+| 9 | google.py:265 | Unbounded execution_history list |
+| 10 | google.py:561-604 | Unbounded recursion in protobuf conversion |
+
+### Positive Security Practices Confirmed
+
+- ✅ HMAC-SHA256 for all cryptographic signing
+- ✅ SHA-256 hash chains for tamper-evident audit
+- ✅ `hmac.compare_digest()` for timing-safe comparison
+- ✅ Frozen dataclasses for immutable types (UserContext, etc.)
+- ✅ No eval/exec/pickle/yaml.load
+- ✅ Proper exception hierarchy (ProxilionError base)
+- ✅ RLock usage for thread safety (most modules)
+- ✅ Bounded collections in security modules (spec-v3 step 2)
+
+---
+
+**Verification Pass 3/3 — 2026-03-23** (Post spec-v3 step 2) ✅ FINAL
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Tests | ✅ PASS | 2,465 passed, 108 skipped, 29 xfailed |
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
 | Lint | ✅ PASS | 0 violations |
-| Format | ✅ PASS | 155 files formatted |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-23** (Post spec-v3 step 2) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-23** (Post spec-v3 step 2) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,518 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
+
+**Verification Pass 3/3 — 2026-03-22** (Post spec-v3 step 1) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-22** (Post spec-v3 step 1) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-22** (Post spec-v3 step 1) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
+
+**Deep Security Review — 2026-03-22** (Post spec-v2 step 17) ✅ FINAL
+
+Parallel reviewer agents completed comprehensive code review across 4 module groups:
+
+| Module Group | P1 | P2 | P3 | Total |
+|--------------|----|----|-----|-------|
+| core.py, decorators.py, exceptions.py | 3 | 5 | 7 | 15 |
+| guards/ (input_guard, output_guard), validation/schema | 7 | 11 | 8 | 26 |
+| security/ (rate_limiter, circuit_breaker, idor) | 3 | 5 | 4 | 12 |
+| audit/ (logger, hash_chain), security/ (intent_capsule, memory_integrity) | 0 | 13 | 8 | 21 |
+| **Total** | **13** | **34** | **27** | **74** |
+
+### Key P1 Critical Findings (Known Limitations)
+
+| # | File:Line | Description |
+|---|-----------|-------------|
+| 1 | core.py:1669-1688 | TOCTOU race in circuit breaker state access |
+| 2 | core.py:1688,1709 | Direct access to private circuit breaker methods |
+| 3 | core.py:143-150 | Context variable pollution risk in multi-tenant |
+| 4 | input_guard.py:138 | ReDoS in instruction_override pattern |
+| 5 | input_guard.py:180 | ReDoS in command_injection pattern |
+| 6 | input_guard.py:68-82 | Unicode homoglyph bypass (documented xfail) |
+| 7 | input_guard.py:138-234 | Delimiter stuffing bypass (documented xfail) |
+| 8 | output_guard.py:308-314 | Credit card spacing bypass |
+| 9 | output_guard.py:126-148 | API key spacing bypass |
+| 10 | schema.py:502-547 | Path traversal detection incomplete |
+| 11 | rate_limiter.py:426-470 | TOCTOU in MultiDimensionalRateLimiter |
+| 12 | rate_limiter.py:97-106 | Integer overflow in token refill |
+| 13 | circuit_breaker.py:230-274 | Half-open count race condition |
+
+### Positive Security Practices Confirmed
+
+- ✅ HMAC-SHA256 for all cryptographic signing
+- ✅ SHA-256 hash chains for tamper-evident audit
+- ✅ `hmac.compare_digest()` for timing-safe comparison
+- ✅ Frozen dataclasses for immutable types
+- ✅ No eval/exec/pickle/yaml.load
+- ✅ Proper exception hierarchy
+- ✅ RLock usage for thread safety
+- ✅ `time.monotonic()` for time-based calculations
+
+---
+
+**Deep Security Review — 2026-03-22** (Post spec-v2 step 18) ✅ CONFIRMED
+
+Parallel reviewer agents re-validated findings across 4 module groups:
+
+| Module Group | P1 | P2 | P3 | Total |
+|--------------|----|----|-----|-------|
+| core.py, decorators.py, exceptions.py, types.py | 5 | 8 | 9 | 22 |
+| guards/ (input_guard, output_guard), validation/ | 4 | 9 | 10 | 23 |
+| security/ (rate_limiter, circuit_breaker, idor, sequence, scope) | 3 | 9 | 11 | 23 |
+| audit/ (logger, hash_chain), security/ (intent_capsule, memory_integrity, agent_trust) | 3 | 5 | 4 | 12 |
+| **Total** | **15** | **31** | **34** | **80** |
+
+Key findings confirmed as known limitations with documented xfail tests.
+
+---
+
+**Verification Pass 3/3 — 2026-03-22** (Post spec-v2 step 18) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-22** (Post spec-v2 step 18) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Verification Pass 1/3 — 2026-03-22** (Post spec-v2 step 18) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+---
+
+**Verification Pass 3/3 — 2026-03-22** (Post spec-v2 step 17) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-22** (Post spec-v2 step 17) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-22** (Post spec-v2 step 17) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
+
+**Deep Security Review — 2026-03-20** (Post spec-v2 step 14)
+
+Parallel reviewer agents completed comprehensive code review across 5 module groups:
+
+| Module | P1 | P2 | P3 | Total |
+|--------|----|----|-----|-------|
+| decorators.py | 2 | 7 | 6 | 15 |
+| core.py | 2 | 4 | 6 | 12 |
+| guards/ | 2 | 4 | 2 | 8 |
+| security/ (rate_limiter, circuit_breaker, idor) | 2 | 5 | 5 | 12 |
+| audit/ (logger, hash_chain) | 6 | 5 | 9 | 20 |
+| **Total** | **14** | **25** | **28** | **67** |
+
+### Key P1 Critical Findings
+
+| # | File:Line | Description |
+|---|-----------|-------------|
+| 1 | decorators.py:242-272 | Race condition in QueueApprovalStrategy request counter |
+| 2 | decorators.py:282-316 | Race condition in async request counter |
+| 3 | input_guard.py:320-395 | No Unicode normalization - bypass via homoglyphs |
+| 4 | output_guard.py:143-148 | OpenAI org keys not detected (sk-org-...) |
+| 5 | rate_limiter.py:457-468 | TOCTOU in MultiDimensionalRateLimiter |
+| 6 | circuit_breaker.py:254-274 | Race in half-open request counting |
+| 7 | logger.py:295-304 | TOCTOU in file rotation (symlink attack) |
+| 8 | logger.py:340-349 | TOCTOU in size-based rotation |
+| 9 | logger.py:357-365 | Race during file rotation rename |
+| 10 | logger.py:293 | Missing fsync() for batch markers |
+| 11 | logger.py:386-396 | File lock held during I/O (deadlock risk) |
+| 12 | core.py:1449 | Auth bypass via policy exception swallowing |
+| 13 | core.py:1688 | Direct access to private CircuitBreaker methods |
+
+### Positive Security Practices Confirmed
+
+- ✅ HMAC-SHA256 for all cryptographic signing
+- ✅ SHA-256 hash chains for tamper-evident audit
+- ✅ Frozen dataclasses for immutable types
+- ✅ No eval/exec/pickle/yaml.load
+- ✅ Proper exception hierarchy
+- ✅ RLock usage for thread safety (when used)
+- ✅ hmac.compare_digest for timing-safe comparison
+
+---
+
+**Deep Security Review — 2026-03-21** (Post spec-v2 step 15)
+
+Parallel reviewer agents completed comprehensive code review across 5 module groups:
+
+| Module | P1 | P2 | P3 | Total |
+|--------|----|----|-----|-------|
+| decorators.py | 2 | 6 | 5 | 13 |
+| guards/ | 6 | 7 | 6 | 19 |
+| security/ (rate_limiter, circuit_breaker) | 2 | 4 | 6 | 12 |
+| audit/ (logger, hash_chain) | 3 | 3 | 1 | 7 |
+| **Total** | **13** | **20** | **18** | **51** |
+
+Key P1 findings (confirmed existing):
+- decorators.py:242-272: Race condition in QueueApprovalStrategy request counter
+- decorators.py:376,406: Unvalidated user input in context dictionary
+- input_guard.py:68-82: No Unicode normalization - homoglyph bypass
+- input_guard.py:138-234: Delimiter stuffing bypass
+- input_guard.py:138,180: ReDoS in instruction_override/command_injection patterns
+- output_guard.py:308-314: Credit card spacing bypass
+- output_guard.py:126-148: API key spacing bypass
+- rate_limiter.py:551-593: TOCTOU in RateLimiterMiddleware
+- rate_limiter.py:83-95: Memory exhaustion via unbounded key storage
+- logger.py:344-349: TOCTOU in file rotation size check
+- logger.py:357-362: Symlink attack in rotation
+- logger.py:390-393: Missing fsync in write path
+
+---
+
+**Verification Pass 3/3 — 2026-03-22** (Post spec-v2 step 16) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-22** (Post spec-v2 step 16) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-22** (Post spec-v2 step 16) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
+
+**Verification Pass 3/3 — 2026-03-21** (Post spec-v2 step 15) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-21** (Post spec-v2 step 15) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-21** (Post spec-v2 step 15) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,517 passed, 122 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 158 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+---
+
+**Verification Pass 3/3 — 2026-03-20** (Post spec-v2 step 14) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 2/3 — 2026-03-20** (Post spec-v2 step 14) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 1/3 — 2026-03-20** (Post spec-v2 step 14) ✅
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Verification Pass 3/3 — 2026-03-19** (Post spec-v2 step 13) ✅ FINAL
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Verification Pass 2/3 — 2026-03-19** (Post spec-v2 step 13)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Verification Pass 1/3 — 2026-03-19** (Post spec-v2 step 13)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found (eval, exec, shell=True, hardcoded secrets, SQL injection) |
+
+**Pass 4/4 — 2026-03-19** (Post spec-v2 step 13)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | Files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Pass 3/3 — 2026-03-19** (Post spec-v2 step 12)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Pass 2/3 — 2026-03-19** (Post spec-v2 step 12)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
+| Security | ✅ PASS | No anti-patterns found |
+
+**Pass 1/3 — 2026-03-19** (Post spec-v2 step 12)
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Tests | ✅ PASS | 2,490 passed, 108 skipped, 29 xfailed |
+| Lint | ✅ PASS | 0 violations |
+| Format | ✅ PASS | 157 files formatted |
 | Security | ✅ PASS | No anti-patterns found |
 
 ---
@@ -155,9 +605,57 @@
 
 ---
 
+## Generator Review — 2026-03-19
+
+### New Files Reviewed
+
+| File | Lines | Finding Count |
+|------|-------|---------------|
+| tests/fixtures/generators.py | 463 | 4 P2, 4 P3 |
+| tests/test_generators.py | 295 | 0 |
+
+### Generator-Specific Findings
+
+| # | Severity | File:Line | Description |
+|---|----------|-----------|-------------|
+| 1 | P2 | generators.py:134-155 | Attack patterns documented in code (acceptable for security SDK) |
+| 2 | P2 | generators.py:164 | Type safety issue in dict assignment |
+| 3 | P2 | generators.py:100-269 | Missing input validation (count<0, attack_ratio bounds) |
+| 4 | P2 | test_generators.py | Missing edge case tests (count=0, count=-1) |
+| 5 | P3 | generators.py:43,120,208,287 | No warning about weak randomness (test-only OK) |
+| 6 | P3 | generators.py:63-67 | Fragile UUID state manipulation |
+| 7 | P3 | generators.py:46-50 | Magic numbers for role distribution |
+| 8 | P3 | generators.py:99-184 | No sanitization warning for attack payloads |
+
+### Positive Findings
+- Deterministic output via seeded random ✓
+- Comprehensive test coverage (25 tests) ✓
+- Proper exports in __init__.py ✓
+- Good docstrings with examples ✓
+
+---
+
 ## Last Updated
 
-2026-03-17 — Deep security review complete. 8 P1, 14 P2, 19 P3 findings documented. Build verification passes 3/3. Codebase is production-ready for non-adversarial environments; P1 findings should be addressed before high-security deployment.
+2026-03-23 — Spec-v3 step 4 complete. Added protobuf recursion depth limit (MAX_PROTOBUF_DEPTH=64) to _convert_protobuf_value() in Google Gemini handler. Raises ConfigurationError if nesting exceeds limit to prevent stack overflow from malicious responses. All 2,518 tests pass.
+
+2026-03-23 — Spec-v3 step 3 complete. Fixed Google Gemini handler unbounded execution history by changing _execution_history from list to deque(maxlen=10000). Added warning docstring to standalone extract_function_calls() noting results are not authorized. All 2,518 tests pass.
+
+2026-03-23 — Spec-v3 step 2 complete. Bounded unbounded collections in security modules: idor_protection.py (max_objects_per_scope=100000), intent_capsule.py (record_tool_call stores only tool_name+timestamp), memory_integrity.py (sign_message enforces max_context_size). All 2,518 tests pass.
+
+2026-03-22 — Spec-v3 step 1 complete. Fixed ObservabilityHooks singleton thread-safety race using double-checked locking.
+
+2026-03-22 — Spec-v2 step 18 complete (FINAL). Final validation passed: ruff lint 0 violations, ruff format 158 files, mypy 0 errors, pytest 2,517 passed. README.md exception hierarchy diagram already present from step 17 preparation. All 18 spec-v2 steps complete. Version 0.0.8 ready for release.
+
+2026-03-22 — Spec-v2 step 17 complete. Updated version to 0.0.8 across pyproject.toml, __init__.py, and CHANGELOG.md. Added comprehensive [0.0.8] changelog entry documenting all spec-v2 improvements. Updated CLAUDE.md test count to 2,667.
+
+2026-03-21 — Spec-v2 step 15 complete. Added tests/test_decorator_combinations.py with 41 test cases covering decorator stacking patterns (@require_approval + @rate_limited, @require_approval + @circuit_protected, triple stacks, async decorator chains, metadata preservation, argument passing). All 2,517 tests pass.
+
+2026-03-20 — Spec-v2 step 14 complete. Updated quickstart.md to document all 9 decorators: added @cost_limited, @enforce_scope, @sequence_validated, @scoped_tool, and @authorize (alias) with usage examples. All 2,490 tests pass.
+
+2026-03-19 — Spec-v2 step 13 complete. Added comprehensive Google-style docstrings to public API surface: UserContext, AgentContext, ToolCallRequest, AuthorizationResult, AuditEvent in types.py; all 8 decorator functions in decorators.py now have Args, Returns, Raises, and Example sections. All 2,490 tests pass.
+
+2026-03-19 — Spec-v2 step 12 complete. Added deterministic sample data generators (generators.py) with 25 verification tests. All 2,490 tests pass. Deep review completed on generators with 4 P2/4 P3 findings (all acceptable for test infrastructure).
 
 **Latest Review (2026-03-17):** Parallel reviewer agents confirmed existing findings. Additional details documented for:
 - ReDoS patterns in input/output guards (input_guard.py:138-234, output_guard.py:217-246)

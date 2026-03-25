@@ -50,7 +50,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from proxilion.exceptions import ConfigurationError
+from proxilion.exceptions import ConfigurationError, ContextIntegrityError
 
 logger = logging.getLogger(__name__)
 
@@ -360,8 +360,17 @@ class MemoryIntegrityGuard:
 
         Returns:
             SignedMessage with cryptographic signature.
+
+        Raises:
+            ContextIntegrityError: If message chain exceeds max_context_size.
         """
         with self._lock:
+            # Enforce max_context_size on sign_message, not just during verification
+            if self._sequence_counter >= self._max_context_size:
+                raise ContextIntegrityError(
+                    f"Message chain exceeds max_context_size ({self._max_context_size})"
+                )
+
             timestamp = time.time()
             sequence = self._sequence_counter
             self._sequence_counter += 1

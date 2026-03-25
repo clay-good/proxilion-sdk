@@ -5,6 +5,36 @@ All notable changes to the Proxilion SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2026-03-22
+
+### Fixed
+- 5 mypy errors in `pydantic_schema.py` (optional dependency import pattern)
+- Documentation reference error: `MemoryIntegrityChecker` → `MemoryIntegrityGuard` in features guide
+- Case-insensitive evasion in input guard regex patterns
+
+### Added
+- Structured error context on 7 security exceptions with fields like `user_id`, `resource`, and `limits`:
+  - `RateLimitExceeded`: `user_id`, `limit`, `current_count`, `window_seconds`, `reset_at`
+  - `CircuitOpenError`: `circuit_name`, `failure_count`, `reset_timeout`
+  - `IDORViolationError`: `user_id`, `resource_type`, `resource_id`
+  - `GuardViolation`: `guard_type`, `matched_patterns`, `risk_score`, `input_preview`
+  - `SequenceViolationError`: `rule_name`, `tool_name`, `user_id`
+  - `BudgetExceededError`: `user_id`, `budget_limit`, `current_spend`
+  - `IntentHijackError`: `tool_name`, `allowed_tools`, `user_id`
+- Full authorization pipeline integration tests (`test_pipeline_integration.py`)
+- Performance benchmark regression suite (`test_benchmarks.py`)
+- Input guard bypass/evasion test suite (`test_guard_bypass.py`)
+- Decorator stacking combination tests (`test_decorator_combinations.py`)
+- Exception unit tests (`test_exceptions.py`)
+- Deterministic sample data generators (`tests/fixtures/generators.py`)
+- Python 3.13 classifier in `pyproject.toml`
+- Comprehensive Google-style docstrings on all public API types and decorators
+- All 9 decorators documented in quickstart guide (`@cost_limited`, `@enforce_scope`, `@sequence_validated`, `@scoped_tool`, `@authorize`)
+
+### Changed
+- Narrowed broad exception catches in 5 security modules (documented catch-alls for user callbacks, specific types for internal logic)
+- Structured exception fields wired to all raise sites in security modules
+
 ## [0.0.7] - 2026-03-14
 
 ### Added

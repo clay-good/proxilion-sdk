@@ -310,6 +310,129 @@ delete_production_database("users")
 # If denied: raises ApprovalDenied
 ```
 
+### @cost_limited
+
+Enforce spending budgets on expensive operations:
+
+```python
+from proxilion import UserContext
+from proxilion.decorators import cost_limited
+from proxilion.security.cost_limiter import CostLimiter, CostLimit
+
+# Create limiter with $10/day budget per user
+limiter = CostLimiter(limits=[
+    CostLimit(max_cost=10.0, period_seconds=86400)
+])
+
+@cost_limited(limiter, estimate_cost=0.05)
+def call_llm(prompt: str, user: UserContext = None):
+    """LLM call costs $0.05 per request."""
+    return client.chat(prompt)
+
+# With dynamic cost estimation based on model
+MODEL_COSTS = {"gpt-4": 0.10, "gpt-3.5": 0.01}
+
+@cost_limited(limiter, estimate_cost=lambda model, **kw: MODEL_COSTS[model])
+def call_model(model: str, prompt: str, user: UserContext = None):
+    """Cost depends on which model is used."""
+    return client.chat(model, prompt)
+
+# Usage
+user = UserContext(user_id="alice", roles=["user"])
+call_llm("Hello", user=user)  # OK, $0.05 deducted
+# After 200 calls: BudgetExceededError (daily limit reached)
+```
+
+### @enforce_scope
+
+Restrict a function to a specific execution scope:
+
+```python
+from proxilion import Proxilion, UserContext
+from proxilion.decorators import enforce_scope
+
+auth = Proxilion()
+
+@enforce_scope(auth, "read_only")
+def handle_user_query(query: str, user: UserContext = None):
+    """Only read operations allowed in this context."""
+    return search_documents(query)
+
+# Usage
+user = UserContext(user_id="alice", roles=["user"])
+handle_user_query("sales report", user=user)  # OK - read operations
+# If search_documents tries to write, raises ScopeViolationError
+```
+
+### @sequence_validated
+
+Validate that tool calls follow defined sequence rules:
+
+```python
+from proxilion import Proxilion, UserContext
+from proxilion.decorators import sequence_validated
+from proxilion.security.sequence_validator import SequenceRule, RuleType
+
+auth = Proxilion()
+
+# Require confirmation before any delete operation
+auth.add_sequence_rule(SequenceRule(
+    rule_name="confirm_before_delete",
+    rule_type=RuleType.REQUIRE_BEFORE,
+    target_pattern="delete_*",
+    required_prior="confirm_*"
+))
+
+@sequence_validated(auth)
+def delete_file(path: str, user: UserContext = None):
+    """Delete file - requires confirm_* call first."""
+    os.remove(path)
+
+# Usage
+user = UserContext(user_id="alice", roles=["user"])
+delete_file("/data/file.txt", user=user)
+# Raises SequenceViolationError if confirm_delete wasn't called first
+```
+
+### @scoped_tool
+
+Declare the execution scope required for a tool:
+
+```python
+from proxilion import Proxilion, UserContext
+from proxilion.decorators import enforce_scope, scoped_tool
+
+auth = Proxilion()
+
+@scoped_tool(auth, action="delete")
+def delete_user(user_id: str, user: UserContext = None, _scope_context=None):
+    """Delete operation - only allowed in admin scope."""
+    remove_user_from_db(user_id)
+
+@enforce_scope(auth, "read_only")
+def read_only_handler(user: UserContext = None):
+    delete_user("123", user=user)  # Raises ScopeViolationError
+
+@enforce_scope(auth, "admin")
+def admin_handler(user: UserContext = None):
+    delete_user("123", user=user)  # OK - admin scope allows delete
+```
+
+### @authorize (alias)
+
+Shorthand alias for `@authorize_tool_call`:
+
+```python
+from proxilion import Proxilion, UserContext
+from proxilion.decorators import authorize  # Same as authorize_tool_call
+
+auth = Proxilion()
+
+@authorize(auth, action="execute", resource="search")
+async def search(query: str, user: UserContext = None):
+    return await perform_search(query)
+```
+
 ### Combining Decorators
 
 Stack decorators for multi-layered protection:

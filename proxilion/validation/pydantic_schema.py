@@ -19,11 +19,13 @@ from proxilion.validation.schema import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from pydantic import BaseModel, ValidationError, create_model
+    from pydantic.fields import FieldInfo
+    from pydantic_core import PydanticUndefined
 
 logger = logging.getLogger(__name__)
 
-# Check if Pydantic is available
+# Check if Pydantic is available at runtime
 try:
     from pydantic import BaseModel, ValidationError, create_model
     from pydantic.fields import FieldInfo
@@ -32,8 +34,11 @@ try:
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False
-    BaseModel = None  # type: ignore[assignment, misc]
-    ValidationError = None  # type: ignore[assignment, misc]
+    BaseModel = None
+    ValidationError = None
+    create_model = None
+    FieldInfo = None
+    PydanticUndefined = None
 
 
 class PydanticSchemaValidator(SchemaValidator):
@@ -283,7 +288,7 @@ class PydanticSchemaValidator(SchemaValidator):
         if model is None:
             return None
 
-        return model.model_json_schema()
+        return cast(dict[str, Any], model.model_json_schema())
 
     def create_model_from_schema(
         self,

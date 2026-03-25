@@ -1376,3 +1376,419 @@ sequenceDiagram
     CP-->>Caller: return result
 ```
 
+---
+
+## Architecture Diagrams
+
+### Authorization Flow
+
+The complete authorization pipeline from request to response, showing the deterministic security gate ordering and exception paths at each stage.
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{Input Guard}
+    B -->|pass| C{Rate Limiter}
+    B -->|fail| B1[InputGuardViolation]
+    C -->|pass| D{IDOR Check}
+    C -->|fail| C1[RateLimitExceeded]
+    D -->|pass| E{Schema Validation}
+    D -->|fail| D1[IDORViolationError]
+    E -->|pass| F{Policy Engine}
+    E -->|fail| E1[SchemaValidationError]
+    F -->|pass| G{Output Guard}
+    F -->|fail| F1[PolicyViolation]
+    G -->|pass| H[Authorized Response]
+    G -->|fail| G1[OutputGuardViolation]
+
+    style A fill:#e3f2fd
+    style H fill:#c8e6c9
+    style B1 fill:#ffcdd2
+    style C1 fill:#ffcdd2
+    style D1 fill:#ffcdd2
+    style E1 fill:#ffcdd2
+    style F1 fill:#ffcdd2
+    style G1 fill:#ffcdd2
+```
+
+### Module Dependency Architecture
+
+Package-level dependency graph showing how the SDK layers compose. Core orchestrates all security modules; contrib and streaming build on top.
+
+```mermaid
+graph LR
+    core[core.py] --> engines[engines/]
+    core --> policies[policies/]
+    core --> security[security/]
+    core --> guards[guards/]
+    core --> audit[audit/]
+    core --> providers[providers/]
+    core --> resilience[resilience/]
+    core --> context[context/]
+    core --> validation[validation/]
+    core --> observability[observability/]
+
+    contrib[contrib/] --> core
+    contrib --> providers
+    contrib --> guards
+
+    streaming[streaming/] --> core
+    caching[caching/] --> core
+    scheduling[scheduling/] --> core
+    timeouts[timeouts/] --> core
+    decorators[decorators.py] --> core
+    decorators --> security
+    decorators --> guards
+
+    security --> types[types.py]
+    guards --> types
+    audit --> types
+    core --> types
+    core --> exceptions[exceptions.py]
+
+    style core fill:#e3f2fd
+    style types fill:#fff3e0
+    style exceptions fill:#fff3e0
+    style security fill:#ffecb3
+    style guards fill:#ffecb3
+    style audit fill:#ffecb3
+```
+
+### Exception Hierarchy
+
+All exceptions inherit from ProxilionError. Each maps to a specific security gate failure, enabling precise error handling by consumers.
+
+```mermaid
+classDiagram
+    class ProxilionError {
+        +str message
+        +Optional~str~ session_id
+        +Optional~str~ timestamp
+        +dict context
+    }
+    class AuthorizationError
+    class RateLimitExceeded
+    class CircuitOpenError
+    class InputGuardViolation
+    class OutputGuardViolation
+    class PolicyViolation
+    class PolicyNotFoundError
+    class SchemaValidationError
+    class IDORViolationError
+    class ApprovalRequiredError
+
+    ProxilionError <|-- AuthorizationError
+    ProxilionError <|-- RateLimitExceeded
+    ProxilionError <|-- CircuitOpenError
+    ProxilionError <|-- InputGuardViolation
+    ProxilionError <|-- OutputGuardViolation
+    ProxilionError <|-- PolicyViolation
+    ProxilionError <|-- PolicyNotFoundError
+    ProxilionError <|-- SchemaValidationError
+    ProxilionError <|-- IDORViolationError
+    ProxilionError <|-- ApprovalRequiredError
+```
+
+### Agent Secret Derivation (On-Demand)
+
+Agent secrets are derived on demand from the master key and agent ID using HMAC-SHA256. No agent secret is stored in memory, reducing the blast radius of a memory dump.
+
+```mermaid
+flowchart TD
+    A[Master Secret Key] --> B[HMAC-SHA256]
+    C[Agent ID] --> B
+    B --> D[Derived Agent Secret]
+    D --> E{Operation}
+    E -->|Sign message| F[HMAC-SHA256 Signature]
+    E -->|Create token| G[Delegation Token]
+    E -->|Verify| H[Signature Check]
+
+    I[AgentCredential] -.->|"_secret field REMOVED"| J[No stored secrets]
+
+    style A fill:#ffecb3
+    style D fill:#e1f5fe
+    style J fill:#c8e6c9
+    style I fill:#ffcdd2
+```
+
+### Data Leakage Prevention: Match Truncation Pipeline
+
+Both InputGuard and OutputGuard truncate matched text before returning results, preventing sensitive data from leaking into application logs, monitoring systems, or error responses.
+
+```mermaid
+flowchart LR
+    A[Raw Match Text] --> B{Length}
+    B -->|"<= 4 chars"| C["[REDACTED]"]
+    B -->|"5-8 chars"| D["ab...z<br/>(reveal max 3 chars)"]
+    B -->|"9-20 chars"| E["ab...z<br/>(reveal max 3 chars)"]
+    B -->|"> 20 chars"| F["abcd...yz<br/>(reveal max 6 chars)"]
+
+    G[GuardResult.matches] --> H[Application Logs]
+    G --> I[Monitoring / SIEM]
+    G --> J[Error Responses]
+
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+
+    style C fill:#c8e6c9
+    style D fill:#c8e6c9
+    style E fill:#c8e6c9
+    style F fill:#c8e6c9
+    style A fill:#ffcdd2
+```
+
+### Thread Safety: QueueApprovalStrategy Lock Protocol
+
+All shared state mutations in QueueApprovalStrategy are protected by a threading.Lock. The lock is held only during counter increment and dict mutations, never during external callbacks.
+
+```mermaid
+sequenceDiagram
+    participant T1 as Thread 1
+    participant T2 as Thread 2
+    participant QA as QueueApprovalStrategy
+    participant Lock as self._lock
+
+    T1->>QA: request_approval()
+    T1->>Lock: acquire()
+    Note over QA: counter++ -> req_1<br/>_pending[req_1] = ...
+    T1->>Lock: release()
+
+    T2->>QA: request_approval()
+    T2->>Lock: acquire()
+    Note over QA: counter++ -> req_2<br/>_pending[req_2] = ...
+    T2->>Lock: release()
+
+    Note over T1,T2: Both threads get unique IDs
+```
+
+---
+
+## Architecture Diagrams
+
+### Authorization Flow
+
+```mermaid
+flowchart TD
+    A[Tool Call Request] --> B[InputGuard.check]
+    B --> C{Injection Detected?}
+    C -- Yes --> D[DENY + AuditEvent]
+    C -- No --> E[RateLimiter.allow_request]
+    E --> F{Rate Limit Exceeded?}
+    F -- Yes --> G[DENY + AuditEvent]
+    F -- No --> H[PolicyEngine.evaluate]
+    H --> I{Policy Denied?}
+    I -- Yes --> J[DENY + AuditEvent]
+    I -- No --> K[Execute Tool Call]
+    K --> L[OutputGuard.check]
+    L --> M{Leakage Detected?}
+    M -- Yes --> N[DENY + AuditEvent]
+    M -- No --> O[ALLOW + AuditEvent]
+```
+
+### Module Dependency Graph
+
+```mermaid
+graph TD
+    core[core.py] --> engines[engines/]
+    core --> policies[policies/]
+    core --> security[security/]
+    core --> guards[guards/]
+    core --> audit[audit/]
+    core --> types[types.py]
+    core --> exceptions[exceptions.py]
+
+    decorators[decorators.py] --> core
+    decorators --> types
+
+    contrib[contrib/] --> core
+    contrib --> types
+    contrib --> providers[providers/]
+
+    guards --> types
+    audit --> types
+    audit --> exceptions
+
+    security --> types
+    security --> exceptions
+
+    streaming[streaming/] --> guards
+    streaming --> types
+
+    validation[validation/] --> types
+    validation --> exceptions
+
+    observability[observability/] --> types
+    observability --> audit
+```
+
+### Security Decision Pipeline
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Proxilion
+    participant InputGuard
+    participant RateLimiter
+    participant PolicyEngine
+    participant OutputGuard
+    participant AuditLogger
+
+    Caller->>Proxilion: authorize_tool_call(user, agent, request)
+    Proxilion->>InputGuard: check(request.parameters)
+    InputGuard-->>Proxilion: GuardResult
+
+    alt Injection Detected
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>RateLimiter: allow_request(user_id)
+    RateLimiter-->>Proxilion: allowed / denied
+
+    alt Rate Limit Exceeded
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>PolicyEngine: evaluate(user, request)
+    PolicyEngine-->>Proxilion: PolicyResult
+
+    alt Policy Denied
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>OutputGuard: check(response)
+    OutputGuard-->>Proxilion: GuardResult
+
+    alt Leakage Detected
+        Proxilion->>AuditLogger: log(deny_event)
+        Proxilion-->>Caller: AuthorizationResult(allowed=False)
+    end
+
+    Proxilion->>AuditLogger: log(allow_event)
+    Proxilion-->>Caller: AuthorizationResult(allowed=True)
+```
+
+### Security Decision Pipeline (Deterministic)
+
+Every security decision follows this deterministic pipeline. Zero LLM inference. Zero ML models. Same input always produces same output.
+
+```mermaid
+flowchart LR
+    subgraph InputPhase[Input Phase]
+        A[Tool Call Request] --> B[Input Guard]
+        B --> B1{Prompt Injection?}
+        B1 -->|Yes| DENY1[DENY + Audit]
+        B1 -->|No| C[Schema Validation]
+        C --> C1{Path Traversal?}
+        C1 -->|Yes| DENY2[DENY + Audit]
+        C1 -->|No| C2{SQL Injection?}
+        C2 -->|Yes| DENY3[DENY + Audit]
+        C2 -->|No| D[Rate Limiter]
+    end
+
+    subgraph AuthPhase[Authorization Phase]
+        D --> D1{Token Bucket?}
+        D1 -->|Exhausted| DENY4[DENY + Audit]
+        D1 -->|Available| E[Policy Engine]
+        E --> E1{Role Check}
+        E1 -->|Denied| DENY5[DENY + Audit]
+        E1 -->|Allowed| F[IDOR Protection]
+        F --> F1{Ownership?}
+        F1 -->|Violation| DENY6[DENY + Audit]
+        F1 -->|Valid| G[Circuit Breaker]
+    end
+
+    subgraph ExecutionPhase[Execution Phase]
+        G --> G1{Circuit State}
+        G1 -->|Open| DENY7[DENY + Audit]
+        G1 -->|Closed| H[Scope Enforcement]
+        H --> H1{In Scope?}
+        H1 -->|No| DENY8[DENY + Audit]
+        H1 -->|Yes| I[Intent Capsule]
+        I --> I1{HMAC Valid?}
+        I1 -->|No| DENY9[DENY + Audit]
+        I1 -->|Yes| J[Execute Tool]
+    end
+
+    subgraph OutputPhase[Output Phase]
+        J --> K[Output Guard]
+        K --> K1{Credential Leak?}
+        K1 -->|Yes| L[Redact + Audit]
+        K1 -->|No| M[Return Result]
+        L --> M
+        M --> N[Audit Log + Hash Chain]
+    end
+```
+
+### Complete Module Inventory (89 source files, 54,375 lines)
+
+```mermaid
+graph TB
+    subgraph CoreLayer[Core Layer - 4 modules]
+        CORE[core.py<br/>3,126 lines]
+        TYPES[types.py<br/>392 lines]
+        EXCEPT[exceptions.py<br/>1,065 lines]
+        DECOR[decorators.py<br/>1,140 lines]
+    end
+
+    subgraph SecurityLayer[Security Layer - 14 modules]
+        RATE[rate_limiter.py]
+        CB[circuit_breaker.py]
+        IDOR[idor_protection.py]
+        SEQ[sequence_validator.py]
+        INTENT[intent_capsule.py]
+        MEM[memory_integrity.py]
+        AGENT[agent_trust.py]
+        DRIFT[behavioral_drift.py]
+        CASCADE[cascade_protection.py]
+        SCOPE[scope_enforcement.py]
+        COST_LIM[cost_limiter.py]
+        KEY[_key_utils.py]
+    end
+
+    subgraph GuardLayer[Guard Layer - 2 modules]
+        INGUARD[input_guard.py<br/>Prompt Injection]
+        OUTGUARD[output_guard.py<br/>Data Leakage]
+    end
+
+    subgraph AuditLayer[Audit Layer - 17 modules]
+        LOGGER[logger.py]
+        HASH[hash_chain.py]
+        COMPLY[compliance/]
+        EXPORT[exporters/<br/>S3, Azure, GCP]
+    end
+
+    subgraph EngineLayer[Engine Layer - 3 modules]
+        SIMPLE[simple.py]
+        CASBIN[casbin_engine.py]
+        OPA[opa_engine.py]
+    end
+
+    subgraph IntegrationLayer[Integration Layer - 11 modules]
+        PROV[providers/<br/>OpenAI, Anthropic, Gemini]
+        CONTRIB[contrib/<br/>OpenAI, Anthropic,<br/>Google, LangChain, MCP]
+    end
+
+    subgraph InfraLayer[Infrastructure Layer - 12 modules]
+        RESIL[resilience/<br/>retry, fallback,<br/>degradation]
+        STREAM[streaming/<br/>transformer, detector]
+        CTX[context/<br/>session, window]
+        CACHE[caching/<br/>LRU, LFU, FIFO]
+        VALID[validation/<br/>schema, pydantic]
+        TIMEOUT[timeouts/]
+        SCHED[scheduling/]
+        OBS[observability/<br/>cost, metrics,<br/>hooks, session]
+    end
+
+    CORE --> SecurityLayer
+    CORE --> GuardLayer
+    CORE --> AuditLayer
+    CORE --> EngineLayer
+    DECOR --> SecurityLayer
+    IntegrationLayer --> CORE
+    InfraLayer --> CORE
+```
+

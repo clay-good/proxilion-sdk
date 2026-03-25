@@ -321,24 +321,37 @@ def require_approval(
     reason_param: str = "approval_reason",
     user_param: str = "user",
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator that requires approval before executing a function.
+    """Decorator that requires approval before executing a function.
 
     For high-risk operations that need human-in-the-loop approval.
+    The decorated function will only execute if the approval strategy
+    grants approval.
 
     Args:
-        strategy: The approval strategy to use (default: AlwaysDenyStrategy).
-        reason_param: Parameter name to pass approval reason.
-        user_param: Parameter name containing UserContext.
+        strategy: The approval strategy to use. Defaults to AlwaysDenyStrategy,
+            which denies all requests (fail-safe default for sensitive operations).
+        reason_param: Parameter name to pass approval reason to the function.
+        user_param: Parameter name containing the UserContext object.
 
     Returns:
-        A decorator function.
+        A decorator function that wraps the original function with approval logic.
+
+    Raises:
+        AuthorizationError: If no UserContext is provided via user_param,
+            or if approval is denied or times out.
 
     Example:
-        >>> @require_approval(strategy=QueueApprovalStrategy())
+        >>> from proxilion import UserContext
+        >>> from proxilion.decorators import require_approval, QueueApprovalStrategy
+        >>>
+        >>> strategy = QueueApprovalStrategy(timeout=60.0)
+        >>>
+        >>> @require_approval(strategy=strategy)
         ... async def delete_all_data(user: UserContext = None):
-        ...     # Only runs if approved
         ...     await perform_deletion()
+        ...
+        >>> # In another thread/process, admin approves:
+        >>> # strategy.approve("req_1")
     """
     if strategy is None:
         strategy = AlwaysDenyStrategy()
@@ -415,8 +428,7 @@ def authorize_tool_call(
     resource: str | None = None,
     user_param: str = "user",
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Standalone decorator for authorizing tool calls.
+    """Standalone decorator for authorizing tool calls.
 
     This is an alternative to using the `@auth.authorize()` method
     when you need to decorate functions without having a reference
@@ -424,15 +436,22 @@ def authorize_tool_call(
 
     Args:
         proxilion: The Proxilion instance to use for authorization.
-        action: The action being performed.
-        resource: The resource name (defaults to function name).
-        user_param: Parameter name containing UserContext.
+        action: The action being performed (e.g., "execute", "read", "write").
+            Defaults to "execute".
+        resource: The resource name for policy evaluation.
+            Defaults to the decorated function's name.
+        user_param: Parameter name containing the UserContext object.
 
     Returns:
-        A decorator function.
+        A decorator function that wraps the original with authorization checks.
+
+    Raises:
+        AuthorizationError: If the user is not authorized for the action/resource.
+        RateLimitExceeded: If rate limiting is configured and limit is exceeded.
+        InputGuardViolation: If input guard is configured and detects injection.
 
     Example:
-        >>> from proxilion import Proxilion
+        >>> from proxilion import Proxilion, UserContext
         >>> from proxilion.decorators import authorize_tool_call
         >>>
         >>> auth = Proxilion()
@@ -440,6 +459,9 @@ def authorize_tool_call(
         >>> @authorize_tool_call(auth, action="execute", resource="search")
         ... async def search(query: str, user: UserContext = None):
         ...     return await perform_search(query)
+        ...
+        >>> user = UserContext(user_id="alice", roles=["analyst"])
+        >>> result = await search("test query", user=user)
     """
     return cast(
         Callable[[Callable[P, T]], Callable[P, T]],
@@ -457,25 +479,39 @@ def rate_limited(
     user_param: str = "user",
     key_func: Callable[[dict[str, Any]], str] | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Standalone rate limiting decorator.
+    """Standalone rate limiting decorator using token bucket algorithm.
 
     Apply rate limiting to a function without using the full
-    Proxilion authorization flow.
+    Proxilion authorization flow. Uses a per-user token bucket that
+    refills over time.
 
     Args:
-        capacity: Maximum tokens in bucket.
-        refill_rate: Tokens added per second.
-        user_param: Parameter name containing UserContext.
-        key_func: Custom function to extract rate limit key.
+        capacity: Maximum tokens in the bucket. Each call consumes 1 token.
+            Defaults to 100.
+        refill_rate: Tokens added per second. Defaults to 10.0.
+        user_param: Parameter name containing UserContext for extracting user_id.
+        key_func: Custom function to extract rate limit key from kwargs.
+            If provided, overrides user_param extraction.
 
     Returns:
-        A decorator function.
+        A decorator function that wraps the original with rate limiting.
+
+    Raises:
+        RateLimitExceeded: If the rate limit is exceeded. The exception includes
+            user_id, limit, current_count, and retry_after information.
 
     Example:
+        >>> from proxilion import UserContext
+        >>> from proxilion.decorators import rate_limited
+        >>>
         >>> @rate_limited(capacity=10, refill_rate=1.0)
         ... async def expensive_operation(user: UserContext = None):
         ...     return await perform_operation()
+        ...
+        >>> # Or with custom key extraction:
+        >>> @rate_limited(capacity=5, key_func=lambda kw: kw.get("api_key", "anon"))
+        ... def api_call(api_key: str, data: dict):
+        ...     return call_api(data)
     """
     from proxilion.exceptions import RateLimitExceeded
     from proxilion.security.rate_limiter import TokenBucketRateLimiter
@@ -549,23 +585,41 @@ def circuit_protected(
     failure_threshold: int = 5,
     reset_timeout: float = 30.0,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Standalone circuit breaker decorator.
+    """Standalone circuit breaker decorator.
 
     Wrap a function with circuit breaker protection to prevent
-    cascading failures.
+    cascading failures. The circuit opens after consecutive failures
+    and rejects calls until the reset timeout elapses.
+
+    Circuit states:
+    - CLOSED: Normal operation, calls pass through
+    - OPEN: Failures exceeded threshold, calls rejected immediately
+    - HALF_OPEN: Reset timeout elapsed, allowing one test call
 
     Args:
-        failure_threshold: Failures before opening circuit.
-        reset_timeout: Seconds before attempting reset.
+        failure_threshold: Number of consecutive failures before opening
+            the circuit. Defaults to 5.
+        reset_timeout: Seconds to wait before attempting to close the circuit.
+            Defaults to 30.0.
 
     Returns:
-        A decorator function.
+        A decorator function that wraps the original with circuit breaker logic.
+
+    Raises:
+        CircuitOpenError: If the circuit is open and rejecting calls.
+            The exception includes circuit_name, failure_count, and reset_timeout.
+        Exception: Re-raises any exception from the wrapped function
+            (which also increments the failure counter).
 
     Example:
+        >>> from proxilion.decorators import circuit_protected
+        >>>
         >>> @circuit_protected(failure_threshold=3, reset_timeout=60.0)
         ... async def external_api_call():
         ...     return await call_external_api()
+        ...
+        >>> # After 3 consecutive failures, further calls raise CircuitOpenError
+        >>> # until 60 seconds have passed
     """
     from proxilion.security.circuit_breaker import CircuitBreaker
 
@@ -603,33 +657,48 @@ def sequence_validated(
     user_param: str = "user",
     record_on_success: bool = True,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator that validates tool call sequence before execution.
+    """Decorator that validates tool call sequence before execution.
 
     Validates the tool call against sequence rules configured in the
-    Proxilion instance. If validation fails, raises SequenceViolationError.
+    Proxilion instance. Use this to enforce that certain tools must be
+    called before others (e.g., confirm before delete) or that certain
+    sequences are forbidden.
 
     Args:
-        proxilion: The Proxilion instance with sequence validator.
-        tool_name: Tool name to use (defaults to function name).
-        user_param: Parameter name containing UserContext.
-        record_on_success: Whether to record the call after successful execution.
+        proxilion: The Proxilion instance with sequence validator configured.
+        tool_name: Tool name to use for validation. Defaults to the
+            decorated function's name.
+        user_param: Parameter name containing the UserContext object.
+        record_on_success: Whether to record the call in the sequence history
+            after successful execution. Defaults to True.
 
     Returns:
-        A decorator function.
+        A decorator function that validates sequences before execution.
+
+    Raises:
+        AuthorizationError: If no UserContext is provided via user_param.
+        SequenceViolationError: If the tool call violates a sequence rule.
+            The exception includes rule_name, tool_name, user_id,
+            required_prior, forbidden_prior, and violation_type.
 
     Example:
-        >>> from proxilion import Proxilion
+        >>> from proxilion import Proxilion, UserContext
         >>> from proxilion.decorators import sequence_validated
+        >>> from proxilion.security.sequence_validator import SequenceRule, RuleType
         >>>
         >>> auth = Proxilion()
+        >>> auth.add_sequence_rule(SequenceRule(
+        ...     rule_name="confirm_before_delete",
+        ...     rule_type=RuleType.REQUIRE_BEFORE,
+        ...     target_pattern="delete_*",
+        ...     required_prior="confirm_*"
+        ... ))
         >>>
         >>> @sequence_validated(auth, tool_name="delete_file")
         ... def delete_file(path: str, user: UserContext = None):
         ...     os.remove(path)
         ...
-        >>> # Will fail if confirm_* wasn't called first
-        >>> delete_file("/path/to/file", user=user)
+        >>> # Raises SequenceViolationError if confirm_* wasn't called first
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
@@ -728,34 +797,44 @@ def enforce_scope(
     user_param: str = "user",
     action: str = "execute",
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator that enforces execution scope on a function.
+    """Decorator that enforces execution scope on a function.
 
     All tool calls within the decorated function must comply with
-    the specified scope's restrictions (read_only, read_write, admin).
+    the specified scope's restrictions. Use this to create bounded
+    execution contexts where only certain operations are allowed.
+
+    Scope levels:
+    - "read_only": Only read operations allowed
+    - "read_write": Read and write operations allowed
+    - "admin": All operations including destructive ones
 
     Args:
-        proxilion: The Proxilion instance with scope enforcer.
-        scope: Scope name or ExecutionScope enum.
-        user_param: Parameter name containing UserContext.
-        action: Default action to validate against.
+        proxilion: The Proxilion instance with scope enforcer configured.
+        scope: Scope name (string) or ExecutionScope enum value.
+        user_param: Parameter name containing the UserContext object.
+        action: Default action type for validation. Defaults to "execute".
 
     Returns:
-        A decorator function.
+        A decorator function that establishes a scope context.
+
+    Raises:
+        AuthorizationError: If no UserContext is provided via user_param.
+        ScopeViolationError: If a tool call within the function violates
+            the established scope restrictions.
 
     Example:
-        >>> from proxilion import Proxilion
-        >>> from proxilion.decorators import enforce_scope
-        >>> from proxilion.security.scope_enforcer import ExecutionScope
+        >>> from proxilion import Proxilion, UserContext
+        >>> from proxilion.decorators import enforce_scope, scoped_tool
         >>>
         >>> auth = Proxilion()
         >>>
         >>> @enforce_scope(auth, "read_only")
         ... def handle_user_query(query: str, user: UserContext = None):
-        ...     # Any tool calls here must be read-only
+        ...     # Only read operations allowed in this context
         ...     return get_user_data(query)
         ...
-        >>> # If this function calls delete_user, it will raise ScopeViolationError
+        >>> # If get_user_data is marked as a write operation via @scoped_tool,
+        >>> # it will raise ScopeViolationError
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
@@ -820,27 +899,42 @@ def scoped_tool(
     user_param: str = "user",
     scope_context_param: str = "_scope_context",
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator that validates a tool call against the current scope context.
+    """Decorator that validates a tool call against the current scope context.
 
     Use this decorator on individual tool functions to validate them
-    against the scope established by @enforce_scope.
+    against the scope established by @enforce_scope. This enables
+    fine-grained access control based on the current execution context.
 
     Args:
-        proxilion: The Proxilion instance with scope enforcer.
-        tool_name: Tool name (defaults to function name).
-        action: Action being performed.
-        user_param: Parameter name containing UserContext.
-        scope_context_param: Parameter name for scope context.
+        proxilion: The Proxilion instance with scope enforcer configured.
+        tool_name: Tool name for validation. Defaults to function name.
+        action: Action type being performed (e.g., "read", "write", "delete").
+            Defaults to "execute".
+        user_param: Parameter name containing the UserContext object.
+        scope_context_param: Parameter name for receiving the scope context
+            from @enforce_scope. Defaults to "_scope_context".
 
     Returns:
-        A decorator function.
+        A decorator function that validates against current scope.
+
+    Raises:
+        ScopeViolationError: If the tool's action is not allowed in the
+            current scope context.
 
     Example:
+        >>> from proxilion import Proxilion, UserContext
+        >>> from proxilion.decorators import enforce_scope, scoped_tool
+        >>>
+        >>> auth = Proxilion()
+        >>>
         >>> @scoped_tool(auth, action="delete")
         ... def delete_user(user_id: str, user: UserContext = None, _scope_context=None):
-        ...     # Will be validated against current scope
-        ...     ...
+        ...     # This will only succeed if called within an admin scope
+        ...     remove_user_from_db(user_id)
+        ...
+        >>> @enforce_scope(auth, "read_only")
+        ... def read_only_handler(user: UserContext = None):
+        ...     delete_user("123", user=user)  # Raises ScopeViolationError
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
@@ -881,32 +975,47 @@ def cost_limited(
     user_param: str = "user",
     record_actual: bool = True,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator that enforces cost limits on a function.
+    """Decorator that enforces cost/budget limits on a function.
 
     Checks cost limits before execution and optionally records
-    actual cost after execution.
+    actual cost after execution. Use this to prevent runaway spending
+    on expensive operations like LLM API calls.
 
     Args:
-        limiter: CostLimiter or HybridRateLimiter instance.
-        estimate_cost: Fixed cost estimate or callable to estimate cost from args.
-        user_param: Parameter name containing UserContext.
+        limiter: CostLimiter or HybridRateLimiter instance configured
+            with budget limits.
+        estimate_cost: Cost estimate for each call. Can be a fixed float
+            value or a callable that receives function arguments and
+            returns a cost estimate. Defaults to 0.01.
+        user_param: Parameter name containing UserContext for extracting
+            user_id for per-user budgets.
         record_actual: Whether to record actual cost after execution.
+            Defaults to True.
 
     Returns:
-        A decorator function.
+        A decorator function that enforces budget limits.
+
+    Raises:
+        BudgetExceededError: If the estimated cost would exceed the user's
+            budget limit. The exception includes user_id, budget_limit,
+            current_spend, and estimated_cost.
 
     Example:
-        >>> from proxilion.security.cost_limiter import CostLimiter
+        >>> from proxilion import UserContext
+        >>> from proxilion.security.cost_limiter import CostLimiter, CostLimit
         >>> from proxilion.decorators import cost_limited
         >>>
-        >>> limiter = CostLimiter(limits=[...])
+        >>> limiter = CostLimiter(limits=[
+        ...     CostLimit(max_cost=10.0, period_seconds=86400)  # $10/day
+        ... ])
         >>>
         >>> @cost_limited(limiter, estimate_cost=0.05)
         ... def call_llm(prompt: str, user: UserContext = None):
         ...     return client.chat(prompt)
         ...
-        >>> # Or with dynamic estimation
+        >>> # Or with dynamic cost estimation based on model:
+        >>> MODEL_COSTS = {"gpt-4": 0.10, "gpt-3.5": 0.01}
+        >>>
         >>> @cost_limited(limiter, estimate_cost=lambda model, **kw: MODEL_COSTS[model])
         ... def call_model(model: str, prompt: str, user: UserContext = None):
         ...     return client.chat(model, prompt)
