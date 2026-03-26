@@ -63,6 +63,9 @@ packages = ["proxilion"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 xfail_strict = true
+markers = [
+    "benchmark: performance benchmark tests",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
